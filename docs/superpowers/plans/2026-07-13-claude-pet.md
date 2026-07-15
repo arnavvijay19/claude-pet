@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build a small always-on-top Electron desktop pet ("Post-Hoc Banana Baron") for the Claude Code Desktop app, running on the user's real Claude account (isolated from his freemodel.dev-routed CLI), that plays an idle animation, accepts prompts from a local terminal or by dragging a file onto it, and shows Claude's reply in a speech bubble.
+**Goal:** Build a small always-on-top Electron desktop pet ("Post-Hoc Banana Baron") for the Claude Code Desktop app, running on the user's real Claude account (isolated from his freemodel.dev-routed CLI), that plays an idle animation, accepts prompts from a local terminal or by dragging it into apps / files and prompting it there, and shows the Companion's replies in a speech bubble or enlargable UI.  
 
 **Architecture:** Electron shell (main process owns a frameless transparent always-on-top `BrowserWindow` + system tray + a loopback-only HTTP prompt server); the renderer is a vanilla-JS canvas sprite player reading a small `pet.json` manifest. Prompts (from drag-drop or the local HTTP endpoint) are forwarded to a `claudeClient` module that spawns the `claude` CLI as a child process with an **isolated config directory** (`CLAUDE_CONFIG_DIR`) so it authenticates as the user's own Claude account instead of inheriting his freemodel.dev environment.
 
@@ -13,6 +13,7 @@
 - **Usage discipline (user's explicit instruction — "push Fable 5 to the best of its ability but not waste my usage"):** ship the MVP using only the two sprite rows that already exist (`base`, `idle`); do not call any image-generation tool as part of this plan. Generating the remaining 7 animation rows (`running-right`, `waving`, `jumping`, `failed`, `waiting`, `running`, `review`) is Task 8, explicitly marked deferred/optional — only execute it if the user asks, and even then follow the guardrails already written into `HANDOFF_FOR_CLAUDE.md` (small 255KB reference image, one row at a time, mirror `running-left` from `running-right` instead of generating it).
 - **No new dependencies beyond Electron itself and Pillow** (both already needed/available) — no state-management libraries, no UI frameworks, no HTTP frameworks.
 - **Must not touch or import the freemodel.dev-routed CLI's credentials.** This pet authenticates independently — verified explicitly in Task 6 rather than assumed.
+- **ToS / account-safety compliance (spec: "Compliance & account safety"):** the real Claude account is used only via the official CLI, one prompt at a time, always user-initiated — no concurrent sessions, no automated prompt loops, no scheduled/autonomous prompting, no automated OAuth. The real-account path must never route through freemodel.dev or any similar proxy; `CLAUDE_CONFIG_DIR` isolation is for credential *separation* only, never for multiplying usage or dodging limits. No OpenAI/Codex code, assets, or branding may be copied — only the folder-layout convention is mirrored, and the only art is the user's own hatch-pet sprite. If any task would require breaking one of these, stop and ask the user instead.
 - **Windows-only.** Machine is Ryzen 5 2600 / GTX 1660 Ti / 16GB (`machine-specs` memory); no cross-platform code paths needed.
 - **Visual identity to preserve in any future-generated frames (Task 8):** pixel-art mischievous monkey, black sunglasses, banana, money bundle/bills, magenta `#FF00FF` background, no text/logos/shadows/speed-lines — see `Arnav Vijay/.hatch-pet-runs/post-hoc-banana-baron/prompts/rows/*.md` for the exact per-row prompts already written.
 
@@ -53,6 +54,7 @@ SOURCE_IDLE = (
 def test_extract_mvp_sprite_produces_expected_atlas(tmp_path):
     out_png = tmp_path / "spritesheet-mvp.png"
     out_json = tmp_path / "pet.json"
+    out_icon = tmp_path / "tray-icon.png"
 
     result = subprocess.run(
         [
@@ -64,6 +66,8 @@ def test_extract_mvp_sprite_produces_expected_atlas(tmp_path):
             str(out_png),
             "--output-json",
             str(out_json),
+            "--output-tray-icon",
+            str(out_icon),
         ],
         capture_output=True,
         text=True,
@@ -72,6 +76,9 @@ def test_extract_mvp_sprite_produces_expected_atlas(tmp_path):
 
     with Image.open(out_png) as atlas:
         assert atlas.size == (192 * 6, 208)
+
+    with Image.open(out_icon) as icon:
+        assert icon.size == (32, 32)
 
     manifest = json.loads(out_json.read_text(encoding="utf-8"))
     assert manifest["states"]["idle"] == {"row": 0, "frameCount": 6}
@@ -128,12 +135,17 @@ def main() -> None:
     parser.add_argument("--idle-source", required=True, type=Path)
     parser.add_argument("--output-png", required=True, type=Path)
     parser.add_argument("--output-json", required=True, type=Path)
+    parser.add_argument("--output-tray-icon", required=True, type=Path)
     args = parser.parse_args()
 
     args.output_png.parent.mkdir(parents=True, exist_ok=True)
     frames = extract_idle_frames(args.idle_source)
     atlas = build_atlas(frames)
     atlas.save(args.output_png)
+
+    # Tray icon: first idle frame downscaled; NEAREST keeps the pixel-art look.
+    icon = frames[0].resize((32, 32), Image.Resampling.NEAREST)
+    icon.save(args.output_tray_icon)
 
     manifest = {
         "id": "post-hoc-banana-baron",
@@ -165,16 +177,17 @@ Expected: PASS
 python scripts/extract_mvp_sprite.py \
   --idle-source "../Arnav Vijay/.hatch-pet-runs/post-hoc-banana-baron/decoded/idle.png" \
   --output-png assets/spritesheet-mvp.png \
-  --output-json assets/pet.json
+  --output-json assets/pet.json \
+  --output-tray-icon assets/tray-icon.png
 ```
 
-Expected: `assets/spritesheet-mvp.png` (1152x208) and `assets/pet.json` created. Do not open the PNG visually — trust the test's size assertion.
+Expected: `assets/spritesheet-mvp.png` (1152x208), `assets/pet.json`, and `assets/tray-icon.png` (32x32) created. Do not open the PNGs visually — trust the test's size assertions.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add scripts/extract_mvp_sprite.py assets/spritesheet-mvp.png assets/pet.json tests/test_extract_mvp_sprite.py
-git commit -m "feat: extract MVP idle-only spritesheet from existing hatch-pet frames"
+git add scripts/extract_mvp_sprite.py assets/spritesheet-mvp.png assets/pet.json assets/tray-icon.png tests/test_extract_mvp_sprite.py
+git commit -m "feat: extract MVP idle-only spritesheet and tray icon from existing hatch-pet frames"
 ```
 
 ---
@@ -334,11 +347,13 @@ Expected: PASS (4 tests)
   <meta charset="utf-8" />
   <style>
     html, body { margin: 0; background: transparent; overflow: hidden; }
-    canvas { image-rendering: pixelated; -webkit-app-region: drag; }
+    /* No -webkit-app-region here: OS-level drag regions swallow HTML5 drop
+       events, so window-move is done manually in renderer-main.js instead. */
+    canvas { image-rendering: pixelated; }
     #bubble {
       position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
       max-width: 220px; background: #fff; border-radius: 8px; padding: 8px 10px;
-      font: 12px system-ui; display: none; -webkit-app-region: no-drag;
+      font: 12px system-ui; display: none;
     }
   </style>
 </head>
@@ -375,8 +390,9 @@ git commit -m "feat: add pet sprite state machine and renderer shell"
 
 ```js
 // src/main.js
-const { app, BrowserWindow, Tray, Menu, screen } = require('electron');
+const { app, BrowserWindow, Tray, Menu, screen, ipcMain } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs');
 
 let petWindow = null;
 let tray = null;
@@ -419,10 +435,27 @@ function createTray() {
   ]));
 }
 
+// Renderer can't fetch() file:// URLs, so the manifest is read here and
+// handed over IPC. spritesheetDataUrl inlines the PNG for the same reason.
+const ASSETS_DIR = path.join(__dirname, '..', 'assets');
+
+ipcMain.handle('pet:get-manifest', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(ASSETS_DIR, 'pet.json'), 'utf-8'));
+  const png = fs.readFileSync(path.join(ASSETS_DIR, manifest.spritesheetPath));
+  manifest.spritesheetDataUrl = `data:image/png;base64,${png.toString('base64')}`;
+  return manifest;
+});
+
+ipcMain.on('pet:move-window', (_event, { dx, dy }) => {
+  if (!petWindow) return;
+  const [x, y] = petWindow.getPosition();
+  petWindow.setPosition(x + dx, y + dy);
+});
+
 app.whenReady().then(() => {
   createPetWindow();
   createTray();
-  require('./bridge/promptServer.js').start(petWindow);
+  // promptServer wiring is added in Task 7 (the module doesn't exist yet).
 });
 
 app.on('window-all-closed', (event) => {
@@ -437,20 +470,26 @@ module.exports = { getPetWindow: () => petWindow };
 
 ```js
 // src/preload.js
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 contextBridge.exposeInMainWorld('claudePet', {
+  // fetch() can't load file:// resources, so the manifest comes over IPC instead.
+  getManifest: () => ipcRenderer.invoke('pet:get-manifest'),
   onPrompt: (callback) => ipcRenderer.on('pet:prompt', (_event, payload) => callback(payload)),
   onResponse: (callback) => ipcRenderer.on('pet:response', (_event, payload) => callback(payload)),
-  sendDroppedFile: (filePath, promptText) =>
-    ipcRenderer.send('pet:file-dropped', { filePath, promptText }),
+  // Electron 32+ removed File.prototype.path; webUtils.getPathForFile is the
+  // supported way to resolve a dropped File to a filesystem path.
+  sendDroppedFile: (file, promptText) =>
+    ipcRenderer.send('pet:file-dropped', { filePath: webUtils.getPathForFile(file), promptText }),
+  // Manual window-move (no -webkit-app-region — see index.html).
+  moveWindowBy: (dx, dy) => ipcRenderer.send('pet:move-window', { dx, dy }),
 });
 ```
 
 - [ ] **Step 3: Verify it runs**
 
 Run: `npm start`
-Expected: a small frameless window appears in the bottom-right corner of the screen (transparent background, no titlebar), and a tray icon appears. No sprite is drawn yet — `renderer-main.js` (Task 3's canvas wiring) is written in the next task's follow-up, see Task 7 Step 1 which finalizes it. If it errors on missing `assets/tray-icon.png`, use `assets/spritesheet-mvp.png` as a placeholder tray icon path for this verification step only.
+Expected: a small frameless window appears in the bottom-right corner of the screen (transparent background, no titlebar), and a tray icon (the 32x32 `assets/tray-icon.png` from Task 1) appears. No sprite is drawn yet — `renderer-main.js` (Task 3's canvas wiring) is written in the next task's follow-up, see Task 7 Step 1 which finalizes it.
 
 - [ ] **Step 4: Commit**
 
@@ -469,7 +508,7 @@ git commit -m "feat: add Electron main process with tray-resident overlay window
 
 **Interfaces:**
 - Consumes: nothing external (pure Node `http`).
-- Produces: `start(petWindow)` — starts an HTTP server bound to `127.0.0.1:47611` (loopback-only, not exposed on the network) accepting `POST /prompt` with JSON body `{ "text": string }`; on receipt, sends `pet:prompt` over `petWindow.webContents.send` and returns `202 { accepted: true }`. Task 6's `claudeClient` is invoked by the renderer/main-process prompt handler wired here, not by this module directly — this module's only job is receiving text and notifying the window.
+- Produces: `start(petWindow, onPrompt)` — starts an HTTP server bound to `127.0.0.1:47611` (loopback-only, not exposed on the network) accepting `POST /prompt` with JSON body `{ "text": string }`; on receipt, sends `pet:prompt` over `petWindow.webContents.send` (so the renderer shows "thinking…"), calls `onPrompt(text)` (Task 7 passes the handler that invokes Task 6's `claudeClient`), and returns `202 { accepted: true }`. Both prompt paths (HTTP and drag-drop) funnel through the same `handlePrompt` in `main.js`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -498,10 +537,11 @@ function post(path, body) {
   });
 }
 
-test('accepts a prompt and forwards it to the window', async () => {
+test('accepts a prompt, notifies the window, and calls onPrompt', async () => {
   const sent = [];
+  const prompts = [];
   const fakeWindow = { webContents: { send: (channel, payload) => sent.push({ channel, payload }) } };
-  const server = start(fakeWindow);
+  const server = start(fakeWindow, (text) => prompts.push(text));
   try {
     const { status, body } = await post('/prompt', { text: 'hello pet' });
     assert.equal(status, 202);
@@ -509,6 +549,7 @@ test('accepts a prompt and forwards it to the window', async () => {
     assert.equal(sent.length, 1);
     assert.equal(sent[0].channel, 'pet:prompt');
     assert.equal(sent[0].payload.text, 'hello pet');
+    assert.deepEqual(prompts, ['hello pet']);
   } finally {
     server.close();
   }
@@ -516,7 +557,7 @@ test('accepts a prompt and forwards it to the window', async () => {
 
 test('rejects a request missing text', async () => {
   const fakeWindow = { webContents: { send: () => {} } };
-  const server = start(fakeWindow);
+  const server = start(fakeWindow, () => {});
   try {
     const { status } = await post('/prompt', {});
     assert.equal(status, 400);
@@ -539,7 +580,7 @@ const http = require('node:http');
 
 const PORT = 47611;
 
-function start(petWindow) {
+function start(petWindow, onPrompt) {
   const server = http.createServer((req, res) => {
     if (req.method !== 'POST' || req.url !== '/prompt') {
       res.writeHead(404).end();
@@ -560,6 +601,7 @@ function start(petWindow) {
         return;
       }
       petWindow.webContents.send('pet:prompt', { text: parsed.text });
+      onPrompt(parsed.text);
       res.writeHead(202, { 'Content-Type': 'application/json' }).end(JSON.stringify({ accepted: true }));
     });
   });
@@ -598,7 +640,7 @@ curl -s -X POST http://127.0.0.1:47611/prompt -H "Content-Type: application/json
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks directly (invoked by `main.js`'s `pet:prompt`-triggered handler, wired in Task 7 Step 1).
-- Produces: `runPrompt(text) -> Promise<string>` — spawns `claude -p "<text>" --output-format text` with an env that strips any freemodel.dev override and sets an isolated `CLAUDE_CONFIG_DIR`.
+- Produces: `runPrompt(text) -> Promise<string>` — spawns `claude -p --output-format text` (prompt piped via stdin, not argv — see the escaping note in Step 4) with an env that strips any freemodel.dev override and sets an isolated `CLAUDE_CONFIG_DIR`.
 
 - [ ] **Step 1: Verify config isolation actually works before writing the real client**
 
@@ -659,7 +701,14 @@ function buildIsolatedEnv(baseEnv) {
 function runPrompt(text) {
   return new Promise((resolve, reject) => {
     const env = buildIsolatedEnv(process.env);
-    const child = spawn('claude', ['-p', text, '--output-format', 'text'], { env, shell: true });
+    // shell: true is required on Windows (claude is a .cmd shim; Node ≥20.12
+    // throws EINVAL spawning .cmd files without a shell — CVE-2024-27980).
+    // But argv passed through a shell gets cmd.exe parsing, so the prompt
+    // text must NOT go in argv: quotes/&/|/% would break or be interpreted.
+    // Instead argv stays fixed and the prompt is piped via stdin, which
+    // `claude -p` reads when no positional prompt is given.
+    const child = spawn('claude', ['-p', '--output-format', 'text'], { env, shell: true });
+    child.stdin.end(text);
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (chunk) => (stdout += chunk));
@@ -695,11 +744,11 @@ git commit -m "feat: add isolated Claude CLI client separate from freemodel.dev 
 
 **Files:**
 - Create: `Z:\Downloads\Code\Claude Pet\src\renderer\renderer-main.js`
-- Modify: `Z:\Downloads\Code\Claude Pet\src\main.js` (add the `pet:prompt` → `claudeClient.runPrompt` → `pet:response` wiring, and an `ipcMain.on('pet:file-dropped', ...)` handler)
+- Modify: `Z:\Downloads\Code\Claude Pet\src\main.js` (add the `handlePrompt` → `claudeClient.runPrompt` → `pet:response` wiring, the `ipcMain.on('pet:file-dropped', ...)` handler, and the `promptServer.start(petWindow, handlePrompt)` call)
 - Test: none new (this task is integration wiring over already-tested units from Tasks 3/5/6; verified manually per Step 3)
 
 **Interfaces:**
-- Consumes: `createPetStateMachine` (Task 3), `claudePet.onPrompt`/`onResponse`/`sendDroppedFile` (Task 4's preload), `runPrompt` (Task 6).
+- Consumes: `createPetStateMachine` (Task 3), `claudePet.getManifest`/`onPrompt`/`onResponse`/`sendDroppedFile`/`moveWindowBy` (Task 4's preload), `runPrompt` (Task 6), `start(petWindow, onPrompt)` (Task 5).
 
 - [ ] **Step 1: Write renderer-main.js**
 
@@ -713,8 +762,9 @@ let manifest = null;
 let machine = null;
 
 async function init() {
-  manifest = await fetch('../../assets/pet.json').then((r) => r.json());
-  sprite.src = `../../assets/${manifest.spritesheetPath}`;
+  // Manifest + spritesheet arrive over IPC (fetch() can't load file:// URLs).
+  manifest = await window.claudePet.getManifest();
+  sprite.src = manifest.spritesheetDataUrl;
   machine = createPetStateMachine(manifest);
   requestAnimationFrame(draw);
 }
@@ -740,12 +790,37 @@ window.claudePet.onResponse(({ text }) => {
   setTimeout(() => { bubble.style.display = 'none'; }, 8000);
 });
 
+// Manual window-move: mousedown + move deltas → IPC. A drop without any
+// movement is still a click, so a small threshold keeps taps from jittering.
+let dragging = false;
+let lastX = 0;
+let lastY = 0;
+
+canvas.addEventListener('mousedown', (event) => {
+  dragging = true;
+  lastX = event.screenX;
+  lastY = event.screenY;
+});
+
+window.addEventListener('mousemove', (event) => {
+  if (!dragging) return;
+  window.claudePet.moveWindowBy(event.screenX - lastX, event.screenY - lastY);
+  lastX = event.screenX;
+  lastY = event.screenY;
+});
+
+window.addEventListener('mouseup', () => { dragging = false; });
+
 document.body.addEventListener('dragover', (event) => event.preventDefault());
 document.body.addEventListener('drop', (event) => {
   event.preventDefault();
   const file = event.dataTransfer.files[0];
   if (file) {
-    window.claudePet.sendDroppedFile(file.path, `Take a look at this file: ${file.path}`);
+    // Pass the File object itself; the preload resolves it to a path via
+    // webUtils.getPathForFile (file.path was removed in Electron 32).
+    window.claudePet.sendDroppedFile(file, 'Take a look at this file.');
+    bubble.textContent = 'thinking…';
+    bubble.style.display = 'block';
   }
 });
 
@@ -754,10 +829,9 @@ init();
 
 - [ ] **Step 2: Wire main.js to actually call claudeClient**
 
-Add to `src/main.js` (after the `require('./bridge/promptServer.js').start(petWindow);` line from Task 4):
+Add to `src/main.js`:
 
 ```js
-const { ipcMain } = require('electron');
 const { runPrompt } = require('./bridge/claudeClient.js');
 
 async function handlePrompt(text) {
@@ -769,17 +843,17 @@ async function handlePrompt(text) {
   }
 }
 
-ipcMain.on('pet:file-dropped', (_event, { promptText }) => handlePrompt(promptText));
+// Drag-drop path: preload resolved the real path via webUtils; build the
+// full prompt here so both paths funnel through the same handlePrompt.
+ipcMain.on('pet:file-dropped', (_event, { filePath, promptText }) =>
+  handlePrompt(`${promptText} ${filePath}`));
 ```
 
-Also update `promptServer.js`'s consumer: since `promptServer.js` already emits `pet:prompt` to the renderer (Task 5), add a matching main-process listener so HTTP-sourced prompts also reach Claude — append to `app.whenReady()` in `main.js`:
+And inside `app.whenReady()` (after `createTray()`), start the prompt server with `handlePrompt` as its callback — HTTP prompts and drag-drops now take the identical route into Claude, and the server itself sends the `pet:prompt` "thinking…" notification:
 
 ```js
-const promptServer = require('./bridge/promptServer.js');
-promptServer.onPromptReceived = handlePrompt; // set before promptServer.start(petWindow)
+require('./bridge/promptServer.js').start(petWindow, handlePrompt);
 ```
-
-This requires `promptServer.js` to call `module.exports.onPromptReceived?.(parsed.text)` alongside its existing `petWindow.webContents.send(...)` call — add that one line to the `end` handler written in Task 5 Step 3.
 
 - [ ] **Step 3: Verify end-to-end manually**
 
@@ -792,7 +866,7 @@ Expected: the pet's speech bubble shows "thinking…" then Claude's reply within
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/renderer/renderer-main.js src/main.js src/bridge/promptServer.js
+git add src/renderer/renderer-main.js src/main.js
 git commit -m "feat: wire prompt bridge and drag-and-drop to isolated Claude client"
 ```
 
@@ -813,8 +887,10 @@ Only execute this task on explicit request, since it spends image-generation usa
 
 ## Self-Review
 
-**Spec coverage:** Desktop-app-specific pet (Task 4, tray-resident window) ✓. Distinct from freemodel-routed CLI (Task 6, explicit env stripping + verification step) ✓. Reuses existing sprite art without new generation (Task 1) ✓. Draggable-onto-files (Task 7 drop handler) ✓. Takes prompts from a terminal (Task 5 HTTP bridge) ✓. Usage-conscious guardrails from the user's explicit instruction (Global Constraints + Task 8 deferral) ✓.
+**Spec coverage:** Desktop-app-specific pet (Task 4, tray-resident window) ✓. Distinct from freemodel-routed CLI (Task 6, explicit env stripping + verification step) ✓. Reuses existing sprite art without new generation (Task 1) ✓. Draggable-onto-files (Task 7 drop handler) ✓. Takes prompts from a terminal (Task 5 HTTP bridge) ✓. Usage-conscious guardrails from the user's explicit instruction (Global Constraints + Task 8 deferral) ✓. ToS/account-safety compliance (Global Constraints; Task 5 loopback-only user-initiated prompts; Task 6 manual-only OAuth + proxy-env stripping; no autonomous prompting anywhere in the plan) ✓.
 
 **Placeholder scan:** No TBD/TODO markers; Task 8 is explicitly deferred by design (user's own usage-conservation instruction), not a placeholder — its steps are fully concrete for whenever it does run.
 
-**Type/interface consistency:** `pet.json` shape defined once in Task 1, consumed identically in Task 3 (`createPetStateMachine`) and Task 7 (`renderer-main.js`'s `fetch('../../assets/pet.json')`); `runPrompt(text) -> Promise<string>` defined in Task 6, consumed with matching signature in Task 7 Step 2; `promptServer.start(petWindow)` defined in Task 5, called identically in Task 4 Step 1 and Task 7 Step 2.
+**Type/interface consistency:** `pet.json` shape defined once in Task 1, consumed identically in Task 3 (`createPetStateMachine`) and Task 7 (`renderer-main.js` via the `pet:get-manifest` IPC handler — `fetch()` can't load `file://` resources, so Task 4's main process reads the manifest/spritesheet and hands them over IPC); `runPrompt(text) -> Promise<string>` defined in Task 6, consumed with matching signature in Task 7 Step 2; `promptServer.start(petWindow, onPrompt)` defined in Task 5, called with that exact signature in Task 7 Step 2 (deliberately not started in Task 4 — the module doesn't exist until Task 5 and its callback until Task 7).
+
+**Known Electron-version pitfalls addressed:** `File.prototype.path` was removed in Electron 32, so dropped files resolve to paths via `webUtils.getPathForFile()` in the preload (Task 4/7); OS-level `-webkit-app-region: drag` regions swallow HTML5 drop events, so window-move is manual mousedown/mousemove → IPC instead (Task 3/7); prompt text is piped to `claude -p` over stdin rather than argv because `shell: true` (required for `.cmd` shims on Windows since Node's CVE-2024-27980 fix) would subject argv to cmd.exe parsing (Task 6).
