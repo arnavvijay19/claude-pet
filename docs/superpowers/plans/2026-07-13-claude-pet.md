@@ -27,6 +27,14 @@
 
 The full hatch-pet atlas pipeline (`compose_atlas.py`) hard-requires all 9 animation rows to be present — it raises `SystemExit` on any missing row (confirmed by reading `C:\Users\eklip\.codex\skills\hatch-pet\scripts\compose_atlas.py`, `compose_from_frames()`). Since only `idle` (6 frames) is done and `base` is an identity reference, not a row, we cannot use that script yet. This task writes a small standalone extractor that produces just an MVP spritesheet from what already exists — zero image-gen usage.
 
+> **Correction (2026-07-16, executed):** the Step 3 implementation snippet below is superseded — it was wrong for the actual source image, in three ways discovered while executing:
+> 1. **Source is not evenly sliceable.** `idle.png` is `2172x724` RGB, not clean 6×`362`-wide slots. The six monkeys drift off-grid and their bodies cross the slot boundaries by up to ~35px, so `crop((index*frame_width, ...))` would clip limbs and splice a neighbor's tail into the next frame. Fix: key out the background, find the six sprites as connected alpha components, group and center each (mirrors the hatch-pet skill's own `extract_strip_frames.py`).
+> 2. **Background is magenta `#FF00FF`, not transparent.** The window is transparent (RESEARCH §B2), so a plain `convert("RGBA")` leaves an opaque magenta box. Fix: distance-based chroma key (threshold 96, matching the skill), plus a magenta-*spill* removal on edge pixels and a post-LANCZOS cleanup for sub-alpha ringing specks.
+> 3. **Aspect ratio.** Source sprites are ~`360x455` (~0.79); resizing straight to `192x208` (~0.92) squashes them. Fix: scale-to-fit preserving aspect, centered in the cell.
+>
+> The shipped `scripts/extract_mvp_sprite.py` reflects all three. The manifest/CLI shape (args, `pet.json` fields, `1152x208` atlas, `32x32` tray icon) is unchanged, so Tasks 3/4/7 consume it exactly as planned. The test below was also extended with transparency/no-magenta/aspect assertions that catch these bugs.
+
+
 **Files:**
 - Create: `Z:\Downloads\Code\Claude Pet\scripts\extract_mvp_sprite.py`
 - Create: `Z:\Downloads\Code\Claude Pet\assets\pet.json`
@@ -36,7 +44,7 @@ The full hatch-pet atlas pipeline (`compose_atlas.py`) hard-requires all 9 anima
 - Produces: `Z:\Downloads\Code\Claude Pet\assets\spritesheet-mvp.png` — a `1152x208` RGBA image, 6 columns x 1 row, each cell `192x208`, containing the 6 `idle` frames extracted from `Arnav Vijay/.hatch-pet-runs/post-hoc-banana-baron/decoded/idle.png`.
 - Produces: `assets/pet.json` with shape `{ id, displayName, description, spritesheetPath, frameWidth, frameHeight, states: { idle: { row: 0, frameCount: 6 } }, frameDurationMs }` — later tasks (renderer) consume this exact shape.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/test_extract_mvp_sprite.py
@@ -91,12 +99,12 @@ def test_extract_mvp_sprite_produces_expected_atlas(tmp_path):
     assert manifest["id"] == "post-hoc-banana-baron"
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python -m pytest tests/test_extract_mvp_sprite.py -v`
 Expected: FAIL — `scripts/extract_mvp_sprite.py` does not exist yet (`FileNotFoundError` / non-zero exit from `subprocess.run`).
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```python
 # scripts/extract_mvp_sprite.py
@@ -170,12 +178,12 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `python -m pytest tests/test_extract_mvp_sprite.py -v`
 Expected: PASS
 
-- [ ] **Step 5: Generate the real assets (not just the test fixture)**
+- [x] **Step 5: Generate the real assets (not just the test fixture)**
 
 ```bash
 python scripts/extract_mvp_sprite.py \
@@ -187,7 +195,7 @@ python scripts/extract_mvp_sprite.py \
 
 Expected: `assets/spritesheet-mvp.png` (1152x208), `assets/pet.json`, and `assets/tray-icon.png` (32x32) created. Do not open the PNGs visually — trust the test's size assertions.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add scripts/extract_mvp_sprite.py assets/spritesheet-mvp.png assets/pet.json assets/tray-icon.png tests/test_extract_mvp_sprite.py
@@ -878,6 +886,8 @@ git commit -m "feat: wire prompt bridge and drag-and-drop to isolated Claude cli
 ---
 
 ### Task 8 (deferred, optional — do not run unless the user asks): Finish the remaining 7 animation rows
+
+> **Update 2026-07-16:** before generating ANYTHING, check `Arnav Vijay/.hatch-pet-runs/post-hoc-banana-baron/references/I just noticed these at 0130 on 07-16-26 from my codex image generation folder*/` — the user recovered 5 Codex imagegen outputs there. Two are byte-identical dupes of `decoded/idle.png` and `decoded/base.png` (md5-verified; safe to delete). **Three are row strips that were generated on 2026-07-12 but never decoded into the run:** one visually confirmed as an 8-frame `running-right` on magenta (2172x724), two more unidentified strips (2172x724 and 2142x734). Identify and reuse them before generating any new rows — that could cut the remaining generation from 7 rows to as few as 3.
 
 Only execute this task on explicit request, since it spends image-generation usage. When requested, follow `Arnav Vijay/.hatch-pet-runs/post-hoc-banana-baron/HANDOFF_FOR_CLAUDE.md` verbatim — it already encodes every guardrail the user asked for:
 

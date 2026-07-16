@@ -1,0 +1,15 @@
+{
+  "id": "post-hoc-banana-baron",
+  "displayName": "Post-Hoc Banana Baron",
+  "description": "A mischievous pixel-art monkey with sunglasses, a banana, and a money bundle.",
+  "spritesheetPath": "spritesheet-mvp.png",
+  "frameWidth": 192,
+  "frameHeight": 208,
+  "frameDurationMs": 180,
+  "states": {
+    "idle": {
+      "row": 0,
+      "frameCount": 6
+    }
+  }
+}
