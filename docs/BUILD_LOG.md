@@ -73,6 +73,15 @@ optional — an unlogged session is a failed session even if its code worked). F
   entry prompt (hard task — Fable high/xhigh; first window on screen, visual verification
   mandatory).
 
+- **2026-07-16 · Fable 5 (freemodel) · integration + electron bump** — Task 3 branch merged
+  to `master` by the user (fast-forward to `df488b2`), `npm install` re-run there. User then
+  ran `npm audit fix --force` → electron 33.4.11→43.1.1; session verified the bump is safe
+  and committed it (`512a2c4`, stale `allowScripts` removed — see the two field notes) plus
+  these docs. Verified on merged `master`: `npm test` 4 pass / 0 fail, pytest 1 passed,
+  `electron --version` → v43.1.1, `git status` clean. Nothing pending — next session starts
+  plan Task 4 via the standard entry prompt (hard task — Fable high/xhigh effort; first
+  visible window, visual verification mandatory, now doubly so on electron 43).
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -110,10 +119,10 @@ link the note to it — this file is the inbox, not the archive.
   the 2026-07-12 Codex run — one confirmed 8-frame running-right + 2 unidentified. Task 8 can
   skip generating those rows; note added to Task 8 in the plan. The other 2 files are
   md5-identical dupes of decoded/idle.png and decoded/base.png — safe to delete.
-- 2026-07-16 `GOTCHA:` `npm install` here warns `electron@33.4.11 (postinstall: node install.js)`
-  is "not yet covered by allowScripts" — looks like the Electron binary download was blocked,
-  but it wasn't: `node_modules/electron/dist/electron.exe` exists and `--version` runs fine.
-  Don't chase `npm approve-scripts` unless the dist/ folder is actually missing.
+- 2026-07-16 `GOTCHA:` ~~`npm install` here warns `electron@33.4.11 (postinstall: node install.js)`
+  is "not yet covered by allowScripts"~~ **Obsolete since the same-day electron 43 bump (see
+  SUPERSEDE below):** electron 43 has no postinstall script at all, so the allowScripts warning
+  is gone for good; the stale `allowScripts` entry was removed from package.json in `512a2c4`.
 - 2026-07-16 `GOTCHA:` A session whose cwd starts inside an old task worktree is write-locked to
   it — Write to the shared checkout is refused ("session is now isolated"). Fix: `git worktree
   add` a new task worktree from `master` and switch into it; don't work on the stale branch.
@@ -121,6 +130,13 @@ link the note to it — this file is the inbox, not the archive.
   (it claimed `.gitignore`'s `node_modules/` excluded it — it doesn't; the file just sat
   untracked, permanently dirtying `git status`). Lockfile committed in `92d5738` (pins electron
   33.4.11); plan note struck through in place.
+- 2026-07-16 `SUPERSEDE:` Electron pin 33.4.11 → **43.1.1** (`512a2c4`). The user ran
+  `npm audit fix --force` after merging Task 3; verified OK to keep rather than revert:
+  electron 33 is EOL (the audit hits were real), 43 still supports Win10 x64 (only 32-bit
+  builds are dropped — electronjs.org/blog/electron-43-0), `--version` runs, both suites
+  green. RESEARCH §B2/§B4 traps were written against 32/33-era Electron and still apply
+  (File.path removal, webUtils, transparency flags). Task 4 must visually verify on 43 —
+  already mandatory. Rollback if 43 misbehaves: `git revert 512a2c4 && npm install`.
 - 2026-07-16 `SUPERSEDE:` Plan Task 2's `"test": "node --test tests/"` script is broken on
   Node 24/Windows — an explicit directory arg makes Node `require()` the directory as a module
   (`Cannot find module ...\tests`, 1 phantom failing "test") instead of scanning it. Direct
