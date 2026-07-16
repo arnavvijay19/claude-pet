@@ -63,3 +63,41 @@ Phases 1–4 need **zero** real-account usage. Build them now; only phase 5 wait
   anything window-related (RESEARCH.md §B4; chrome-devtools-mcp plugin is installed for this).
 - Two failed fix attempts → rewind to last commit, don't stack corrections.
 - Prior-art repos (Clawd et al., RESEARCH.md §B1): read for architecture, copy nothing (spec's IP rule).
+
+## AI deployment strategy (meta — how sessions of *any* model build this)
+
+This project is built by AI sessions, not by one assistant. Sessions die, context compacts,
+models vary (Claude via freemodel, GPT via Codex CLI, whatever else). The docs are the only
+memory that survives. Therefore:
+
+**Session contract — every session, any model, must:**
+1. **Start** by reading this file, then [`BUILD_LOG.md`](BUILD_LOG.md) (what happened + field
+   notes), then the plan section for its one task. Nothing else is assumed known.
+2. **During work, take field notes in `BUILD_LOG.md` the moment things come up** — a fix for a
+   surprise problem, a gotcha, an idea, a superseded decision. Don't batch them for session
+   end; a compaction or crash loses unbatched notes. Format is defined at the top of that file.
+3. **End** by (a) committing or explicitly reporting `git status`, (b) appending a session-log
+   entry to `BUILD_LOG.md`, (c) never claiming "done" without pasted command output or a
+   screenshot. A session that skips (b) has failed even if its code works.
+
+**Model/effort policy** (a guide, not a gate — any capable model may do any task):
+- **Hard tasks** — plan Tasks 2, 4, 6, 7 (Electron scaffold, transparent window, claudeClient
+  spawn quirks, end-to-end integration): strongest available model, highest effort. These are
+  where Windows/Electron silent failures live.
+- **Mechanical tasks** — Tasks 1, 3, 5 (Pillow extraction, canvas loop, tray/server): any
+  competent model, default effort.
+- Model choice never changes the compliance rules — those bind every session equally.
+
+**Order & parallelism:** Tasks 1→2→3→4 strictly serial (each builds on the last). After 4,
+Tasks 5 and 6 are independent and *may* run as two parallel sessions (different files; if both
+run, each stays inside its own module and the later one rebases). Task 7 last, single session.
+
+**Standard entry prompt** (paste verbatim to start any build session, any model):
+
+> Read `Claude Pet/docs/project-context.md` and `Claude Pet/docs/BUILD_LOG.md`, then execute
+> the next incomplete task in `Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md`.
+> One task only. Follow the session contract and working method in project-context.md.
+
+**Doc-routing rule:** field notes and session history → `BUILD_LOG.md`; changed decisions →
+edit RESEARCH.md/plan in place; this file only changes when the architecture or strategy
+itself changes.
