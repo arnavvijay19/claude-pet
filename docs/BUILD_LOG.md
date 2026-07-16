@@ -39,6 +39,11 @@ optional — an unlogged session is a failed session even if its code worked). F
   session redo it. Then Task 2 via the standard entry prompt (hard task — Fable high/xhigh
   per the model policy; xhigh is better saved for Tasks 4/6/7 where the silent failures live).
 
+- **2026-07-16 · Fable 5 (freemodel) · integration** — The NEXT items above are done (user
+  delegated them): `master` fast-forwarded to `9b160dc`, his `project-context.md` tweak
+  committed as `87ff927`, suite green on merged `master` (1 passed, 2.30s). Nothing pending —
+  the next session starts plan Task 2 directly via the standard entry prompt.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
