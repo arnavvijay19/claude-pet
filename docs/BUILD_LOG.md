@@ -104,3 +104,7 @@ link the note to it — this file is the inbox, not the archive.
 - 2026-07-16 `GOTCHA:` A session whose cwd starts inside an old task worktree is write-locked to
   it — Write to the shared checkout is refused ("session is now isolated"). Fix: `git worktree
   add` a new task worktree from `master` and switch into it; don't work on the stale branch.
+- 2026-07-16 `SUPERSEDE:` Plan Task 2 Step 4's "don't commit package-lock.json" note was wrong
+  (it claimed `.gitignore`'s `node_modules/` excluded it — it doesn't; the file just sat
+  untracked, permanently dirtying `git status`). Lockfile committed in `92d5738` (pins electron
+  33.4.11); plan note struck through in place.

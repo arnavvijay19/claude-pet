@@ -255,7 +255,7 @@ git add package.json .gitignore
 git commit -m "chore: scaffold Electron project"
 ```
 
-(`package-lock.json` and `node_modules/` are not committed — lockfile intentionally excluded per `.gitignore`'s `node_modules/`; add `package-lock.json` to the commit if reproducible installs matter later.)
+(~~`package-lock.json` and `node_modules/` are not committed — lockfile intentionally excluded per `.gitignore`'s `node_modules/`; add `package-lock.json` to the commit if reproducible installs matter later.~~ **Superseded 2026-07-16 post-Task-2:** that reasoning was wrong — `.gitignore`'s `node_modules/` never ignored the lockfile, it just sat untracked and dirtied `git status`. `package-lock.json` is now committed (`92d5738`), pinning electron 33.4.11 for reproducible installs. Only `node_modules/` stays ignored.)
 
 ---
 
