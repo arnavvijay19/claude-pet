@@ -108,3 +108,14 @@ link the note to it — this file is the inbox, not the archive.
   (it claimed `.gitignore`'s `node_modules/` excluded it — it doesn't; the file just sat
   untracked, permanently dirtying `git status`). Lockfile committed in `92d5738` (pins electron
   33.4.11); plan note struck through in place.
+- 2026-07-16 `GOTCHA:` `npm start` between Task 2 and Task 4 fails with "Unable to find
+  Electron app" — **expected, not a regression or a faked Task 2**. `package.json` declares
+  `"main": "src/main.js"` up front (per plan Task 2 Step 1) but that file is a *Task 4*
+  deliverable (plan line 393: "Create: src\main.js, src\preload.js"); Task 2's own test line
+  says "none (config-only task; verified by npm install + npm start ... in Task 4)". A review
+  session on 2026-07-16 misread Task 4's file list (plan lines ~396+) as Task 2's spec and
+  called Task 2 a fake completion — verified wrong: `17f4e57` contains exactly what Task 2
+  promised, and the Task 2 log entry explicitly stated main.js doesn't exist until Task 4.
+  Also: the empty `src/bridge/` + `src/renderer/` dirs in the main checkout are dated Jul 13
+  (planning day), untracked-by-git leftovers — not evidence any session created-then-abandoned
+  code. Don't "fix" the npm start error; it disappears when Task 4 lands.
