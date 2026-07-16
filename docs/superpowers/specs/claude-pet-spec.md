@@ -30,6 +30,7 @@ Context: the user's real Claude account was suspended once (2026-07-13, Usage Po
 
 ## Source material
 
+- Research knowledge base: `docs/RESEARCH.md` (methodology, Electron gotchas, prior-art repos — read-only references per the IP rule above; `CLAUDE_CONFIG_DIR` isolation verified working 2026-07-15 on CLI v2.1.201). One-page framework: `docs/project-context.md`.
 - Sprite pipeline handoff: `Z:\Downloads\Code\Arnav Vijay\.hatch-pet-runs\post-hoc-banana-baron\HANDOFF_FOR_CLAUDE.md` (2 of 10 animation rows done: `base`, `idle`; 8 pending: `running-right`, `running-left`, `waving`, `jumping`, `failed`, `waiting`, `running`, `review`).
 - Codex's pet packaging schema (to mirror, for consistency): `~/.codex/pets/<pet_id>/pet.json` + `spritesheet.webp`.
 - Visual identity rules (must be preserved across any newly generated frames): pixel-art mischievous monkey, black sunglasses, banana, money bundle/bills, magenta `#FF00FF` background, no text/logos/shadows/speed-lines.
