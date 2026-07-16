@@ -1,0 +1,24 @@
+<!-- src/renderer/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    html, body { margin: 0; background: transparent; overflow: hidden; }
+    /* No -webkit-app-region here: OS-level drag regions swallow HTML5 drop
+       events, so window-move is done manually in renderer-main.js instead. */
+    canvas { image-rendering: pixelated; }
+    #bubble {
+      position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+      max-width: 220px; background: #fff; border-radius: 8px; padding: 8px 10px;
+      font: 12px system-ui; display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="bubble"></div>
+  <canvas id="pet" width="192" height="208"></canvas>
+  <script src="pet.js"></script>
+  <script src="renderer-main.js"></script>
+</body>
+</html>
