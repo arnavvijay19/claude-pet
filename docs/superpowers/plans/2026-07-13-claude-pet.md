@@ -414,7 +414,8 @@ function createPetWindow() {
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: false,
+    resizable: false,   // required for transparent windows (RESEARCH §B2)
+    hasShadow: false,   // OS shadow renders as a gray box around transparent windows (RESEARCH §B2)
     skipTaskbar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
