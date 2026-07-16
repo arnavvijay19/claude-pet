@@ -1,6 +1,6 @@
 # Claude Pet — Project Context (the really small framework)
 
-Read this first, every session. It's the whole project in one page.
+Read this first, every session. It's the whole project in one page, update this and other .md files as you need and see fit though.
 Details live in [`superpowers/specs/claude-pet-spec.md`](superpowers/specs/claude-pet-spec.md) (what & why),
 [`superpowers/plans/2026-07-13-claude-pet.md`](superpowers/plans/2026-07-13-claude-pet.md) (exact tasks),
 and [`RESEARCH.md`](RESEARCH.md) (evidence & prior art behind every decision below).
