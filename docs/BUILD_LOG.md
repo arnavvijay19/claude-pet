@@ -60,6 +60,19 @@ optional — an unlogged session is a failed session even if its code worked). F
   Nothing pending — the next session starts plan Task 3 directly via the standard entry prompt
   (mechanical task per the model policy; worktree recommended, branch off `master`).
 
+- **2026-07-16 · Fable 5 (freemodel) · Task 3 (sprite state machine + renderer shell)** — Done,
+  on worktree branch `worktree-task-3-sprite-renderer`, based on the task-2 branch tip
+  (`0fe4d64`, verified descendant of `master` — merging task-3 brings the unmerged task-2
+  docs commit along, history stays linear). `c4e167f` = `src/renderer/pet.js` +
+  `src/renderer/index.html` + `tests/petStateMachine.test.js`, exactly per plan (TDD: watched
+  the test fail on missing module first). `c99ccbb` = fix for a Task 2 latent bug found here:
+  `npm test`'s `node --test tests/` breaks on Node 24 (see the SUPERSEDE field note). Verified:
+  `npm test` → 4 pass / 0 fail (pasted), pytest → 1 passed. `renderer-main.js` deliberately
+  doesn't exist yet (Task 7). NEXT (user): from `Z:\Downloads\Code\Claude Pet` on `master` run
+  `git merge worktree-task-3-sprite-renderer` (fast-forward), then Task 4 via the standard
+  entry prompt (hard task — Fable high/xhigh; first window on screen, visual verification
+  mandatory).
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
