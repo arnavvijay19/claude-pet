@@ -18,6 +18,27 @@ optional — an unlogged session is a failed session even if its code worked). F
 - **2026-07-15 · claude (freemodel) · docs** — Research integration finished (`866abff`), AI
   deployment strategy + this log added. No code yet; next unstarted work is plan Task 1.
 
+- **2026-07-16 · Fable 5 (freemodel) · Task 1 (MVP sprite extraction)** — Done, on worktree
+  branch `worktree-task-1-mvp-sprite-extraction` (no remote exists; user merges to master).
+  Delivered `scripts/extract_mvp_sprite.py`, `tests/test_extract_mvp_sprite.py` (pytest,
+  1 passed ~2.4s), and generated `assets/spritesheet-mvp.png` (1152x208), `assets/pet.json`,
+  `assets/tray-icon.png` (32x32). Verified: green test + visual inspection of atlas over a
+  checkerboard (6 clean transparent frames, no magenta halo, aspect preserved). The plan's
+  original Step 3 snippet was wrong 3 ways (magenta bg kept, aspect squashed, off-grid frames
+  sliced) — superseded in place; see the Task 1 correction block in the plan. Next: Task 2.
+
+- **2026-07-16 · Fable 5 (freemodel) · post-Task-1 docs** — Follow-up on the Task 1 branch
+  before handing off to Task 2: re-ran the suite (1 passed), moved the Task 1 entry above out
+  of Field notes into this section (placement fix, content verbatim), and expanded plan Task
+  2's `.gitignore` snippet to cover the Python/worktree artifacts Task 1 introduced
+  (`__pycache__/`, `.pytest_cache/`, `.claude/worktrees/`). The `pet.json` contract is
+  untouched — Tasks 3/4/7 consume it exactly as planned. NEXT (user, before the Task 2
+  session): commit the uncommitted `project-context.md` edit in the main checkout, then from
+  `Z:\Downloads\Code\Claude Pet` on `master` run
+  `git merge worktree-task-1-mvp-sprite-extraction` — an unmerged Task 1 would make the next
+  session redo it. Then Task 2 via the standard entry prompt (hard task — Fable high/xhigh
+  per the model policy; xhigh is better saved for Tasks 4/6/7 where the silent failures live).
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -40,15 +61,6 @@ link the note to it — this file is the inbox, not the archive.
   paths break in double-quoted Bash strings; use forward slashes.
 - 2026-07-15 `GOTCHA:` Python stdout here defaults to cp1252 — Unicode output needs
   `python -X utf8`.
-- **2026-07-16 · Fable 5 (freemodel) · Task 1 (MVP sprite extraction)** — Done, on worktree
-  branch `worktree-task-1-mvp-sprite-extraction` (no remote exists; user merges to master).
-  Delivered `scripts/extract_mvp_sprite.py`, `tests/test_extract_mvp_sprite.py` (pytest,
-  1 passed ~2.4s), and generated `assets/spritesheet-mvp.png` (1152x208), `assets/pet.json`,
-  `assets/tray-icon.png` (32x32). Verified: green test + visual inspection of atlas over a
-  checkerboard (6 clean transparent frames, no magenta halo, aspect preserved). The plan's
-  original Step 3 snippet was wrong 3 ways (magenta bg kept, aspect squashed, off-grid frames
-  sliced) — superseded in place; see the Task 1 correction block in the plan. Next: Task 2.
-
 - 2026-07-16 `SUPERSEDE:` Plan Task 1's naive slot-crop extractor replaced with chroma-key +
   connected-components + aspect-fit (details in the plan's Task 1 correction block). Root
   facts: idle.png is RGB on noisy #FF00FF, sprites drift off the 362px grid and cross slot

@@ -233,11 +233,14 @@ git commit -m "feat: extract MVP idle-only spritesheet and tray icon from existi
 }
 ```
 
-- [ ] **Step 2: Write .gitignore**
+- [ ] **Step 2: Write .gitignore** *(expanded 2026-07-16 after executing Task 1: pytest/Pillow tooling and the worktree flow now exist in the repo, so their artifacts must be ignored too)*
 
 ```
 node_modules/
 *.log
+__pycache__/
+.pytest_cache/
+.claude/worktrees/
 ```
 
 - [ ] **Step 3: Install**
