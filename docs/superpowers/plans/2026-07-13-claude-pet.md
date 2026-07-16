@@ -225,7 +225,7 @@ git commit -m "feat: extract MVP idle-only spritesheet and tray icon from existi
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test tests/"
+    "test": "node --test"
   },
   "devDependencies": {
     "electron": "^33.0.0"
@@ -270,7 +270,7 @@ git commit -m "chore: scaffold Electron project"
 - Consumes: `assets/pet.json` shape from Task 1 (`{ states: { [name]: { row, frameCount } }, frameWidth, frameHeight, frameDurationMs }`).
 - Produces: `createPetStateMachine(manifest)` returning `{ setState(name), getFrame(elapsedMs) }` — `getFrame` returns `{ row, column }`, consumed by the canvas draw loop and by Task 7's drag-drop handler (which calls `setState('idle')` after showing a response).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 // tests/petStateMachine.test.js
@@ -312,12 +312,12 @@ test('setState switches row and resets frame timing', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --test tests/petStateMachine.test.js`
 Expected: FAIL — `src/renderer/pet.js` does not export `createPetStateMachine`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```js
 // src/renderer/pet.js
@@ -347,12 +347,12 @@ if (typeof module !== 'undefined') {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/petStateMachine.test.js`
 Expected: PASS (4 tests)
 
-- [ ] **Step 5: Write the HTML shell that uses it**
+- [x] **Step 5: Write the HTML shell that uses it**
 
 ```html
 <!-- src/renderer/index.html -->
@@ -381,7 +381,7 @@ Expected: PASS (4 tests)
 </html>
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/renderer/pet.js src/renderer/index.html tests/petStateMachine.test.js
@@ -526,7 +526,7 @@ git commit -m "feat: add Electron main process with tray-resident overlay window
 - Consumes: nothing external (pure Node `http`).
 - Produces: `start(petWindow, onPrompt)` — starts an HTTP server bound to `127.0.0.1:47611` (loopback-only, not exposed on the network) accepting `POST /prompt` with JSON body `{ "text": string }`; on receipt, sends `pet:prompt` over `petWindow.webContents.send` (so the renderer shows "thinking…"), calls `onPrompt(text)` (Task 7 passes the handler that invokes Task 6's `claudeClient`), and returns `202 { accepted: true }`. Both prompt paths (HTTP and drag-drop) funnel through the same `handlePrompt` in `main.js`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 // tests/promptServer.test.js

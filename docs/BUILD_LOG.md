@@ -108,6 +108,12 @@ link the note to it — this file is the inbox, not the archive.
   (it claimed `.gitignore`'s `node_modules/` excluded it — it doesn't; the file just sat
   untracked, permanently dirtying `git status`). Lockfile committed in `92d5738` (pins electron
   33.4.11); plan note struck through in place.
+- 2026-07-16 `SUPERSEDE:` Plan Task 2's `"test": "node --test tests/"` script is broken on
+  Node 24/Windows — an explicit directory arg makes Node `require()` the directory as a module
+  (`Cannot find module ...\tests`, 1 phantom failing "test") instead of scanning it. Direct
+  file runs (`node --test tests/x.test.js`) work, which masked it until Task 3 added the first
+  JS test. Fixed to plain `node --test` (default glob finds `**/*.test.js`, skips
+  node_modules); plan snippet corrected in place.
 - 2026-07-16 `GOTCHA:` `npm start` between Task 2 and Task 4 fails with "Unable to find
   Electron app" — **expected, not a regression or a faked Task 2**. `package.json` declares
   `"main": "src/main.js"` up front (per plan Task 2 Step 1) but that file is a *Task 4*
