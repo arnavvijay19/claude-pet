@@ -214,7 +214,7 @@ git commit -m "feat: extract MVP idle-only spritesheet and tray icon from existi
 **Interfaces:**
 - Produces: an `npm start` script later tasks assume exists.
 
-- [ ] **Step 1: Write package.json**
+- [x] **Step 1: Write package.json**
 
 ```json
 {
@@ -233,7 +233,7 @@ git commit -m "feat: extract MVP idle-only spritesheet and tray icon from existi
 }
 ```
 
-- [ ] **Step 2: Write .gitignore** *(expanded 2026-07-16 after executing Task 1: pytest/Pillow tooling and the worktree flow now exist in the repo, so their artifacts must be ignored too)*
+- [x] **Step 2: Write .gitignore** *(expanded 2026-07-16 after executing Task 1: pytest/Pillow tooling and the worktree flow now exist in the repo, so their artifacts must be ignored too)*
 
 ```
 node_modules/
@@ -243,12 +243,12 @@ __pycache__/
 .claude/worktrees/
 ```
 
-- [ ] **Step 3: Install**
+- [x] **Step 3: Install**
 
 Run: `npm install`
 Expected: `node_modules/` created, `electron` present under `node_modules/.bin/electron`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add package.json .gitignore

@@ -44,6 +44,16 @@ optional — an unlogged session is a failed session even if its code worked). F
   committed as `87ff927`, suite green on merged `master` (1 passed, 2.30s). Nothing pending —
   the next session starts plan Task 2 directly via the standard entry prompt.
 
+- **2026-07-16 · Fable 5 (freemodel) · Task 2 (Electron scaffold)** — Done, on worktree branch
+  `worktree-task-2-electron-scaffold` (`17f4e57` = package.json + .gitignore exactly per plan;
+  docs commit follows). Verified: `npm install` completed, `node_modules/.bin/electron` exists,
+  and `./node_modules/.bin/electron --version` → `v33.4.11` (pasted output, not assumed —
+  needed because of the allowScripts warning, see field note). `package-lock.json` left
+  untracked per the plan's Step 4 note. No `npm start` smoke test — `src/main.js` doesn't exist
+  until Task 4, exactly as the plan expects. NEXT (user): from `Z:\Downloads\Code\Claude Pet`
+  on `master` run `git merge worktree-task-2-electron-scaffold`, then re-run `npm install` in
+  the main checkout (node_modules lives only in the worktree and is git-ignored). Then Task 3.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -81,3 +91,10 @@ link the note to it — this file is the inbox, not the archive.
   the 2026-07-12 Codex run — one confirmed 8-frame running-right + 2 unidentified. Task 8 can
   skip generating those rows; note added to Task 8 in the plan. The other 2 files are
   md5-identical dupes of decoded/idle.png and decoded/base.png — safe to delete.
+- 2026-07-16 `GOTCHA:` `npm install` here warns `electron@33.4.11 (postinstall: node install.js)`
+  is "not yet covered by allowScripts" — looks like the Electron binary download was blocked,
+  but it wasn't: `node_modules/electron/dist/electron.exe` exists and `--version` runs fine.
+  Don't chase `npm approve-scripts` unless the dist/ folder is actually missing.
+- 2026-07-16 `GOTCHA:` A session whose cwd starts inside an old task worktree is write-locked to
+  it — Write to the shared checkout is refused ("session is now isolated"). Fix: `git worktree
+  add` a new task worktree from `master` and switch into it; don't work on the stale branch.
