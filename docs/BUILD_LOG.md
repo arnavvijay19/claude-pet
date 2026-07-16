@@ -54,6 +54,12 @@ optional — an unlogged session is a failed session even if its code worked). F
   on `master` run `git merge worktree-task-2-electron-scaffold`, then re-run `npm install` in
   the main checkout (node_modules lives only in the worktree and is git-ignored). Then Task 3.
 
+- **2026-07-16 · Fable 5 (freemodel) · integration** — The NEXT items above are done (user
+  delegated them, same session): `master` fast-forwarded to `e8bb227`, `npm install` re-run in
+  the main checkout, `./node_modules/.bin/electron --version` → `v33.4.11` there too (pasted).
+  Nothing pending — the next session starts plan Task 3 directly via the standard entry prompt
+  (mechanical task per the model policy; worktree recommended, branch off `master`).
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
