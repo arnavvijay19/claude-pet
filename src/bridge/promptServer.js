@@ -8,6 +8,7 @@ function start(petWindow, onPrompt) {
       res.writeHead(404).end();
       return;
     }
+    req.setEncoding('utf8');
     let body = '';
     req.on('data', (chunk) => (body += chunk));
     req.on('end', () => {
@@ -18,7 +19,7 @@ function start(petWindow, onPrompt) {
         res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'invalid JSON' }));
         return;
       }
-      if (typeof parsed.text !== 'string' || parsed.text.length === 0) {
+      if (parsed === null || typeof parsed !== 'object' || typeof parsed.text !== 'string' || parsed.text.length === 0) {
         res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'text is required' }));
         return;
       }
