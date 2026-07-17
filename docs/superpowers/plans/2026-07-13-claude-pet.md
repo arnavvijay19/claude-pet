@@ -401,7 +401,7 @@ git commit -m "feat: add pet sprite state machine and renderer shell"
 - Consumes: `src/renderer/index.html` from Task 3.
 - Produces: an `app` singleton other tasks attach IPC handlers to (Task 5, Task 6 hook into `ipcMain` from this file).
 
-- [ ] **Step 1: Write main.js**
+- [x] **Step 1: Write main.js**
 
 ```js
 // src/main.js
@@ -482,7 +482,7 @@ app.on('window-all-closed', (event) => {
 module.exports = { getPetWindow: () => petWindow };
 ```
 
-- [ ] **Step 2: Write preload.js**
+- [x] **Step 2: Write preload.js**
 
 ```js
 // src/preload.js
@@ -502,12 +502,12 @@ contextBridge.exposeInMainWorld('claudePet', {
 });
 ```
 
-- [ ] **Step 3: Verify it runs**
+- [x] **Step 3: Verify it runs**
 
 Run: `npm start`
 Expected: a small frameless window appears in the bottom-right corner of the screen (transparent background, no titlebar), and a tray icon (the 32x32 `assets/tray-icon.png` from Task 1) appears. No sprite is drawn yet — `renderer-main.js` (Task 3's canvas wiring) is written in the next task's follow-up, see Task 7 Step 1 which finalizes it.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/main.js src/preload.js

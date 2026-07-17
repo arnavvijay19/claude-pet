@@ -82,6 +82,22 @@ optional — an unlogged session is a failed session even if its code worked). F
   plan Task 4 via the standard entry prompt (hard task — Fable high/xhigh effort; first
   visible window, visual verification mandatory, now doubly so on electron 43).
 
+- **2026-07-17 · Codex (GPT-5) · Task 4 pass 1/2 (overlay window + tray)** — Fresh worktree
+  `worktree-task-4-overlay-window` created from `master` at `55f88e5`; `src/main.js` and
+  `src/preload.js` implemented and deliberately left uncommitted for the requested checkpoint.
+  Verified: `npm.cmd test` 4 pass / 0 fail, pytest 1 passed, both `node --check` commands and
+  `git diff --check` exited 0. NEXT: queued pass 2 must run `npm.cmd start`, capture visual
+  window + tray evidence, update this log with the result, then commit Task 4.
+
+- **2026-07-17 · Codex (GPT-5) · Task 4 pass 2/2 (overlay window + tray)** — Done on
+  `worktree-task-4-overlay-window`; implementation commit `5111ebf` (`src/main.js` +
+  `src/preload.js`), with this evidence/docs commit following. Live Electron 43 verification:
+  renderer `index.html` reached `complete` at exact 192x208 bounds `(2044,818)`, 24px from the
+  2260x1050 work area's bottom-right; transparent body and all five preload APIs confirmed;
+  Banana Baron tray icon visible in [`evidence/task-4-tray.png`](evidence/task-4-tray.png).
+  Fresh verification: `npm.cmd test` 4 pass / 0 fail, pytest 1 passed, both `node --check`
+  commands + `git diff --check` exited 0. NEXT: merge this branch to `master`, then Task 5.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -154,3 +170,14 @@ link the note to it — this file is the inbox, not the archive.
   Also: the empty `src/bridge/` + `src/renderer/` dirs in the main checkout are dated Jul 13
   (planning day), untracked-by-git leftovers — not evidence any session created-then-abandoned
   code. Don't "fix" the npm start error; it disappears when Task 4 lands.
+- 2026-07-17 `GOTCHA:` PowerShell's execution policy blocks the `npm.ps1` shim on this
+  machine. Invoke `npm.cmd` for install, test, and start commands from PowerShell; it resolves
+  to the same Node installation without requiring an execution-policy change.
+- 2026-07-17 `GOTCHA:` Codex's restricted shell denies child-process creation (`spawn EPERM`),
+  which makes Node's default isolated test workers fail even though `node --test
+  --test-isolation=none` passes 4/4. Run the canonical `npm.cmd test` with approved elevated
+  execution; Git commands in an elevated-created worktree also need a per-command
+  `-c safe.directory=<worktree>` because Windows records its owner as Administrators.
+- 2026-07-17 `GOTCHA:` Codex Desktop's shell exports `ELECTRON_RUN_AS_NODE=1`; inherited by
+  `npm.cmd start`, it makes Electron run as plain Node and `ipcMain` is undefined. Remove only
+  that child-shell variable (`Remove-Item Env:ELECTRON_RUN_AS_NODE`) before live Electron runs.
