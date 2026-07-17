@@ -584,6 +584,11 @@ test('rejects a request missing text', async () => {
 });
 ```
 
+> **Final-review hardening (2026-07-17):** the committed test file also covers valid JSON
+> `null` and a non-ASCII character split across HTTP chunks. Those regressions proved the
+> original handler could throw on `null` and corrupt split UTF-8 before fix commit `3e75862`.
+> The implementation snippet below includes the verified corrections.
+
 - [x] **Step 2: Run test to verify it fails**
 
 Run: `node --test tests/promptServer.test.js`
@@ -603,6 +608,7 @@ function start(petWindow, onPrompt) {
       res.writeHead(404).end();
       return;
     }
+    req.setEncoding('utf8');
     let body = '';
     req.on('data', (chunk) => (body += chunk));
     req.on('end', () => {
@@ -613,7 +619,7 @@ function start(petWindow, onPrompt) {
         res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'invalid JSON' }));
         return;
       }
-      if (typeof parsed.text !== 'string' || parsed.text.length === 0) {
+      if (parsed === null || typeof parsed !== 'object' || typeof parsed.text !== 'string' || parsed.text.length === 0) {
         res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'text is required' }));
         return;
       }
@@ -632,7 +638,7 @@ module.exports = { start, PORT };
 - [x] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/promptServer.test.js`
-Expected: PASS (2 tests)
+Expected: PASS (4 tests after final-review regressions)
 
 - [x] **Step 5: Commit**
 
@@ -640,6 +646,9 @@ Expected: PASS (2 tests)
 git add src/bridge/promptServer.js tests/promptServer.test.js
 git commit -m "feat: add loopback-only HTTP prompt bridge for terminal input"
 ```
+
+Final-review hardening was committed separately as `3e75862` (`fix: harden prompt bridge
+request decoding`).
 
 **Usage from a terminal once running:**
 

@@ -99,10 +99,11 @@ optional — an unlogged session is a failed session even if its code worked). F
   commands + `git diff --check` exited 0. NEXT: merge this branch to `master`, then Task 5.
 
 - **2026-07-17 · Codex (GPT-5) · Task 5 (local prompt bridge)** — Done on
-  `worktree-task-5-prompt-bridge`; implementation commit `1cfef44`, with this evidence/docs
-  commit following. TDD verified intended missing-module RED, then focused Node 2 pass / 0 fail;
-  fresh full verification: Node 6 pass / 0 fail, pytest 1 passed, both `node --check` commands
-  and `git diff --check` exited 0. Task review clean; final review follows. NEXT: merge to `master`, then Task 6.
+  `worktree-task-5-prompt-bridge`; implementation `1cfef44`, review fix `3e75862`, and docs
+  `5471cd3` plus this evidence/docs commit. TDD verified the missing-module, JSON `null`, and
+  split-UTF-8 RED cases; fresh verification: focused Node 4 pass / 0 fail, full Node 8 pass /
+  0 fail, pytest 1 passed, both `node --check` commands and `git diff --check` exited 0.
+  Task review clean; final re-review follows. NEXT: merge to `master`, then Task 6.
 
 ## Field notes
 
@@ -192,3 +193,8 @@ link the note to it — this file is the inbox, not the archive.
   was closing, producing `read ECONNRESET` even though both tests passed alone. Corrected after
   follow-up: test requests use `agent: false`, and both cleanups await `server.close()`; the
   Task 5 plan snippet was updated in place before the implementation was committed.
+- 2026-07-17 `FIX:` Task 5's first final review found two input-boundary bugs before merge:
+  valid JSON `null` reached `parsed.text` and threw, while implicit per-chunk Buffer decoding
+  corrupted a UTF-8 character split across chunks. Commit `3e75862` adds both regressions,
+  rejects non-object JSON, and puts the request stream in UTF-8 text mode before collection;
+  focused 4/4 and full Node 8/8 verified after the fix, and the plan was corrected in place.
