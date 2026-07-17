@@ -540,6 +540,7 @@ function post(path, body) {
     const data = JSON.stringify(body);
     const req = http.request(
       { hostname: '127.0.0.1', port: PORT, path, method: 'POST',
+        agent: false,
         headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } },
       (res) => {
         let chunks = '';
@@ -567,7 +568,7 @@ test('accepts a prompt, notifies the window, and calls onPrompt', async () => {
     assert.equal(sent[0].payload.text, 'hello pet');
     assert.deepEqual(prompts, ['hello pet']);
   } finally {
-    server.close();
+    await new Promise((resolve) => server.close(resolve));
   }
 });
 
@@ -578,17 +579,17 @@ test('rejects a request missing text', async () => {
     const { status } = await post('/prompt', {});
     assert.equal(status, 400);
   } finally {
-    server.close();
+    await new Promise((resolve) => server.close(resolve));
   }
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `node --test tests/promptServer.test.js`
 Expected: FAIL — `src/bridge/promptServer.js` does not exist.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 ```js
 // src/bridge/promptServer.js
@@ -628,12 +629,12 @@ function start(petWindow, onPrompt) {
 module.exports = { start, PORT };
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `node --test tests/promptServer.test.js`
 Expected: PASS (2 tests)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/bridge/promptServer.js tests/promptServer.test.js

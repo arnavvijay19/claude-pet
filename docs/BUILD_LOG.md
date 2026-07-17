@@ -98,6 +98,12 @@ optional — an unlogged session is a failed session even if its code worked). F
   Fresh verification: `npm.cmd test` 4 pass / 0 fail, pytest 1 passed, both `node --check`
   commands + `git diff --check` exited 0. NEXT: merge this branch to `master`, then Task 5.
 
+- **2026-07-17 · Codex (GPT-5) · Task 5 (local prompt bridge)** — Done on
+  `worktree-task-5-prompt-bridge`; implementation commit `1cfef44`, with this evidence/docs
+  commit following. TDD verified intended missing-module RED, then focused Node 2 pass / 0 fail;
+  fresh full verification: Node 6 pass / 0 fail, pytest 1 passed, both `node --check` commands
+  and `git diff --check` exited 0. Task review clean; final review follows. NEXT: merge to `master`, then Task 6.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -181,3 +187,8 @@ link the note to it — this file is the inbox, not the archive.
 - 2026-07-17 `GOTCHA:` Codex Desktop's shell exports `ELECTRON_RUN_AS_NODE=1`; inherited by
   `npm.cmd start`, it makes Electron run as plain Node and `ipcMain` is undefined. Remove only
   that child-shell variable (`Remove-Item Env:ELECTRON_RUN_AS_NODE`) before live Electron runs.
+- 2026-07-17 `FIX:` Task 5's original test helper was unreliable on Node 24/Windows because
+  `http.globalAgent` now defaults to keep-alive and reused a socket while the fixed-port server
+  was closing, producing `read ECONNRESET` even though both tests passed alone. Corrected after
+  follow-up: test requests use `agent: false`, and both cleanups await `server.close()`; the
+  Task 5 plan snippet was updated in place before the implementation was committed.
