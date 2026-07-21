@@ -105,6 +105,15 @@ optional — an unlogged session is a failed session even if its code worked). F
   0 fail, pytest 1 passed, both `node --check` commands and `git diff --check` exited 0.
   Task review clean; final re-review follows. NEXT: merge to `master`, then Task 6.
 
+- **2026-07-21 · Codex (GPT-5) · provider-neutral redesign and replanning** — Reworked the
+  canonical spec, research, project context, and existing implementation plan in 6458d6b:
+  completed Tasks 1-5 stay intact and the old Claude-only/appeal-blocked tail is replaced by
+  serial provider-neutral Tasks 6-15. The temporary separate provider design was folded into
+  the canonical docs and deleted. Verified: exact task sequence 6-15, 73 executable unchecked
+  steps, balanced plan fences, no placeholder/truncation markers, five-file docs-only staged
+  set, and git diff --check exit 0. NEXT: a fresh architect executes Task 6 only via the
+  standard entry prompt; no provider account or key is needed.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -198,3 +207,7 @@ link the note to it — this file is the inbox, not the archive.
   corrupted a UTF-8 character split across chunks. Commit `3e75862` adds both regressions,
   rejects non-object JSON, and puts the request stream in UTF-8 text mode before collection;
   focused 4/4 and full Node 8/8 verified after the fix, and the plan was corrected in place.
+- 2026-07-21 SUPERSEDE: The unimplemented Claude-only Tasks 6-8, consumer-account appeal
+  blocker, and single claudeClient architecture are obsolete. Canonical spec/research/context
+  now define providerManager + encrypted providerStore + five adapters + Settings/response
+  windows; the canonical plan's next task is Task 6, and provider purchase/login is optional.
