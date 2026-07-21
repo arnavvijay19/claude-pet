@@ -284,6 +284,18 @@ Tasks 1-5 remain complete and unchanged. The existing Claude-specific Task 6 and
 
 After this written specification is reviewed and approved, the next planning pass must replace those sections with provider-neutral tasks covering the store, adapter contract, initial adapters, Settings UI, IPC, prompt lifecycle, error handling, tests, and end-to-end integration. That planning pass is documentation work only; implementation begins later under the project's one-task-per-session contract.
 
+## Research method
+
+In this project, **research** means broad investigation rather than official-documentation lookup alone. Planning may use official provider and Electron documentation, API schemas, source code, established open-source applications, issue trackers, maintainer discussions, engineering articles, product comparisons, community reports, demos, and other relevant evidence.
+
+Source weight depends on the claim:
+
+- Authentication, security, API contracts, provider restrictions, and current product behavior should be grounded in primary documentation or directly verified behavior whenever possible.
+- Open-source projects and implementation write-ups may inform architecture, UI patterns, compatibility strategies, and likely failure cases.
+- Issues, discussions, and community reports may identify real-world problems, but they are not treated as authoritative without corroboration.
+- Conflicting, stale, or uncertain findings must be labeled instead of converted into confident requirements.
+- Research may change the specification or plan after review, but it is not permission to begin implementation.
+
 ## Research basis
 
 - Electron [`safeStorage`](https://electronjs.org/docs/latest/api/safe-storage)
