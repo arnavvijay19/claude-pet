@@ -69,7 +69,7 @@ Create tests/providerManager.test.js covering these exact cases:
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createProviderManager } = require('../src/providers/providerManager.js');
-const { ERROR_CODES, toPublicError } = require('../src/providers/providerErrors.js');
+const { ERROR_CODES, ProviderError, toPublicError } = require('../src/providers/providerErrors.js');
 const { validateAdapter } = require('../src/providers/providerContract.js');
 
 test('adapter contract requires all six methods', () => {
@@ -77,9 +77,14 @@ test('adapter contract requires all six methods', () => {
 });
 
 test('public errors expose no arbitrary details', () => {
-  const safe = toPublicError(Object.assign(new Error('secret=abc'), { stack: 'secret=abc' }));
+  const safe = toPublicError(new ProviderError(
+    ERROR_CODES.INVALID_CREDENTIALS,
+    'secret=abc',
+    { requestId: 'request-1', raw: 'secret=abc' },
+  ));
   assert.deepEqual(Object.keys(safe).sort(), ['action', 'code', 'message', 'requestId']);
   assert.equal(JSON.stringify(safe).includes('secret=abc'), false);
+  assert.equal(safe.message, 'The credentials were rejected.');
 });
 ~~~
 
@@ -87,6 +92,7 @@ Add manager fixtures and tests for:
 
 - no selection rejects with PROVIDER_REQUIRED;
 - getStatus, beginSetup, testConnection, and listModels receive the decrypted secret but their returned values contain no secret;
+- a second prompt started while the first is still awaiting selection or capabilities rejects with PROVIDER_BUSY;
 - a second prompt rejects with PROVIDER_BUSY while the first remains pending;
 - changing selection during a request does not alter the first request object;
 - unsupported effort rejects before adapter.runPrompt;
@@ -140,6 +146,24 @@ const ACTION_BY_CODE = Object.freeze({
   FILE_UNSUPPORTED: null,
 });
 
+const PUBLIC_MESSAGE_BY_CODE = Object.freeze({
+  PROVIDER_REQUIRED: 'Connect an AI provider to continue.',
+  CLI_NOT_INSTALLED: 'Install the official provider CLI to continue.',
+  AUTH_REQUIRED: 'Sign in through the official provider CLI to continue.',
+  INVALID_CREDENTIALS: 'The credentials were rejected.',
+  CONNECTION_FAILED: 'The AI connection failed.',
+  RATE_LIMITED: 'The provider is temporarily rate limiting requests.',
+  QUOTA_OR_BILLING: 'The provider reported a quota or billing issue.',
+  MODEL_UNAVAILABLE: 'The selected model is unavailable.',
+  UNSUPPORTED_OPTION: 'The selected option is unsupported.',
+  PROVIDER_BUSY: 'The pet is already answering.',
+  REQUEST_TIMEOUT: 'The AI request timed out.',
+  REQUEST_STOPPED: 'The prompt was stopped.',
+  PROVIDER_OUTPUT_INVALID: 'The provider returned no readable response.',
+  SECRET_STORE_FAILED: 'The encrypted credential store is unavailable.',
+  FILE_UNSUPPORTED: 'That file cannot be used as prompt context.',
+});
+
 class ProviderError extends Error {
   constructor(code, message, details = {}) {
     super(message);
@@ -155,7 +179,7 @@ function toPublicError(error) {
     : new ProviderError(ERROR_CODES.CONNECTION_FAILED, 'The AI connection failed.');
   return {
     code: safe.code,
-    message: safe.message,
+    message: PUBLIC_MESSAGE_BY_CODE[safe.code] || PUBLIC_MESSAGE_BY_CODE.CONNECTION_FAILED,
     action: ACTION_BY_CODE[safe.code] || null,
     requestId: typeof safe.details.requestId === 'string' ? safe.details.requestId : null,
   };
@@ -259,19 +283,20 @@ function createProviderManager({ store, adapters }) {
     if (typeof text !== 'string' || !text.trim()) throw new TypeError('Prompt text is required');
     if (active) throw new ProviderError(ERROR_CODES.PROVIDER_BUSY, 'The pet is already answering.');
 
-    const selection = await store.getActiveSelection();
-    if (!selection) throw new ProviderError(ERROR_CODES.PROVIDER_REQUIRED, 'Connect an AI provider to continue.');
-    const connection = await connectionFor(selection.connectionId);
-    const adapter = adapterFor(connection);
-    const capabilities = await adapter.getCapabilities(connection, selection.modelId);
-    const efforts = Array.isArray(capabilities.efforts) ? capabilities.efforts : [];
-    if (selection.effort && !efforts.includes(selection.effort)) {
-      throw new ProviderError(ERROR_CODES.UNSUPPORTED_OPTION, 'Choose an effort supported by this model.');
-    }
-
     const controller = new AbortController();
-    active = { controller, connectionId: connection.id };
+    active = { controller, connectionId: null };
     try {
+      const selection = await store.getActiveSelection();
+      if (!selection) throw new ProviderError(ERROR_CODES.PROVIDER_REQUIRED, 'Connect an AI provider to continue.');
+      const connection = await connectionFor(selection.connectionId);
+      active.connectionId = connection.id;
+      const adapter = adapterFor(connection);
+      const capabilities = await adapter.getCapabilities(connection, selection.modelId);
+      const efforts = Array.isArray(capabilities.efforts) ? capabilities.efforts : [];
+      if (selection.effort && !efforts.includes(selection.effort)) {
+        throw new ProviderError(ERROR_CODES.UNSUPPORTED_OPTION, 'Choose an effort supported by this model.');
+      }
+
       const secret = await store.getSecret(connection.id);
       const reply = await adapter.runPrompt({
         text: text.trim(),

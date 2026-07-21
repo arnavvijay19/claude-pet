@@ -114,6 +114,10 @@ optional — an unlogged session is a failed session even if its code worked). F
   set, and git diff --check exit 0. NEXT: a fresh architect executes Task 6 only via the
   standard entry prompt; no provider account or key is needed.
 
+- **2026-07-21 · Codex (GPT-5) · Task 6 plan review fixes** — Corrected the Task 6 reference
+  implementation to reserve the busy state before async preflight and map every public error
+  to fixed text; added both regression cases. Focused plan checks and `git diff --check` passed.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
