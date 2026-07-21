@@ -28,7 +28,7 @@ Sources: [official Claude Code best practices](https://code.claude.com/docs/en/b
 
 ### Applied to this user's setup
 - Superpowers loop (brainstorm → spec → plan → execute → verify → finish) is already the top-recommended solo-dev SDD framework; the existing plan already mandates it.
-- Usage discipline doubles here: freemodel free-tier for the *build*, and the real account (suspended until appeal ~2026-07-23, trial ends 2026-07-17) is only needed for the Phase-5 end-to-end test. Phases 1–4 need zero real-account usage.
+- Provider choice is deliberately deferred: all remaining implementation and verification must work with mocks or a local compatible endpoint. A paid key or consumer subscription is optional smoke-test input, never a build gate.
 
 ---
 
@@ -77,33 +77,67 @@ Sources: [official hooks guide](https://code.claude.com/docs/en/hooks-guide), [2
 - Statusline is the only source of *live* context-percentage metrics if the pet should ever react to context filling.
 - **Compliance note**: hooks firing pet *animations* is free and safe (no API calls, no prompts). Hooks must never *send prompts* — that would be autonomous prompting, banned by the spec.
 
+
+### B6. Provider-neutral AI connections and settings
+
+Research refreshed 2026-07-21. Primary sources: [Electron safeStorage](https://electronjs.org/docs/latest/api/safe-storage), [OpenAI API key guidance](https://developers.openai.com/api/docs/guides/production-best-practices#api-keys), [OpenAI Codex authentication](https://developers.openai.com/codex/auth), [OpenAI Codex non-interactive mode](https://developers.openai.com/codex/noninteractive), [OpenAI Codex models](https://developers.openai.com/codex/models), [Anthropic Messages API](https://docs.anthropic.com/en/api/messages), [Anthropic Models API](https://docs.anthropic.com/en/api/models-list), [Claude Code CLI reference](https://docs.anthropic.com/en/docs/claude-code/cli-reference), and [Claude Agent SDK authentication guidance](https://docs.anthropic.com/en/docs/claude-code/sdk/sdk-typescript). Comparative implementation sources: [Cherry Studio's provider registry](https://github.com/CherryHQ/cherry-studio/blob/b8485805/src/renderer/src/config/providers.ts) and [LibreChat custom endpoints](https://github.com/LibreChat-AI/librechat.ai/blob/main/content/docs/configuration/librechat_yaml/object_structure/custom_endpoint.mdx).
+
+- Electron safeStorage uses OS-provided cryptography; Windows uses DPAPI. Current docs prefer its asynchronous methods. Encryption availability must be checked after app readiness, and this project permits no plaintext fallback.
+- Direct OpenAI access and Codex consumer login are separate connection methods. Direct OpenAI uses a user-supplied Platform API key; Codex CLI officially supports ChatGPT or API-key login, cached auth, login status, and non-interactive codex exec.
+- Direct Anthropic access uses a user-supplied API key with the Messages API. The Models API lists available models and exposes capability metadata where available.
+- Claude Code officially exposes claude auth login, claude auth status, print mode, model, effort, safe mode, no-session-persistence, and an empty tool list. The installed 2026-07-21 CLI help confirms --tools "" disables all tools.
+- Anthropic's Agent SDK guidance says third-party developers generally may not offer Claude.ai login or subscription rate limits without prior approval. The pet therefore invokes an installed official CLI and never embeds, intercepts, reads, or redistributes Claude consumer authentication. Distribution retains a terms-review gate.
+- The installed Codex CLI help on 2026-07-21 confirms codex login status and an exec shape with --ephemeral, --ignore-user-config, --ignore-rules, --sandbox read-only, --skip-git-repo-check, model selection, and stdin prompts.
+- Model and effort controls must be adapter- and model-aware. Unsupported settings are hidden; there is no universal effort list and no silent fallback.
+- Custom OpenAI-compatible endpoints need both live model discovery and manual model entry. HTTPS is required remotely; explicitly confirmed loopback HTTP supports local gateways.
+- Cherry Studio validates a registry of provider metadata and models; LibreChat demonstrates custom base URLs, credentials, and model specs. These are pattern evidence, not code sources.
+- A separate Settings renderer may transiently submit a newly typed API key but cannot retrieve stored secrets. The transparent pet renderer remains entirely credential- and network-free.
+- The original in-pet speech bubble would render outside the proven 192x208 window and enlarging that transparent window would create a larger click-blocking rectangle. A separate response-bubble BrowserWindow preserves the Task 4 geometry and provides space for setup/error actions.
+
+Research in this repository is broad: official docs and verified behavior anchor security and contracts; source code, open-source apps, issues, discussions, engineering articles, comparisons, demos, and community reports may inform patterns and failure cases. Conflicts and uncertainty must be labeled.
+
 ---
 
 ## Part C — Architectural layouts (reference)
 
-### C1. This project (from the plan — settled, don't churn)
-```
+### C1. This project (provider-neutral redesign, settled 2026-07-21)
+
+~~~text
 Electron main process
-├─ main.js            window (frameless/transparent/alwaysOnTop/tray) + IPC handlers
-├─ preload.js         contextBridge: getManifest / onPrompt / onResponse /
-│                     sendDroppedFile (webUtils) / moveWindowBy
-├─ bridge/promptServer.js   loopback HTTP 127.0.0.1:47611, POST /prompt
-└─ bridge/claudeClient.js   spawn `claude -p` via stdin; CLAUDE_CONFIG_DIR=~/.claude-pet;
-                            strips ANTHROPIC_BASE_URL/API_KEY/AUTH_TOKEN
-Renderer (vanilla JS, no framework)
-├─ pet.js             pure state machine: createPetStateMachine(manifest) →
-│                     { setState(name), getFrame(elapsedMs) → {row, column} }
-└─ renderer-main.js   canvas draw loop, manual drag, drop handler, speech bubble
+├─ main.js                    pet, response, and Settings windows; tray; IPC wiring
+├─ preload.js                 narrow pet actions only
+├─ settings-preload.js        normalized settings calls; one-way new-key submission
+├─ response-preload.js        response actions: settings, stop, retry
+├─ bridge/promptServer.js     loopback POST /prompt, already complete
+├─ providers/providerManager.js
+│                             active selection, adapter registry, one-prompt guard,
+│                             immutable execution snapshot, cancellation, normalized errors
+├─ providers/providerStore.js versioned metadata + safeStorage ciphertext
+├─ providers/cliRunner.js     fixed official-CLI process boundary, stdin prompts
+└─ providers/adapters/
+   ├─ openaiApi.js
+   ├─ anthropicApi.js
+   ├─ codexCli.js
+   ├─ claudeCodeCli.js
+   └─ openAiCompatible.js
+Renderer processes (vanilla JS, context isolated)
+├─ renderer/                  192x208 pet canvas, drag/drop, animations
+├─ response/                  nearby speech-bubble window and recovery actions
+└─ settings/                  normal-sized connection/model/effort UI
 Assets
-├─ pet.json           THE contract: { id, states: {name: {row, frameCount}},
-│                     frameWidth/Height, frameDurationMs, spritesheetPath }
-└─ spritesheet-mvp.png  idle-only, from existing hatch-pet frames, zero image-gen
-```
-Invariants (mirror the Arnav Vijay console's discipline):
-1. Renderer never touches Claude, filesystem, or network — IPC only.
-2. claudeClient is the only credential-aware module; one prompt in, one string out; no queue, no retry loop, no concurrency (compliance is architectural).
-3. pet.json is the single shared shape — new animations are manifest edits, not code.
-4. Real-account path never sees freemodel env; freemodel CLI never sees `~/.claude-pet`.
+├─ pet.json                   animation contract, unchanged
+└─ spritesheet-mvp.png        existing idle row, unchanged
+~~~
+
+Invariants:
+1. The pet renderer never touches credentials, files directly, provider CLIs, or network.
+2. The Settings renderer holds a new API key only until one-way submission and can never read a stored key back.
+3. Consumer authentication happens only inside installed official provider CLI flows; the pet never implements or intercepts it.
+4. API keys are user-supplied and safeStorage-encrypted with no plaintext fallback.
+5. providerManager runs exactly one user-initiated prompt through one visibly selected adapter; no queue, retry, or fallback.
+6. CLI profiles are isolated and opaque. freemodel.dev variables never enter a real-provider child.
+7. pet.json remains the animation contract; provider additions do not change the pet renderer.
+8. Tests, visual QA, and packaging complete without a paid provider.
 
 ### C2. Reference layouts from prior art (for comparison, not adoption)
 - **Clawd**: single Electron window, vanilla JS, tray menu, animation states as sprite rows — validates our exact shape.
@@ -112,9 +146,12 @@ Invariants (mirror the Arnav Vijay console's discipline):
 
 ---
 
-## Open questions / watch items — resolved 2026-07-15 (except the appeal)
+## Resolved decisions / release watch items
 
-- **`CLAUDE_CONFIG_DIR` — VERIFIED WORKING** on the installed CLI (v2.1.201, Windows/Git Bash): with the var set, a harmless `claude config list` created the directory fresh containing its own `.claude.json`, `projects/`, `sessions/`, etc. The Windows caveat from multi-account writeups (global state in `~\.claude.json` shared across profiles) does **not** apply on this version — `.claude.json` lives *inside* the config dir. The HOME-override fallback in plan Task 6 Step 1 is unnecessary; keep it only as documentation. Critical corollary: env vars `ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN`/`ANTHROPIC_BASE_URL` **bypass config-dir isolation entirely** ([confirmed by multi-account guides](https://joshcgrossman.com/2026/02/04/claude-two-accounts-windows/)) — claudeClient's env-stripping is load-bearing for compliance, not belt-and-braces.
+- **CLI profile isolation — VERIFIED.** CLAUDE_CONFIG_DIR was verified on Claude Code v2.1.201, and current CLI help still exposes official auth/status and safe non-interactive controls. The redesigned Claude adapter keeps env stripping and treats the profile as opaque. Codex receives a separate CODEX_HOME and is handled the same way.
+
 - **Click-through vs drag-drop — DECIDED: MVP ships with no `setIgnoreMouseEvents` at all.** The conflict is fundamental, not a bug to work around: `forward: true` delivers only mouse-*move* events; clicks and drops always pass through ([Electron docs](https://www.electronjs.org/docs/latest/tutorial/custom-window-interactions), [electron#38396](https://github.com/electron/electron/issues/38396)), and forwarding silently breaks after a page reload on Windows ([electron#15376](https://github.com/electron/electron/issues/15376)). The sprite-sized window barely overlaps anything, so click-through buys nothing. If ever added: toggle ignore **off** whenever the cursor is over the sprite and never during a drag.
 - **Electron visual verification — recipe confirmed.** The installed chrome-devtools-mcp plugin's config has fixed args (launches its own Chrome; no `--browserUrl`), so to inspect the pet renderer: (1) main.js gates `app.commandLine.appendSwitch('remote-debugging-port', '9222')` + `appendSwitch('remote-allow-origins', '*')` behind `PET_DEBUG=1`; (2) a project-local `.mcp.json` registers `npx chrome-devtools-mcp@latest --browserUrl=http://127.0.0.1:9222`; (3) the agent uses `take_screenshot`/`take_snapshot` against the running window ([Electron+CDP-MCP recipe](https://carljin.com/%E4%BD%BF%E7%94%A8-chrome-devtools-mcp-%E8%B0%83%E8%AF%95-electron-%E5%BA%94%E7%94%A8/)). `--ws-endpoint` is the fallback if browserUrl misbehaves. The `stealth-browser` skill is **not applicable** here: it drives its own Chromium and cannot attach to an Electron window — it solves bot-detection on third-party sites, which this project never touches; given the account's compliance posture, don't reach for it in this repo.
-- Real account suspended until appeal decision (~2026-07-23); trial ends 2026-07-17 — Phase 5's live test may need to wait or the account situation may change entirely. Phases 1–4 are unblocked.
+- **Provider purchase or account availability is not a blocker.** Every plan task uses mocks or the local compatible endpoint for canonical verification. Live-provider smoke tests remain optional.
+- **Claude Code distribution terms remain a release gate.** Personal local testing of the official CLI adapter does not establish permission to market Claude subscription access in a third-party app; re-check Anthropic terms before public distribution.
+- **Windows package signing is separate from functional packaging.** The plan produces an unsigned x64 test/share build; public release signing and SmartScreen reputation are later distribution work.

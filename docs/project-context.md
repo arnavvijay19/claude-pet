@@ -1,103 +1,128 @@
-# Claude Pet — Project Context (the really small framework)
+# Claude Pet — Project Context
 
-Read this first, every session. It's the whole project in one page, update this and other .md files as you need and see fit though.
-Details live in [`superpowers/specs/claude-pet-spec.md`](superpowers/specs/claude-pet-spec.md) (what & why),
-[`superpowers/plans/2026-07-13-claude-pet.md`](superpowers/plans/2026-07-13-claude-pet.md) (exact tasks),
-and [`RESEARCH.md`](RESEARCH.md) (evidence & prior art behind every decision below).
+Read this first every session. It is the durable one-page framework for a provider-neutral Windows desktop pet.
+
+Details live in [superpowers/specs/claude-pet-spec.md](superpowers/specs/claude-pet-spec.md) (what and why), [superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md) (exact tasks), [RESEARCH.md](RESEARCH.md) (evidence and rationale), and [BUILD_LOG.md](BUILD_LOG.md) (history and field notes).
 
 ## One sentence
 
-A transparent always-on-top Electron window draws the existing Banana Baron sprite from a
-`pet.json` manifest; prompts arrive by drag-drop or a localhost POST; one isolated module pipes
-them to the real-account `claude` CLI one at a time, and the reply shows in a speech bubble.
+A transparent always-on-top Electron pet draws the existing Banana Baron sprite, accepts user-initiated prompts through file drop or a loopback POST, and routes one prompt at a time through a visibly selected, user-configured AI adapter while remaining fully usable with no provider configured.
 
-## Architecture — 5 modules around 1 contract
+## Current state
 
-```
-            ┌────────────────────────── Electron main process ─────────────────────────┐
-            │  main.js ── window (frameless, transparent, always-on-top) + tray        │
-            │     │                                                                     │
-            │  promptServer.js ── POST /prompt on 127.0.0.1:47611  ──┐                  │
-            │                                                        ▼                  │
-            │  claudeClient.js ── ONLY module that touches the real account:            │
-            │     spawn `claude -p` · prompt via stdin · CLAUDE_CONFIG_DIR=~/.claude-pet│
-            └───────────────▲───────────────────────────────────────────────────────────┘
-                            │ IPC only (preload.js contextBridge)
-            ┌───────────────┴──────────── renderer ────────────────┐
-            │  pet.js ── state machine reading pet.json            │
-            │  renderer-main.js ── canvas draw loop, drag, bubble  │
-            └──────────────────────────────────────────────────────┘
+- Tasks 1-5 are complete and merged on master.
+- The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt server exist.
+- The next incomplete task is **Task 6: provider contract, errors, and manager core**.
+- No AI account, API key, subscription, or account-appeal outcome is required to execute Tasks 6-15.
+- Real-provider smoke tests are optional; mocks and a local compatible server are canonical verification.
 
-            pet.json = the single shared contract (sprite grid + states).
-            New behavior = manifest edits, not code.
-```
+## Architecture
 
-## Rules (each is architectural, not stylistic — rationale in RESEARCH.md §C1)
+~~~text
+Electron main process
+├─ main.js                    pet, response, Settings windows; tray; IPC wiring
+├─ preload.js                 pet-only context bridge
+├─ settings-preload.js        settings bridge; one-way API-key submission
+├─ response-preload.js        response actions
+├─ bridge/promptServer.js     loopback POST /prompt (complete)
+├─ providers/providerManager.js
+├─ providers/providerStore.js
+├─ providers/cliRunner.js
+└─ providers/adapters/
+   ├─ openaiApi.js
+   ├─ anthropicApi.js
+   ├─ codexCli.js
+   ├─ claudeCodeCli.js
+   └─ openAiCompatible.js
 
-1. **Renderer never touches Claude, files, or network.** IPC through preload only.
-   (`contextIsolation: true`, `nodeIntegration: false` — see RESEARCH.md §B2/§B4 version traps.)
-2. **claudeClient is the only credential-aware module.** One prompt in, one string out.
-   No queue, no retry, no concurrency — the spec's compliance rules are enforced by shape.
-3. **Real account and freemodel never mix.** claudeClient deletes `ANTHROPIC_BASE_URL`/`_API_KEY`/
-   `_AUTH_TOKEN` and sets `CLAUDE_CONFIG_DIR`; the freemodel CLI never sees `~/.claude-pet`.
-4. **No autonomous prompting, ever.** Hooks (future phase) may fire animations, never prompts.
+Context-isolated vanilla-JS renderers
+├─ renderer/                  proven 192x208 pet canvas and drag/drop
+├─ response/                  nearby speech bubble and recovery actions
+└─ settings/                  normal-sized provider/model/effort UI
 
-## Build phases — all detail is in the plan; research pointers are the "read this first" per phase
+Assets
+├─ pet.json                   animation contract
+└─ spritesheet-mvp.png        existing idle sprite row
+~~~
 
-| # | Phase | Proof it's done | Read first |
-|---|-------|-----------------|------------|
-| 1 | **Assets** — extract idle row → spritesheet + pet.json (plan Task 1) | Pillow script output matches 192×208×6 grid; unit test green | plan Task 1 |
-| 2 | **Shell** — Electron scaffold + window + tray (plan Tasks 2, 4) | Window appears transparent, on top, draggable; **screenshot it** | RESEARCH.md §B2 (transparency/click-through gotchas), §B1 Clawd repo |
-| 3 | **Alive** — pet.js state machine + canvas loop (plan Task 3) | Idle animation cycles at 180 ms/frame; state-machine tests green | RESEARCH.md §B3 (Shimeji art/actions/behaviors split) |
-| 4 | **Ears** — promptServer + drag-drop (plan Tasks 5, 7-partial) | `curl POST /prompt` → 202 and pet reacts; file drop yields a path | RESEARCH.md §B2 (drag-region vs drop conflict), §B4 (`webUtils.getPathForFile`) |
-| 5 | **Brain** — claudeClient + end-to-end (plan Tasks 6, 7) | Prompt → real reply in bubble. **Blocked until account appeal (~2026-07-23)** | RESEARCH.md §B4 (stdin/`shell:true` traps); `CLAUDE_CONFIG_DIR` verified 2026-07-15 — only manual `/login` remains |
-| — | **Deferred** — remaining 7 animation rows; hook-driven reactions (plan Task 8) | Only on explicit request | RESEARCH.md §B5 (hooks patterns, xtrimsystems file-poll) |
+## Architectural rules
 
-Phases 1–4 need **zero** real-account usage. Build them now; only phase 5 waits on the appeal.
+1. **The pet works without AI.** Launch, animation, movement, Settings, diagnostics, tests, visual QA, and packaging cannot require a provider.
+2. **Consumer authentication is never implemented by the app.** CLI login buttons only launch installed official provider auth flows. The app never asks for account passwords, embeds OAuth, intercepts callbacks, or reads consumer tokens.
+3. **API keys are user-supplied and local.** The Settings renderer may submit a newly typed key once; main encrypts it with Electron safeStorage. Stored keys never return to a renderer and there is no plaintext fallback.
+4. **The pet renderer stays unprivileged.** It has no credentials, Node access, filesystem access, CLI access, or network access; all work crosses narrow preload IPC.
+5. **One visible route, one prompt.** providerManager snapshots the selected connection/model/options, runs one user-initiated request, and provides no queue, automatic retry, or fallback.
+6. **Provider capabilities drive UI.** Models and effort values come from the selected adapter/model. Unsupported controls are hidden.
+7. **Credentials never mix.** Dedicated CODEX_HOME and CLAUDE_CONFIG_DIR profiles are opaque; child envs strip freemodel.dev and unrelated provider overrides.
+8. **The 192x208 pet window remains small.** A separate response window provides speech and actions without expanding the transparent click-blocking rectangle.
+9. **pet.json remains the animation contract.** Provider additions do not change sprite/state-machine APIs.
+10. **No autonomous prompting.** Future hooks may animate locally but never submit AI requests.
 
-## Working method (from RESEARCH.md §A — the short version)
+## Initial connection methods
 
-- One session = one phase-step, one verification, one commit. `/clear` between goals.
-- Evidence before "done": run the test / take the screenshot — Electron fails silently
-  (blank window, dead IPC, tests still green), so **visual verification is mandatory** for
-  anything window-related (RESEARCH.md §B4; chrome-devtools-mcp plugin is installed for this).
-- Two failed fix attempts → rewind to last commit, don't stack corrections.
-- Prior-art repos (Clawd et al., RESEARCH.md §B1): read for architecture, copy nothing (spec's IP rule).
+- OpenAI API key through the Responses API.
+- Anthropic API key through the Messages API.
+- Official Codex CLI with its own ChatGPT or API-key login.
+- Official Claude Code CLI with its own login.
+- Custom OpenAI-compatible endpoint with optional API key and manual-model fallback.
 
-## AI deployment strategy (meta — how sessions of *any* model build this)
+Remote custom endpoints require HTTPS. Explicitly confirmed loopback HTTP is allowed for local gateways.
 
-This project is built by AI sessions, not by one assistant. Sessions die, context compacts,
-models vary (Claude via freemodel, GPT via Codex CLI, whatever else). The docs are the only
-memory that survives. Therefore:
+## Remaining build phases
 
-**Session contract — every session, any model, must:**
-1. **Start** by reading this file, then [`BUILD_LOG.md`](BUILD_LOG.md) (what happened + field
-   notes), then the plan section for its one task. Nothing else is assumed known.
-2. **During work, take field notes in `BUILD_LOG.md` the moment things come up** — a fix for a
-   surprise problem, a gotcha, an idea, a superseded decision. Don't batch them for session
-   end; a compaction or crash loses unbatched notes. Format is defined at the top of that file.
-3. **End** by (a) committing or explicitly reporting `git status`, (b) appending a session-log
-   entry to `BUILD_LOG.md`, (c) never claiming "done" without pasted command output or a
-   screenshot. A session that skips (b) has failed even if its code works.
+| Phase | Plan tasks | Deliverable | Canonical proof |
+|---|---:|---|---|
+| Complete foundation | 1-5 | Assets, Electron shell, state machine, tray, prompt server | Existing tests and Task 4 screenshot |
+| Provider core | 6-7 | Adapter contract, error taxonomy, one-prompt manager, encrypted store | Mocked Node tests; no Electron renderer secrets |
+| Direct APIs | 8-9 | OpenAI, custom compatible, and Anthropic adapters | Mocked HTTP contract/capability/error tests |
+| Official CLIs | 10-11 | Codex and Claude Code status/login/prompt adapters | Command-shape, env-isolation, timeout, and cancellation tests |
+| Configuration UI | 12 | Settings window and capability-aware switching | DOM/unit tests plus visual screenshot |
+| Pet response UI | 13 | Pet animation/drop renderer and separate response bubble | Renderer tests plus visual screenshot |
+| Integration | 14 | Both prompt paths, tray switching, stop/retry/setup routing | Local compatible end-to-end run and visual evidence |
+| Shareable build | 15 | Unsigned Windows x64 package, first-run docs, secret scan | Packaged launch with empty provider store |
 
-**Model/effort policy** (a guide, not a gate — any capable model may do any task):
-- **Hard tasks** — plan Tasks 2, 4, 6, 7 (Electron scaffold, transparent window, claudeClient
-  spawn quirks, end-to-end integration): strongest available model, highest effort. These are
-  where Windows/Electron silent failures live.
-- **Mechanical tasks** — Tasks 1, 3, 5 (Pillow extraction, canvas loop, tray/server): any
-  competent model, default effort.
-- Model choice never changes the compliance rules — those bind every session equally.
+Deferred animation rows and hook-driven reactions are not selected by the standard entry prompt and require a separate explicit request after Task 15.
 
-**Order & parallelism:** Tasks 1→2→3→4 strictly serial (each builds on the last). After 4,
-Tasks 5 and 6 are independent and *may* run as two parallel sessions (different files; if both
-run, each stays inside its own module and the later one rebases). Task 7 last, single session.
+## Working method
 
-**Standard entry prompt** (paste verbatim to start any build session, any model):
+- One session or architect chat executes one numbered task, verifies it, updates BUILD_LOG.md, and commits it.
+- Read only this file, BUILD_LOG.md, and the exact next task before implementation; use RESEARCH.md sections linked by that task when needed.
+- Evidence before done: run the specified focused tests and the full suite. Visual tasks require durable screenshots because Electron can fail silently.
+- On PowerShell use npm.cmd. Remove inherited ELECTRON_RUN_AS_NODE only in the child shell before live Electron runs.
+- Two failed fixes for the same problem means stop stacking changes and return to the last verified checkpoint.
+- Do not start the next numbered task in the same implementation chat.
+- Do not make a real-provider credential mandatory merely because one is available.
 
-> Read `Claude Pet/docs/project-context.md` and `Claude Pet/docs/BUILD_LOG.md`, then execute
-> the next incomplete task in `Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md`.
+## Model and effort policy
+
+Any capable coding model may execute a task. Use the strongest available model and higher reasoning effort for Task 6 contract design, Task 7 secret storage, Tasks 10-11 CLI security, Task 12 IPC/settings, Task 14 integration, and Task 15 packaging. Tasks 8-9 and 13 are narrower but still require exact protocol or Electron verification.
+
+Model choice never changes authentication, credential, no-fallback, or verification rules.
+
+## Order
+
+Tasks 6 through 15 are serial. Each consumes contracts or files from the prior task. Do not run them in parallel worktrees unless the plan explicitly identifies a truly independent correction.
+
+## Standard entry prompt
+
+> Read Claude Pet/docs/project-context.md and Claude Pet/docs/BUILD_LOG.md, then execute the next incomplete task in Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md.
 > One task only. Follow the session contract and working method in project-context.md.
 
-**Doc-routing rule:** field notes and session history → `BUILD_LOG.md`; changed decisions →
-edit RESEARCH.md/plan in place; this file only changes when the architecture or strategy
-itself changes.
+## Session contract
+
+Every implementation session must:
+
+1. Start from a clean branch/worktree whose base contains the previous task's final commit.
+2. Read this file, BUILD_LOG.md, and only the exact plan task plus its linked research.
+3. Record surprises immediately in BUILD_LOG.md field notes.
+4. Execute the task's red-green test cycle and required visual or packaging checks.
+5. End with exact test output, git status, a session-log entry, and a commit or explicit blocker.
+6. Never claim readiness for the next task until the current task's final commit is an ancestor of the branch the next architect will use.
+
+## Document routing
+
+- Product requirements and settled invariants: superpowers/specs/claude-pet-spec.md
+- Exact implementation tasks and code contracts: superpowers/plans/2026-07-13-claude-pet.md
+- Evidence, source comparisons, and rationale: RESEARCH.md
+- Session history, discoveries, fixes, and handoff state: BUILD_LOG.md
+- This file changes only when architecture, task order, or the session contract changes.
