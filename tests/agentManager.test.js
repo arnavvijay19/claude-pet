@@ -97,11 +97,15 @@ test('reserves busy before awaiting selected connection lookup', async () => {
   await first;
 });
 
-test('uses an immutable snapshot of nested connection and model capabilities during a run', async () => {
+test('sends only the exact deeply immutable executor request snapshot', async () => {
   const gate = deferred();
   const connection = {
-    id: 'connection-1', executor: 'demo', model: { id: 'agent-model', options: { effort: 'high' } },
-    effort: 'high', permissionProfile: { mode: 'workspace', nested: { level: 1 } },
+    id: 'connection-1', executor: 'demo',
+    model: { id: 'agent-model', internalMetadata: 'must-not-leak' }, effort: 'high',
+    workspace: { path: 'Z:\\workspace', nested: { trusted: true } },
+    permissionProfile: { mode: 'workspace', nested: { level: 1 } },
+    options: { retries: 0, nested: { colors: ['blue'] } },
+    internalToken: 'must-not-leak',
   };
   let request;
   let seenConnection;
@@ -117,12 +121,26 @@ test('uses an immutable snapshot of nested connection and model capabilities dur
   const pending = manager.runGoal('work');
   await new Promise((resolve) => setImmediate(resolve));
   connection.permissionProfile.nested.level = 9;
-  connection.model.options.effort = 'low';
+  connection.workspace.nested.trusted = false;
+  connection.options.nested.colors.push('red');
   assert.equal(Object.isFrozen(seenConnection), true);
   assert.equal(Object.isFrozen(seenConnection.permissionProfile.nested), true);
-  assert.equal(request.connection.permissionProfile.nested.level, 1);
-  assert.equal(request.model.options.effort, 'high');
-  assert.equal(Object.isFrozen(request.capabilities.nested.tools), true);
+  assert.deepEqual(Object.keys(request), [
+    'goal', 'workspace', 'permissionProfile', 'model', 'effort', 'options',
+  ]);
+  assert.deepEqual(request, {
+    goal: 'work',
+    workspace: { path: 'Z:\\workspace', nested: { trusted: true } },
+    permissionProfile: { mode: 'workspace', nested: { level: 1 } },
+    model: 'agent-model',
+    effort: 'high',
+    options: { retries: 0, nested: { colors: ['blue'] } },
+  });
+  assert.equal(Object.isFrozen(request), true);
+  assert.equal(Object.isFrozen(request.workspace.nested), true);
+  assert.equal(Object.isFrozen(request.permissionProfile.nested), true);
+  assert.equal(Object.isFrozen(request.options.nested.colors), true);
+  assert.equal(JSON.stringify(request).includes('must-not-leak'), false);
   gate.resolve();
   await pending;
 });
@@ -136,6 +154,30 @@ test('rejects unsupported effort before execution', async () => {
   const { manager } = harness({ executor });
   await assert.rejects(manager.runGoal('work'), (error) => error.code === 'UNSUPPORTED_OPTION');
   assert.equal(executions, 0);
+});
+
+test('rejects non-JSON option values with UNSUPPORTED_OPTION before execution', async () => {
+  const unsupported = [
+    new Date(),
+    Infinity,
+    () => {},
+    new Map([['key', 'value']]),
+    { nested: undefined },
+    Array(1),
+  ];
+  for (const options of unsupported) {
+    let executions = 0;
+    const connection = {
+      id: 'connection-1', executor: 'demo', model: 'agent-model', effort: 'high',
+      permissionProfile: { mode: 'workspace' }, options,
+    };
+    const executor = fakeExecutor({
+      runGoal: async () => { executions += 1; return { text: '', changedFiles: [] }; },
+    });
+    const { manager } = harness({ connection, executor });
+    await assert.rejects(manager.runGoal('work'), (error) => error.code === 'UNSUPPORTED_OPTION');
+    assert.equal(executions, 0);
+  }
 });
 
 test('sanitizes and validates every executor activity event before publication', async () => {
@@ -154,6 +196,36 @@ test('sanitizes and validates every executor activity event before publication',
   const serialized = JSON.stringify(activity.snapshot());
   assert.equal(serialized.includes('secret'), false);
   assert.equal(activity.snapshot().events.length, 1);
+});
+
+test('ignores delayed activity from a settled run after the next run begins', async () => {
+  let runNumber = 0;
+  let emitFromRunA;
+  const runBStarted = deferred();
+  const finishRunB = deferred();
+  const executor = fakeExecutor({
+    runGoal: async (_request, emitActivity) => {
+      runNumber += 1;
+      if (runNumber === 1) {
+        emitFromRunA = emitActivity;
+        return { text: 'A done', changedFiles: [] };
+      }
+      emitActivity({ phase: 'run', kind: 'status', summary: 'B live' });
+      runBStarted.resolve();
+      await finishRunB.promise;
+      return { text: 'B done', changedFiles: [] };
+    },
+  });
+  const { manager, activity } = harness({ executor });
+
+  await manager.runGoal('A');
+  const runB = manager.runGoal('B');
+  await runBStarted.promise;
+  emitFromRunA({ phase: 'run', kind: 'status', summary: 'late A' });
+
+  assert.deepEqual(activity.snapshot().events.map((event) => event.summary), ['B live']);
+  finishRunB.resolve();
+  await runB;
 });
 
 test('returns AGENT_BUSY for a second goal and Stop aborts with RUN_STOPPED', async () => {
@@ -267,4 +339,37 @@ test('delegates selection and status/setup methods through the selected executor
   await manager.getCapabilities();
   await manager.verifyPermissionProfile();
   assert.deepEqual(calls, ['getStatus', 'beginSetup', 'listModels', 'getCapabilities', 'verifyPermissionProfile']);
+});
+
+test('passes exact capability and permission arguments through run and delegate paths', async () => {
+  const capabilityCalls = [];
+  const permissionCalls = [];
+  const executor = fakeExecutor({
+    getCapabilities: async (...args) => {
+      capabilityCalls.push(args);
+      return { efforts: ['high'] };
+    },
+    verifyPermissionProfile: async (...args) => {
+      permissionCalls.push(args);
+      return { available: true, allowed: true };
+    },
+  });
+  const { manager } = harness({ executor });
+
+  await manager.runGoal('work');
+  await manager.getCapabilities();
+  await manager.verifyPermissionProfile();
+
+  assert.equal(capabilityCalls.length, 2);
+  assert.equal(permissionCalls.length, 2);
+  for (const args of capabilityCalls) {
+    assert.equal(args.length, 2);
+    assert.equal(args[0].id, 'connection-1');
+    assert.equal(args[1], 'agent-model');
+  }
+  for (const args of permissionCalls) {
+    assert.equal(args.length, 1);
+    assert.equal(args[0].id, 'connection-1');
+    assert.deepEqual(args[0].permissionProfile, { mode: 'workspace', nested: { level: 1 } });
+  }
 });

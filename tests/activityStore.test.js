@@ -79,6 +79,19 @@ test('rejects unsafe paths and invalid usage values', () => {
   );
 });
 
+test('store rejects absolute credential-profile paths after sanitization', () => {
+  const store = createActivityStore({ clock: () => 1 });
+  store.begin({ connectionId: 'demo' });
+  for (const path of ['C:\\Users\\me\\.aws\\credentials', '/.aws/credentials']) {
+    assert.throws(
+      () => store.append({ phase: 'run', kind: 'file', summary: 'Credential file', path, operation: 'read' }),
+      (error) => error.code === 'ACTIVITY_INVALID',
+      path,
+    );
+  }
+  assert.deepEqual(store.snapshot().events, []);
+});
+
 test('reduces network destinations to scheme, host, and optional port', () => {
   const clean = validateActivityEvent({
     phase: 'run', kind: 'network', summary: 'Net',

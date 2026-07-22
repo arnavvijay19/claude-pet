@@ -8,6 +8,40 @@ function cloneFrozen(value) {
   return deepFreeze(structuredClone(value));
 }
 
+function sanitizeOptions(value, ancestors = new Set()) {
+  if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new AgentError('UNSUPPORTED_OPTION');
+    return value;
+  }
+  if (!value || typeof value !== 'object') throw new AgentError('UNSUPPORTED_OPTION');
+  if (ancestors.has(value)) throw new AgentError('UNSUPPORTED_OPTION');
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      for (let index = 0; index < value.length; index += 1) {
+        if (!Object.hasOwn(value, index)) throw new AgentError('UNSUPPORTED_OPTION');
+      }
+      return value.map((item) => sanitizeOptions(item, ancestors));
+    }
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new AgentError('UNSUPPORTED_OPTION');
+    }
+    const clone = {};
+    for (const key of Reflect.ownKeys(value)) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (typeof key !== 'string' || !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+        throw new AgentError('UNSUPPORTED_OPTION');
+      }
+      clone[key] = sanitizeOptions(descriptor.value, ancestors);
+    }
+    return clone;
+  } finally {
+    ancestors.delete(value);
+  }
+}
+
 function modelIdOf(model) {
   if (typeof model === 'string') return model;
   if (model && typeof model.id === 'string') return model.id;
@@ -49,7 +83,8 @@ function createAgentManager({ store, executors, activity }) {
     const selected = await store.getSelected();
     throwIfAborted(signal);
     if (!selected) throw new AgentError('AGENT_REQUIRED');
-    const connection = cloneFrozen(selected);
+    const options = sanitizeOptions(selected.options ?? {});
+    const connection = cloneFrozen({ ...selected, options });
     const identifier = connection.executor || connection.type;
     if (typeof identifier !== 'string' || !identifier) throw new AgentError('AGENT_REQUIRED');
     selectedConnectionId = connection.id || null;
@@ -58,8 +93,11 @@ function createAgentManager({ store, executors, activity }) {
 
   async function delegate(method) {
     const { connection, executor } = await selectedExecutor();
+    if (method === 'getCapabilities') {
+      return executor[method](connection, modelIdOf(connection.model));
+    }
     if (method === 'verifyPermissionProfile') {
-      return executor[method](connection.permissionProfile, connection);
+      return executor[method](connection);
     }
     return executor[method](connection);
   }
@@ -81,11 +119,12 @@ function createAgentManager({ store, executors, activity }) {
   async function runGoal(text) {
     if (active) throw new AgentError('AGENT_BUSY');
     const controller = new AbortController();
-    active = { controller, connectionId: null };
+    const reservation = { controller, connectionId: null };
+    active = reservation;
 
     try {
       const { connection, identifier, executor } = await selectedExecutor(controller.signal);
-      active.connectionId = connection.id || null;
+      reservation.connectionId = connection.id || null;
 
       const status = cloneFrozen(await executor.getStatus(connection));
       throwIfAborted(controller.signal);
@@ -93,11 +132,12 @@ function createAgentManager({ store, executors, activity }) {
       if (status?.authenticated === false) throw new AgentError('AUTH_REQUIRED');
       if (status?.workspaceAvailable === false) throw new AgentError('WORKSPACE_UNAVAILABLE');
 
-      const capabilities = cloneFrozen(await executor.getCapabilities(connection));
+      const modelId = modelIdOf(connection.model);
+      const capabilities = cloneFrozen(await executor.getCapabilities(connection, modelId));
       throwIfAborted(controller.signal);
       const models = cloneFrozen(await executor.listModels(connection));
       throwIfAborted(controller.signal);
-      const permission = cloneFrozen(await executor.verifyPermissionProfile(connection.permissionProfile, connection));
+      const permission = cloneFrozen(await executor.verifyPermissionProfile(connection));
       throwIfAborted(controller.signal);
       if (permission === false || permission?.available === false) {
         throw new AgentError('PERMISSION_PROFILE_UNAVAILABLE');
@@ -106,7 +146,6 @@ function createAgentManager({ store, executors, activity }) {
         throw new AgentError('PERMISSION_BLOCKED');
       }
 
-      const modelId = modelIdOf(connection.model);
       const selectedModel = Array.isArray(models)
         ? models.find((model) => (typeof model === 'string' ? model : model?.id) === modelId)
         : null;
@@ -121,14 +160,18 @@ function createAgentManager({ store, executors, activity }) {
       }
 
       const request = cloneFrozen({
-        text,
-        connection,
-        model: connection.model,
-        capabilities,
+        goal: text,
+        workspace: connection.workspace,
         permissionProfile: connection.permissionProfile,
+        model: modelId,
+        effort,
+        options: connection.options ?? {},
       });
       activity.begin({ connectionId: connection.id || null, executor: identifier, model: modelId });
-      const result = await executor.runGoal(request, (event) => activity.append(event), controller.signal);
+      const emitActivity = (event) => {
+        if (active === reservation) activity.append(event);
+      };
+      const result = await executor.runGoal(request, emitActivity, controller.signal);
       throwIfAborted(controller.signal);
       if (!result || typeof result.text !== 'string' || !Array.isArray(result.changedFiles)
           || result.changedFiles.some((path) => typeof path !== 'string')) {
@@ -148,7 +191,7 @@ function createAgentManager({ store, executors, activity }) {
       if (error instanceof AgentError) throw error;
       throw new AgentError('COMMAND_FAILED', { cause: error });
     } finally {
-      active = null;
+      if (active === reservation) active = null;
     }
   }
 
