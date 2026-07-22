@@ -1,0 +1,500 @@
+<!doctype html>
+<!--
+  Temporary Claude Pet checklist.
+
+  AI UPDATE RULES:
+  Before changing official completion defaults or the Start Here text, verify:
+  1. docs/project-context.md
+  2. docs/BUILD_LOG.md
+  3. docs/superpowers/plans/2026-07-13-claude-pet.md
+  4. current Git state and fresh test evidence
+
+  Browser-saved checkmarks are personal notes, not proof that repository work is complete.
+  This file is safe to delete after Task 15 is finished and verified.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claude Pet Project To-Do List</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --background: #f5f3ee;
+      --surface: #ffffff;
+      --surface-soft: #f0ece3;
+      --text: #22201d;
+      --muted: #686159;
+      --border: #d8d0c3;
+      --accent: #7454d3;
+      --accent-soft: #eee9ff;
+      --done: #567361;
+      --focus: #e36b22;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    .page {
+      width: min(850px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 42px 0 64px;
+    }
+
+    header,
+    section,
+    footer {
+      margin-bottom: 28px;
+    }
+
+    h1,
+    h2,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      font-size: clamp(2rem, 6vw, 3.4rem);
+      line-height: 1.05;
+      letter-spacing: -0.04em;
+    }
+
+    h2 {
+      margin-bottom: 12px;
+      font-size: 1.25rem;
+    }
+
+    .eyebrow {
+      margin-bottom: 8px;
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .intro,
+    .muted,
+    footer p {
+      color: var(--muted);
+    }
+
+    .start-here {
+      padding: 22px;
+      border: 2px solid var(--accent);
+      border-radius: 16px;
+      background: var(--accent-soft);
+    }
+
+    .start-here p:last-child,
+    .task-copy p:last-child,
+    footer p:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .section-heading h2 {
+      margin-bottom: 0;
+    }
+
+    #progress {
+      color: var(--muted);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .task-list {
+      display: grid;
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .task {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 12px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+
+    .task input[type="checkbox"] {
+      width: 24px;
+      height: 24px;
+      margin: 2px 0 0;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .task label {
+      display: inline-block;
+      margin-bottom: 6px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .task-copy p {
+      margin-bottom: 8px;
+    }
+
+    .task-action {
+      padding: 10px 12px;
+      border-left: 4px solid var(--accent);
+      background: var(--surface-soft);
+    }
+
+    .task.complete {
+      border-color: color-mix(in srgb, var(--done) 55%, var(--border));
+    }
+
+    .task.complete label {
+      color: var(--done);
+      text-decoration: line-through;
+      text-decoration-thickness: 2px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 130px;
+      padding: 14px;
+      resize: vertical;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+
+    button {
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+    }
+
+    a {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    input:focus-visible,
+    textarea:focus-visible,
+    button:focus-visible,
+    a:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+
+    .official-files {
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+    }
+
+    .official-files ul {
+      margin-bottom: 0;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #171614;
+        --surface: #23211e;
+        --surface-soft: #2d2925;
+        --text: #f4f0e8;
+        --muted: #bbb2a6;
+        --border: #484139;
+        --accent: #b9a7ff;
+        --accent-soft: #2a2441;
+        --done: #9bc3aa;
+        --focus: #ff9c5f;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .page {
+        width: min(100% - 20px, 850px);
+        padding-top: 24px;
+      }
+
+      .section-heading {
+        display: block;
+      }
+
+      #progress {
+        display: block;
+        margin-top: 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <p class="eyebrow">Claude Pet</p>
+      <h1>Project to-do list</h1>
+      <p class="intro">A simple list of what is finished, what comes next, and what you need to do.</p>
+    </header>
+
+    <section class="start-here" aria-labelledby="start-title">
+      <h2 id="start-title">Start here</h2>
+      <p><strong>Next:</strong> Task 6 — build the agent manager and safe activity foundation.</p>
+      <p><strong>What you need to do:</strong> Ask an AI to execute Task 6 only. You do not need an AI account for Tasks 6–9.</p>
+    </section>
+
+    <section aria-labelledby="todo-title">
+      <div class="section-heading">
+        <h2 id="todo-title">To-do list</h2>
+        <output id="progress" aria-live="polite"></output>
+      </div>
+      <ol id="task-list" class="task-list"></ol>
+    </section>
+
+    <section aria-labelledby="notes-title">
+      <h2 id="notes-title">Notes or blockers</h2>
+      <textarea id="notes" rows="6" placeholder="Write the next step or anything that is stuck..."></textarea>
+    </section>
+
+    <section class="official-files" aria-labelledby="official-title">
+      <h2 id="official-title">Official project files</h2>
+      <p class="muted">This checklist is only a helper. If it disagrees with these files, these files win:</p>
+      <ul>
+        <li><a href="docs/project-context.md">Current project context</a></li>
+        <li><a href="docs/BUILD_LOG.md">Build history</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Tasks 1–15 plan</a></li>
+      </ul>
+    </section>
+
+    <footer>
+      <button id="reset" type="button">Reset checklist</button>
+      <p>This page saves checkmarks and notes in your browser. It does not change the app. Delete this file after Task 15 is finished and verified.</p>
+    </footer>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'claude-pet-project-checklist-v1';
+
+    const TASKS = Object.freeze([
+      {
+        id: 'task-1',
+        title: 'Task 1 — Prepare the pet artwork',
+        done: true,
+        explanation: 'The sprite sheet, pet description, tray icon, and artwork tests were created.',
+        action: 'Nothing. This task is complete.',
+      },
+      {
+        id: 'task-2',
+        title: 'Task 2 — Build the animation rules',
+        done: true,
+        explanation: 'The pet can track animation states and move through sprite frames correctly.',
+        action: 'Nothing. This task is complete.',
+      },
+      {
+        id: 'task-3',
+        title: 'Task 3 — Draw the animated pet',
+        done: true,
+        explanation: 'The transparent renderer loads the sprite sheet and displays the animation.',
+        action: 'Nothing. This task is complete.',
+      },
+      {
+        id: 'task-4',
+        title: 'Task 4 — Create the desktop window and tray',
+        done: true,
+        explanation: 'The always-on-top pet window, dragging behavior, and tray menu were added and visually checked.',
+        action: 'Nothing. This task is complete.',
+      },
+      {
+        id: 'task-5',
+        title: 'Task 5 — Add the local prompt doorway',
+        done: true,
+        explanation: 'Claude Pet can safely accept local text prompts through its loopback server.',
+        action: 'Nothing. This task is complete.',
+      },
+      {
+        id: 'task-6',
+        title: 'Task 6 — Build the agent manager and activity foundation',
+        done: false,
+        explanation: 'This creates the shared rules for running one agent goal, stopping it, showing safe activity, and hiding sensitive details.',
+        action: 'Ask an AI to execute Task 6 only. Check this item only after it reports fresh tests, a clean review, and the final commit.',
+      },
+      {
+        id: 'task-7',
+        title: 'Task 7 — Save connections safely',
+        done: false,
+        explanation: 'This adds the safe place for agent choices, workspaces, permissions, and any future encrypted secrets.',
+        action: 'Nothing manual. Ask the AI to execute Task 7 after Task 6 is committed, then confirm its security tests pass.',
+      },
+      {
+        id: 'task-8',
+        title: 'Task 8 — Add the Offline Demo Agent',
+        done: false,
+        explanation: 'This creates a built-in test agent that works without an account, login, API key, or network.',
+        action: 'Nothing manual. Ask the AI to execute Task 8 after Task 7. This is the safe agent used for later user testing.',
+      },
+      {
+        id: 'task-9',
+        title: 'Task 9 — Build Settings and the response window',
+        done: false,
+        explanation: 'This makes the first complete offline experience: choose an agent and workspace, submit a goal, and watch the response.',
+        action: 'When the AI reaches the test gate, launch the app, create an Offline Demo connection, choose a temporary workspace, submit a goal, inspect the response, and tell the AI whether it worked.',
+      },
+      {
+        id: 'task-10',
+        title: 'Task 10 — Add the safe Codex process boundary',
+        done: false,
+        explanation: 'This runs the official Codex CLI inside tested Workspace permissions and makes Stop end the whole Windows process tree.',
+        action: 'Before an optional real Codex test, update or install Codex CLI version 0.144.6 or newer. No Codex login is required for the automated boundary tests.',
+      },
+      {
+        id: 'task-11',
+        title: 'Task 11 — Add the Codex Workspace Agent',
+        done: false,
+        explanation: 'This connects the official Codex CLI to Claude Pet and adds the detailed Comprehensive activity view.',
+        action: 'Optionally sign into Codex through its official login. At the user test gate, run one harmless goal in a disposable workspace and check that the response and activity make sense.',
+      },
+      {
+        id: 'task-12',
+        title: 'Task 12 — Add the Claude Code Agent',
+        done: false,
+        explanation: 'This adds Claude Code behind the same safe Workspace rules without weakening the app for compatibility.',
+        action: 'Optionally sign into Claude Code version 2.1.217 or newer. At the test gate, run one harmless disposable-workspace goal or inspect the signed-out diagnostic screen.',
+      },
+      {
+        id: 'task-13',
+        title: 'Task 13 — Add the Full Computer warning',
+        done: false,
+        explanation: 'This creates the advanced, risky permission option with a native warning and clear Full Computer badges.',
+        action: 'At the test gate, cancel the warning once and confirm nothing changes. Then accept it for a test connection and confirm the Full Computer badge stays visible.',
+      },
+      {
+        id: 'task-14',
+        title: 'Task 14 — Connect the pet, files, prompts, and agents',
+        done: false,
+        explanation: 'This joins the visible pet to the complete agent flow and adds deliberate text-file input.',
+        action: 'Test an Offline Demo goal, deliberately drop a small UTF-8 text file, inspect both activity views, press Stop during a delayed run, switch settings, and report anything confusing.',
+      },
+      {
+        id: 'task-15',
+        title: 'Task 15 — Make the shareable Windows package',
+        done: false,
+        explanation: 'This builds the clean Windows folder and zip, adds the permanent README, scans for private data, and verifies a fresh first run.',
+        action: 'Launch the packaged app with a clean profile, acknowledge the expected unsigned SmartScreen warning, test Offline Demo, and keep the final package path and hash. After approval, this checklist can be deleted.',
+      },
+    ]);
+
+    const taskList = document.querySelector('#task-list');
+    const notes = document.querySelector('#notes');
+    const progress = document.querySelector('#progress');
+    const resetButton = document.querySelector('#reset');
+
+    function readSavedState() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function writeSavedState() {
+      const checked = {};
+      document.querySelectorAll('[data-task-id]').forEach((input) => {
+        checked[input.dataset.taskId] = input.checked;
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        checked,
+        notes: notes.value,
+      }));
+    }
+
+    function updateProgress() {
+      const inputs = [...document.querySelectorAll('[data-task-id]')];
+      const complete = inputs.filter((input) => input.checked).length;
+      progress.textContent = `${complete} of ${inputs.length} complete`;
+      inputs.forEach((input) => {
+        input.closest('li').classList.toggle('complete', input.checked);
+      });
+    }
+
+    function renderTasks(savedState) {
+      const savedChecks = savedState.checked || {};
+      TASKS.forEach((task) => {
+        const item = document.createElement('li');
+        item.className = 'task';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = task.id;
+        checkbox.dataset.taskId = task.id;
+        checkbox.checked = Object.prototype.hasOwnProperty.call(savedChecks, task.id)
+          ? Boolean(savedChecks[task.id])
+          : task.done;
+
+        const copy = document.createElement('div');
+        copy.className = 'task-copy';
+
+        const label = document.createElement('label');
+        label.htmlFor = task.id;
+        label.textContent = task.title;
+
+        const explanation = document.createElement('p');
+        explanation.textContent = task.explanation;
+
+        const action = document.createElement('p');
+        action.className = 'task-action';
+        const actionLabel = document.createElement('strong');
+        actionLabel.textContent = 'What you need to do: ';
+        action.append(actionLabel, task.action);
+
+        copy.append(label, explanation, action);
+        item.append(checkbox, copy);
+        taskList.append(item);
+      });
+    }
+
+    const savedState = readSavedState();
+    renderTasks(savedState);
+    notes.value = typeof savedState.notes === 'string' ? savedState.notes : '';
+    updateProgress();
+
+    taskList.addEventListener('change', () => {
+      updateProgress();
+      writeSavedState();
+    });
+
+    notes.addEventListener('input', writeSavedState);
+
+    resetButton.addEventListener('click', () => {
+      const accepted = window.confirm('Reset all checkmarks and notes to the official project defaults?');
+      if (!accepted) return;
+      localStorage.removeItem(STORAGE_KEY);
+      window.location.reload();
+    });
+  </script>
+</body>
+</html>
