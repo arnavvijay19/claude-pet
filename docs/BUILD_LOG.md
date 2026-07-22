@@ -118,6 +118,19 @@ optional — an unlogged session is a failed session even if its code worked). F
   implementation to reserve the busy state before async preflight and map every public error
   to fixed text; added both regression cases. Focused plan checks and `git diff --check` passed.
 
+- **2026-07-22 · Codex · agent-first design** — Replaced the chat-client assumption with an
+  approved all-purpose agent design: Codex/Claude CLI executors, Workspace Agent default,
+  separately confirmed Full Computer access, Simple/Comprehensive live activity, and runnable
+  user-test gates. Design commit: `354e8cb`.
+
+- **2026-07-22 · Codex · canonical agent plan reconciliation** — Rewrote the canonical spec,
+  project context, research, and Tasks 6-15 around the approved design. Incorporated review fixes
+  for Electron async safeStorage shape, explicit public metadata allowlisting, deterministic
+  delayed cancellation, Task ownership, and one canonical package path. Fresh verification: Node
+  8 pass / 0 fail, pytest 1 pass, ten serial Tasks 6-15, 45 unchecked execution steps, balanced
+  plan fences, no missing relative Markdown links, no placeholder markers, and `git diff --check`
+  exit 0. Final commit is recorded in the session handoff.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -215,3 +228,7 @@ link the note to it — this file is the inbox, not the archive.
   blocker, and single claudeClient architecture are obsolete. Canonical spec/research/context
   now define providerManager + encrypted providerStore + five adapters + Settings/response
   windows; the canonical plan's next task is Task 6, and provider purchase/login is optional.
+- 2026-07-22 SUPERSEDE: The 2026-07-21 five-adapter chat-first tail is obsolete. The user wants
+  an all-purpose tool-using agent rather than a small chat connection. Canonical Tasks 6-15 now
+  build testable vertical milestones using mock, Codex CLI, and Claude Code CLI executors; direct
+  API tool loops are deferred.

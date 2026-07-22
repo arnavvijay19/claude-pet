@@ -1,207 +1,289 @@
-# Claude Pet — Provider-Neutral Spec
+# Claude Pet Agent-First Spec
 
 ## What this is
 
-Claude Pet is a Windows Electron desktop companion built around the existing Post-Hoc Banana Baron sprite. It is a transparent, always-on-top pet that accepts user-initiated prompts from a loopback terminal endpoint or file drop, shows replies in a nearby speech-bubble UI, and can use whichever supported AI connection the user chooses.
+Claude Pet is a Windows Electron desktop agent built around the existing Post-Hoc Banana Baron
+sprite. It is a transparent, always-on-top companion that accepts user-initiated goals from a
+loopback terminal endpoint or deliberate text-file drop, performs multi-step work through a
+selected official CLI agent, and shows its work live in a nearby response window.
 
-The product is complete and useful before any AI provider is configured. A user can launch, animate, move, and share the app without buying Claude, ChatGPT, API credits, or another subscription. When a prompt needs AI and no connection is active, the pet explains that an AI provider is required and opens a friendly setup flow.
+The product is agent-first rather than chat-first. One user request may inspect files, edit a
+workspace, run commands, and use supported tools. There is still only one run at a time: no queue,
+silent retry, provider fallback, scheduled prompting, or concurrent agent session.
 
-This is a redesign of the unfinished Claude-only brain from plan Task 6 onward. Completed Tasks 1-5 remain valid.
+This spec supersedes the chat-first assumptions introduced after completed plan Tasks 1-5. The
+approved design record is
+[2026-07-22-agent-first-provider-redesign.md](2026-07-22-agent-first-provider-redesign.md).
 
 ## User-visible goals
 
 - Reuse the existing Banana Baron art; do not commission replacement art.
-- Accept prompts through POST /prompt on 127.0.0.1:47611 and through deliberate file-drop interaction.
-- Show a normal-sized Settings window for connections, model selection, reasoning effort, diagnostics, and advanced options.
-- Make connection, model, and supported effort easy to switch from Settings and the tray menu.
-- Show concise thinking, response, setup-required, busy, stopped, and error states beside the pet.
-- Package a Windows x64 build that launches with no configured provider and contains no user secrets.
-- Let future provider adapters be added without changing the transparent pet renderer.
+- Accept goals through `POST /prompt` on `127.0.0.1:47611` and deliberate text-file drop.
+- Configure an official Codex CLI or Claude Code CLI agent in a normal-sized Settings window.
+- Select a workspace, permission profile, model, and supported reasoning effort per connection.
+- Default to a workspace-scoped agent and offer full-computer authority only as an advanced opt-in.
+- Show Simple and Comprehensive live views of the same structured activity stream.
+- Make every major milestone runnable and manually testable before adding the next layer.
+- Package an unsigned Windows x64 test build containing no user credentials or development data.
+- Leave a provider-neutral executor boundary for future app-owned API agent loops.
 
-## Initial connection methods
+## Initial agent connections
 
-The UI presents connection methods rather than only provider logos because API access and consumer subscription login have different authentication and billing behavior.
+The first release supports two agent executors:
 
-1. OpenAI API — a user-supplied OpenAI Platform API key and direct Responses API requests.
-2. Anthropic API — a user-supplied Anthropic API key and direct Messages API requests.
-3. Codex CLI — an installed official Codex CLI using its own ChatGPT or API-key sign-in.
-4. Claude Code CLI — an installed official Claude Code CLI using its own sign-in.
-5. Custom OpenAI-compatible endpoint — a user-supplied endpoint, optional API key, and discovered or manually entered model.
+1. Codex CLI — an installed official Codex CLI using its own ChatGPT or API-key sign-in.
+2. Claude Code CLI — an installed official Claude Code CLI using its own sign-in.
+
+Direct OpenAI, Anthropic, and custom compatible API connections are deferred until the app owns a
+real tool loop that satisfies the same permission, activity, cancellation, and error contracts.
+They must not ship as reduced chat-only substitutes for the agent experience.
 
 ## Authentication invariant
 
 The app never authenticates directly to a provider consumer account.
 
-- The app never asks for or receives a consumer-account email, password, MFA code, session cookie, access token, or refresh token.
-- The app never embeds a provider login page, implements provider OAuth, intercepts an OAuth callback, exchanges an authorization code, or refreshes consumer tokens.
-- A CLI-login button only launches the installed provider's official CLI authentication command.
-- The official CLI exclusively owns, stores, reads, and refreshes its consumer credentials. The pet treats CLI profile directories as opaque and checks status only through official CLI commands.
-- Direct API connections accept only user-supplied API keys. Keys are encrypted locally with Electron safeStorage and never copied into a CLI profile.
-- The transparent pet renderer never receives a credential. The separate Settings renderer holds a newly typed API key only until it submits it once to the main process and clears the field; stored secrets can never be read back into either renderer.
-- freemodel.dev credentials, real-provider credentials, custom-endpoint credentials, and CLI profiles never mix.
+- It never asks for a consumer email, password, MFA code, cookie, access token, or refresh token.
+- It never embeds provider OAuth, intercepts callbacks, exchanges codes, or refreshes tokens.
+- A login button launches only the installed provider's official authentication command.
+- The official CLI exclusively owns and refreshes consumer credentials.
+- The app checks status only through documented CLI commands.
+- Credential files remain opaque; app-owned executor configuration is stored separately from them.
+- The pet, response, and Settings renderers never receive provider credentials.
+- freemodel.dev credentials and unrelated provider overrides never enter real-provider children.
 
-The app may open an official provider authentication flow; it does not become the authenticating client.
+## Agent authority
 
-Anthropic's Agent SDK guidance says third-party developers generally may not offer Claude.ai login or subscription rate limits without approval. The Claude Code adapter is therefore a local official-CLI integration, not an embedded Claude.ai integration. Distribution retains a provider-terms review gate and makes no claim of provider partnership.
+### Workspace Agent
+
+Workspace Agent is the default permission profile. It can read, create, edit, delete, and run
+commands inside one selected workspace. Reads and writes outside that workspace and child-command
+network access are denied except for the minimum executable, runtime, and opaque authentication
+paths required to launch the official CLI.
+
+This boundary must be enforced by an executor, operating-system sandbox, or verified permission
+profile. Prompt instructions are not a security boundary. An executor that cannot prove workspace
+isolation cannot advertise Workspace Agent for that installation.
+
+### Full Computer Agent
+
+Full Computer Agent is an advanced per-connection opt-in. It may receive broad filesystem, command,
+and network access supported by its executor. Enabling it requires a separate warning and explicit
+confirmation. Settings and every live run display a persistent Full Computer badge.
+
+Permission changes affect only the next run. The active run retains its immutable snapshot.
+
+### Deliberate attachments
+
+A deliberate text-file drop is a one-time attachment, not a workspace grant. Main accepts only a
+regular UTF-8 file up to 262144 bytes, wraps its basename and contents inside an explicit untrusted
+data boundary, and never sends its full local path. Dropping a file outside the workspace grants no
+traversal rights to its parent directory.
 
 ## Compliance and account safety
 
-- One user action starts at most one prompt.
-- There is no queue, background prompt loop, scheduled prompting, account pooling, or concurrent provider session.
-- The app never silently retries a generation, changes providers, changes models, or invokes a fallback.
-- Authentication, billing, rate-limit, timeout, and generation retries require another user action.
-- Hooks may trigger free local animations in a future phase but may never send prompts.
+- One user action starts at most one agent run.
+- One run may contain many model and tool actions needed to finish the requested goal.
+- There is no queue, background loop, scheduled run, account pooling, or concurrent provider run.
+- The app never silently retries, changes executor, changes model, or invokes fallback.
+- Authentication, quota, timeout, failed command, and stopped-run retries require another user
+  action.
 - The app does not modify the user's existing freemodel.dev setup.
-- No OpenAI, Anthropic, Codex, or Claude code, assets, branding, or trademarks are copied. Public sources may inform architecture only.
-- Custom endpoints are visibly identified as third-party services with their own privacy, billing, and model behavior.
+- Provider branding, source code, and assets are not copied.
+- Public distribution retains provider-terms and Windows-signing review gates.
 
 ## Architecture
 
-The Electron main process owns every privileged operation:
-
 ~~~text
-promptServer / pet IPC
-          |
-          v
-  providerManager  <---- Settings IPC
-          |
-          +---- providerStore
-          |       - non-secret connection metadata
-          |       - safeStorage-encrypted API keys
-          |
-          +---- adapter registry
-                  - openaiApi
-                  - anthropicApi
-                  - codexCli
-                  - claudeCodeCli
-                  - openAiCompatible
-          |
-          v
- selected provider API or installed official CLI
+promptServer / deliberate file drop
+                 |
+                 v
+          promptController
+                 |
+                 v
+            agentManager <---- Settings IPC
+                 |
+       +---------+----------+
+       |                    |
+ connectionStore       activityStore
+ public metadata       current run only
+       |                    |
+       +---------+----------+
+                 |
+          executor registry
+           /            \
+     Codex CLI      Claude Code CLI
+                 |
+                 v
+ selected workspace and permission boundary
 ~~~
 
-The transparent pet renderer remains vanilla JavaScript with contextIsolation enabled and nodeIntegration disabled. It draws the pet and sends user actions through a narrow preload bridge. A separate Settings renderer has a separate preload and may submit a new API key once, but cannot retrieve stored secrets or make network calls.
-
-A separate response-bubble window is positioned beside the pet. This preserves the proven 192x208 pet window instead of enlarging its transparent click-blocking region. The response window shows setup, progress, replies, errors, and actions such as Connect AI, Stop, Retry, or Open Settings.
+The transparent pet renderer remains context isolated with Node integration disabled. A separate
+Settings renderer configures agent connections through a narrow preload. A separate response
+window shows state, activity, replies, errors, and actions without enlarging the proven 192x208 pet
+window.
 
 ## Main-process components
 
-### providerManager
+### agentManager
 
-providerManager owns the adapter registry, active connection, selected model and options, one-prompt busy guard, immutable execution snapshot, cancellation signal, normalized errors, and response attribution. It never contains provider-specific authentication or request code.
+`agentManager` owns the executor registry, selected connection, one-run busy guard, immutable run
+snapshot, cancellation controller, normalized errors, response attribution, and validated activity
+stream. It never contains provider-specific login or process-parsing code.
 
-### providerStore
+### connectionStore
 
-providerStore persists versioned non-secret connection metadata and safeStorage ciphertext. Encryption occurs only after Electron is ready and encryption is available. There is no plaintext fallback. Decryption failure leaves the connection unusable until the key is re-entered.
+`connectionStore` persists versioned non-secret connection metadata: executor type, label,
+workspace, permission profile, full-access confirmation state, model, effort, and options. It also
+supports future safeStorage-encrypted API secrets without exposing ciphertext or unexpected fields.
 
-Removing an API connection deletes its ciphertext. Disconnecting a CLI connection only removes it from the pet; it does not globally log the user out of the official CLI.
+Electron asynchronous safeStorage decryption returns `{ result, shouldReEncrypt }`. The crypto
+boundary returns the string result and explicitly handles a rotation signal. Public connection
+objects are constructed from an allowlist, not by removing a known secret field.
 
-### Provider adapters
+### Executors
 
-Every adapter provides the same conceptual operations:
+Every executor provides:
 
-- getStatus(connection)
-- beginSetup(input)
-- testConnection(connection)
-- listModels(connection)
-- getCapabilities(connection, model)
-- runPrompt(request, abortSignal)
+- `getStatus(connection)`
+- `beginSetup(connection)`
+- `listModels(connection)`
+- `getCapabilities(connection, modelId)`
+- `verifyPermissionProfile(connection)`
+- `runGoal(request, emitActivity, abortSignal)`
 
-Provider-specific model and effort values are normalized by the adapter. Unsupported controls are hidden rather than ignored.
+`runGoal` returns `{ text, changedFiles }`. It receives a frozen snapshot containing goal,
+workspace, permission profile, model, effort, and sanitized options.
 
-### CLI isolation
+Codex uses a dedicated `CODEX_HOME`, app-owned permission profiles, JSONL execution output, a
+minimal child environment, and official login/status commands. Claude Code uses a dedicated
+`CLAUDE_CONFIG_DIR`, stream JSON output, a minimal child environment, and official login/status
+commands. An executor exposes Workspace Agent only when its local boundary passes deterministic
+isolation probes; otherwise it offers Full Computer only with the advanced warning.
 
-Codex uses a dedicated CODEX_HOME and Claude Code uses a dedicated CLAUDE_CONFIG_DIR. The app invokes the official login and status commands inside those profiles but never reads profile files. Prompt processes use fixed command shapes, prompt text over stdin, no persistence, and the least available permissions:
+### activityStore
 
-- Codex: ephemeral, read-only, no project rules, no Git-repository requirement.
-- Claude Code: print mode, safe mode, no session persistence, no Chrome, no slash commands, and an empty tool list.
+Activity is current-run memory only. It accepts validated normalized events, assigns sequence and
+time metadata, publishes them to the response window, and clears them when dismissed or on exit.
+Persistent run history is deferred.
 
-Child environments strip freemodel.dev and unrelated provider overrides.
+## Live activity views
 
-## Connection setup and switching
+The response window has a remembered Simple/Comprehensive toggle.
 
-When a prompt arrives without an active connection, the response bubble says:
+Simple view shows:
 
-> I need an AI provider before I can answer.
+- preparing, inspecting, editing, running, or responding phase;
+- one plain-language activity summary;
+- executor, model, workspace, and permission badge;
+- elapsed time and Stop.
 
-It offers Connect AI and Not now. Connect AI opens Settings.
+Comprehensive view shows a timestamped, collapsible timeline of:
 
-The setup flow is:
+- normalized tool and command activity;
+- files read, created, modified, or deleted;
+- commands and exit status;
+- network destinations when exposed;
+- permission decisions and blocked actions;
+- sanitized bounded command output;
+- provider usage when exposed;
+- final changed files and total duration.
 
-1. Choose a connection method.
-2. Enter an API key, launch an official CLI login, or configure a custom endpoint.
-3. Test the connection without billable generation when possible.
-4. Choose a discovered or adapter-provided model.
-5. Choose reasoning effort and other options supported by that model.
-6. Save and activate the connection.
+Both views consume the same normalized events. Renderers never parse raw CLI streams. Activity
+excludes credentials, authentication payloads, environment dumps, hidden model reasoning, unsafe
+raw stderr, and unbounded output. Supported public reasoning summaries may be shown; private chain
+of thought may not.
 
-Settings always shows the active connection, health, model, supported effort, Test, Change, and Manage connections. The tray menu exposes quick connection, model, and effort choices. Changes made during a prompt apply only to the next prompt.
+## Setup and switching
 
-Remote custom endpoints require HTTPS. Plain HTTP is allowed only for an explicitly confirmed loopback host such as 127.0.0.1 or localhost. If model listing is unavailable, the user can enter a model ID manually. Any generation-based compatibility test is a separate, clearly labeled, potentially billable action.
+The initial setup flow is:
 
-## Prompt lifecycle
+1. Choose Codex CLI or Claude Code CLI.
+2. Launch official login and recheck non-secret status.
+3. Choose a workspace folder.
+4. Choose Workspace Agent or advanced Full Computer Agent.
+5. Select a supported model and reasoning effort.
+6. Run permission diagnostics.
+7. Save and activate the connection.
 
-1. A user submits a terminal prompt or deliberately drops a file.
-2. Main captures the active connection, model, effort, and supported options.
-3. No active connection returns PROVIDER_REQUIRED and opens the setup path.
-4. An active prompt returns PROVIDER_BUSY; nothing is queued.
-5. The selected adapter runs exactly one request.
-6. The response window receives a normalized thinking, response, stopped, or error event.
-7. Busy state clears in a finally path.
+Settings always shows active executor, health, workspace, permission profile, model, effort, Test,
+Change, and Manage connections. The tray exposes quick connection and model choices plus the active
+permission badge. Changes made during a run apply to the next run only.
 
-Stop aborts a network request or terminates the CLI child. A stopped request is never retried automatically.
+## Run lifecycle
 
-Initial file drop supports regular UTF-8 text files up to 262144 bytes. Main reads the file only after the deliberate drop, includes its basename and text inside an explicit untrusted-data boundary, and never sends the full local path. Directories, binary files, invalid UTF-8, oversized files, and read failures produce FILE_UNSUPPORTED. Rich binary/image attachments remain outside the provider-neutral MVP because their support and request shape differ by provider.
+1. A user submits a terminal goal or deliberately drops a supported text file.
+2. Main snapshots connection, workspace, permissions, model, effort, and options.
+3. No active connection returns `AGENT_REQUIRED` and opens setup.
+4. A second request returns `AGENT_BUSY`; nothing is queued.
+5. The executor performs one multi-step run and emits structured activity.
+6. Stop aborts or terminates the executor and returns `RUN_STOPPED` without retry.
+7. The response window receives normalized running, needs-input, response, stopped, or error state.
+8. The final result includes executor/model attribution and known changed files.
+9. Busy state clears in a `finally` path.
 
 ## Error and privacy requirements
 
-Stable error categories include PROVIDER_REQUIRED, CLI_NOT_INSTALLED, AUTH_REQUIRED, INVALID_CREDENTIALS, CONNECTION_FAILED, RATE_LIMITED, QUOTA_OR_BILLING, MODEL_UNAVAILABLE, UNSUPPORTED_OPTION, PROVIDER_BUSY, REQUEST_TIMEOUT, REQUEST_STOPPED, PROVIDER_OUTPUT_INVALID, and SECRET_STORE_FAILED.
+Stable categories include `AGENT_REQUIRED`, `CLI_NOT_INSTALLED`, `AUTH_REQUIRED`,
+`WORKSPACE_UNAVAILABLE`, `PERMISSION_PROFILE_UNAVAILABLE`, `PERMISSION_BLOCKED`, `AGENT_BUSY`,
+`COMMAND_FAILED`, `REQUEST_TIMEOUT`, `RUN_STOPPED`, `MODEL_UNAVAILABLE`, `UNSUPPORTED_OPTION`,
+`RATE_LIMITED`, `QUOTA_OR_BILLING`, `PROVIDER_OUTPUT_INVALID`, `ACTIVITY_INVALID`, and
+`SECRET_STORE_FAILED`.
 
-The response bubble shows a short explanation and one useful action. Settings may show sanitized technical details and a safe provider request ID.
+The response window shows a short explanation and one useful action. Main-to-renderer IPC returns
+only allowlisted connection metadata, normalized activity, and public errors. Logs omit goal text by
+default and redact credentials, cookies, authorization headers, secret-bearing URLs, environment
+dumps, raw provider output, raw CLI stderr, and unsafe command output.
 
-Logs omit prompt contents by default and redact keys, tokens, authorization headers, cookies, secret-bearing URLs, raw provider responses, environment dumps, and untrusted child-process stderr. Main-to-renderer IPC returns masked secret metadata only.
+## Incremental delivery gates
+
+1. Existing pet foundation remains runnable.
+2. Offline agent shell adds Settings, permissions, response window, Simple activity, and a mock
+   executor.
+3. Codex Workspace Agent adds real optional execution and Comprehensive activity.
+4. Claude Code Agent adds executor parity behind the same contract.
+5. Advanced permissions add Full Computer opt-in, warnings, and adversarial tests.
+6. Packaged test build provides a clean Windows first run and repeatable test instructions.
+
+Every gate ends with a runnable app, exact test instructions, focused and full automated tests,
+visual evidence, a BUILD_LOG checkpoint, a commit, and an explicit user test opportunity before the
+next gate.
 
 ## Offline verification and packaging
 
-The canonical automated suite uses mocked fetch and child-process boundaries; it never requires a paid key or subscription. A local mock OpenAI-compatible server provides a real offline end-to-end prompt path for final verification.
+Canonical automated tests use fake processes and a deterministic mock executor. They require no
+provider account, API key, subscription, or paid generation. Real Codex and Claude runs are
+optional smoke tests when the tester is already signed in.
 
 Required coverage includes:
 
-- Adapter contract and error normalization.
-- Encrypted store save, load, remove, corruption, and unavailable-encryption cases.
-- One-prompt busy guard, immutable selection, cancellation, and no fallback.
-- API model discovery and capability-aware effort controls.
-- CLI installed, missing, signed-out, timeout, malformed-output, and nonzero-exit behavior.
-- freemodel.dev sentinel isolation.
-- Stored secrets never returning over IPC or entering the pet renderer.
-- No-provider setup, connected, busy, response, error, stop, switch, and recovery UI states.
-- Windows x64 packaged build launch with an empty provider store and no embedded credentials.
-
-Real-provider smoke tests are optional and run only when the tester already has a suitable account or key. Lack of a provider must not block implementation, testing, visual QA, or packaging.
+- executor contract, immutable snapshots, busy guard, cancellation, and no fallback;
+- async safeStorage result/rotation handling and public metadata allowlisting;
+- permission-profile generation and read/write/network isolation probes;
+- full-access confirmation and visible warning;
+- minimal child environments and opaque credential profiles;
+- JSONL/stream event normalization, output bounds, and redaction;
+- Simple/Comprehensive parity over one activity stream;
+- deterministic delayed-run Stop without retry;
+- no-agent setup, switching, errors, recovery, and both prompt inputs;
+- packaged Windows x64 launch with an empty connection store and no embedded credentials.
 
 ## Non-goals
 
 - macOS or Linux packaging.
-- Autonomous prompts, tool-using pet agents, account pooling, or prompt queues.
-- Cloud sync, telemetry, or stored prompt history.
-- Automatic OAuth, credential import, or provider-token inspection.
-- Automatic provider/model fallback.
-- Universal model names or universal effort values.
-- Full Shimeji movement physics or new sprite generation in the provider redesign.
-
-## Research method
-
-Research means broad investigation, not official-documentation lookup alone. Planning may use primary docs and API schemas, source code, open-source apps, issue trackers, maintainer discussions, engineering articles, comparisons, demos, and community reports.
-
-Primary sources or directly verified behavior anchor authentication, security, API contracts, provider restrictions, and current CLI commands. Open-source and community evidence informs patterns and failure cases. Conflicting, stale, or uncertain findings are labeled rather than converted into confident requirements. Research can change the spec or plan after review; it is not permission to implement.
+- Direct API chat-only connections.
+- App-owned OpenAI, Anthropic, or custom API tool loops in the first release.
+- Multiple concurrent agents, queues, scheduled runs, or autonomous background goals.
+- Persistent prompt, response, or activity history.
+- Cloud sync, telemetry, remote control, or team sharing.
+- New sprite generation or full Shimeji movement physics.
+- Signed installer or public distribution before separate review.
 
 ## Source material
 
-- docs/RESEARCH.md — durable research findings and architectural rationale.
-- docs/project-context.md — per-session framework and execution contract.
-- docs/superpowers/plans/2026-07-13-claude-pet.md — canonical task sequence.
-- Existing sprite source: Z:\Downloads\Code\Arnav Vijay\.hatch-pet-runs\post-hoc-banana-baron\
-- Electron safeStorage documentation.
-- OpenAI API key, Responses API, Codex authentication, non-interactive, and model documentation.
-- Anthropic Messages API, Models API, Claude Code CLI, and Agent SDK authentication guidance.
-- Cherry Studio and LibreChat provider registries as comparative open-source patterns.
+- `docs/RESEARCH.md` — evidence and architectural rationale.
+- `docs/project-context.md` — per-session execution contract.
+- `docs/superpowers/plans/2026-07-13-claude-pet.md` — canonical task sequence.
+- `docs/superpowers/specs/2026-07-22-agent-first-provider-redesign.md` — approved design record.
+- Electron safeStorage documentation and installed Electron 43 type definitions.
+- Official Codex CLI, permissions, non-interactive, SDK, authentication, and model documentation.
+- Official Claude Code CLI and authentication documentation.

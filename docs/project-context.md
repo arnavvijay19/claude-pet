@@ -1,128 +1,135 @@
 # Claude Pet — Project Context
 
-Read this first every session. It is the durable one-page framework for a provider-neutral Windows desktop pet.
+Read this first every session. It is the durable one-page framework for an agent-first Windows
+desktop pet.
 
-Details live in [superpowers/specs/claude-pet-spec.md](superpowers/specs/claude-pet-spec.md) (what and why), [superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md) (exact tasks), [RESEARCH.md](RESEARCH.md) (evidence and rationale), and [BUILD_LOG.md](BUILD_LOG.md) (history and field notes).
+Details live in [superpowers/specs/claude-pet-spec.md](superpowers/specs/claude-pet-spec.md) (what
+and why),
+[superpowers/specs/2026-07-22-agent-first-provider-redesign.md](superpowers/specs/2026-07-22-agent-first-provider-redesign.md)
+(approved redesign), [superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md)
+(exact tasks), [RESEARCH.md](RESEARCH.md) (evidence), and [BUILD_LOG.md](BUILD_LOG.md) (history).
 
 ## One sentence
 
-A transparent always-on-top Electron pet draws the existing Banana Baron sprite, accepts user-initiated prompts through file drop or a loopback POST, and routes one prompt at a time through a visibly selected, user-configured AI adapter while remaining fully usable with no provider configured.
+A transparent always-on-top Electron pet accepts user-initiated goals, runs one multi-step Codex or
+Claude Code agent inside a visible permission boundary, and shows its work live in Simple or
+Comprehensive form.
 
 ## Current state
 
-- Tasks 1-5 are complete and merged on master.
-- The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt server exist.
-- The next incomplete task is **Task 6: provider contract, errors, and manager core**.
-- No AI account, API key, subscription, or account-appeal outcome is required to execute Tasks 6-15.
-- Real-provider smoke tests are optional; mocks and a local compatible server are canonical verification.
+- Tasks 1-5 are complete and merged on `master`.
+- The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
+  server exist.
+- The approved agent-first redesign is committed at `354e8cb`.
+- The next incomplete task is **Task 6: agent contract, activity schema, errors, and manager core**.
+- No AI account is required for canonical automated work; fake executors are the completion path.
+- Real Codex or Claude Code runs are optional smoke tests when the tester is already signed in.
 
 ## Architecture
 
 ~~~text
 Electron main process
-├─ main.js                    pet, response, Settings windows; tray; IPC wiring
-├─ preload.js                 pet-only context bridge
-├─ settings-preload.js        settings bridge; one-way API-key submission
-├─ response-preload.js        response actions
-├─ bridge/promptServer.js     loopback POST /prompt (complete)
-├─ providers/providerManager.js
-├─ providers/providerStore.js
-├─ providers/cliRunner.js
-└─ providers/adapters/
-   ├─ openaiApi.js
-   ├─ anthropicApi.js
+├─ main.js                    pet, response, and Settings windows; tray; IPC wiring
+├─ preload.js                 pet-only bridge
+├─ settings-preload.js        settings bridge
+├─ response-preload.js        response/activity actions
+├─ bridge/promptServer.js     loopback POST /prompt (complete foundation)
+├─ agent/agentManager.js      immutable run, busy guard, stop, attribution
+├─ agent/activityStore.js     normalized current-run activity
+├─ agent/connectionStore.js   public agent metadata and future encrypted secrets
+├─ agent/cliRunner.js         bounded official-CLI process boundary
+└─ agent/executors/
+   ├─ mockExecutor.js
    ├─ codexCli.js
-   ├─ claudeCodeCli.js
-   └─ openAiCompatible.js
+   └─ claudeCodeCli.js
 
 Context-isolated vanilla-JS renderers
-├─ renderer/                  proven 192x208 pet canvas and drag/drop
-├─ response/                  nearby speech bubble and recovery actions
-└─ settings/                  normal-sized provider/model/effort UI
-
-Assets
-├─ pet.json                   animation contract
-└─ spritesheet-mvp.png        existing idle sprite row
+├─ renderer/                  192x208 pet canvas and deliberate file drop
+├─ response/                  response plus Simple/Comprehensive live activity
+└─ settings/                  connection/workspace/permissions/model UI
 ~~~
 
 ## Architectural rules
 
-1. **The pet works without AI.** Launch, animation, movement, Settings, diagnostics, tests, visual QA, and packaging cannot require a provider.
-2. **Consumer authentication is never implemented by the app.** CLI login buttons only launch installed official provider auth flows. The app never asks for account passwords, embeds OAuth, intercepts callbacks, or reads consumer tokens.
-3. **API keys are user-supplied and local.** The Settings renderer may submit a newly typed key once; main encrypts it with Electron safeStorage. Stored keys never return to a renderer and there is no plaintext fallback.
-4. **The pet renderer stays unprivileged.** It has no credentials, Node access, filesystem access, CLI access, or network access; all work crosses narrow preload IPC.
-5. **One visible route, one prompt.** providerManager snapshots the selected connection/model/options, runs one user-initiated request, and provides no queue, automatic retry, or fallback.
-6. **Provider capabilities drive UI.** Models and effort values come from the selected adapter/model. Unsupported controls are hidden.
-7. **Credentials never mix.** Dedicated CODEX_HOME and CLAUDE_CONFIG_DIR profiles are opaque; child envs strip freemodel.dev and unrelated provider overrides.
-8. **The 192x208 pet window remains small.** A separate response window provides speech and actions without expanding the transparent click-blocking rectangle.
-9. **pet.json remains the animation contract.** Provider additions do not change sprite/state-machine APIs.
-10. **No autonomous prompting.** Future hooks may animate locally but never submit AI requests.
-
-## Initial connection methods
-
-- OpenAI API key through the Responses API.
-- Anthropic API key through the Messages API.
-- Official Codex CLI with its own ChatGPT or API-key login.
-- Official Claude Code CLI with its own login.
-- Custom OpenAI-compatible endpoint with optional API key and manual-model fallback.
-
-Remote custom endpoints require HTTPS. Explicitly confirmed loopback HTTP is allowed for local gateways.
+1. **Agent-first.** One goal may perform many tool actions; there is still only one run at a time.
+2. **Workspace is the default boundary.** Reads, writes, and child network outside the selected
+   workspace are denied except for minimal runtime/auth paths. A prompt instruction is not a
+   security boundary.
+3. **Full Computer is advanced opt-in.** It requires a separate warning and remains visibly badged.
+4. **Provider login stays official.** The app launches official CLI auth and never reads tokens.
+5. **Connection changes are snapshot-safe.** Workspace, permissions, model, and effort changes affect
+   only the next run.
+6. **Activity is structured.** Both live views consume validated events; renderers never parse raw
+   CLI streams.
+7. **Sensitive output stays in main.** No credentials, environment dumps, hidden reasoning, raw
+   stderr, or unbounded command output crosses IPC.
+8. **Direct APIs wait for a real tool loop.** Do not ship chat-only OpenAI, Anthropic, or custom
+   endpoints as substitutes.
+9. **The pet renderer stays unprivileged.** No Node, direct filesystem, provider CLI, or network.
+10. **Every milestone is runnable.** Do not stack invisible backend phases until the end.
 
 ## Remaining build phases
 
-| Phase | Plan tasks | Deliverable | Canonical proof |
+| Milestone | Plan tasks | Runnable deliverable | Canonical proof |
 |---|---:|---|---|
 | Complete foundation | 1-5 | Assets, Electron shell, state machine, tray, prompt server | Existing tests and Task 4 screenshot |
-| Provider core | 6-7 | Adapter contract, error taxonomy, one-prompt manager, encrypted store | Mocked Node tests; no Electron renderer secrets |
-| Direct APIs | 8-9 | OpenAI, custom compatible, and Anthropic adapters | Mocked HTTP contract/capability/error tests |
-| Official CLIs | 10-11 | Codex and Claude Code status/login/prompt adapters | Command-shape, env-isolation, timeout, and cancellation tests |
-| Configuration UI | 12 | Settings window and capability-aware switching | DOM/unit tests plus visual screenshot |
-| Pet response UI | 13 | Pet animation/drop renderer and separate response bubble | Renderer tests plus visual screenshot |
-| Integration | 14 | Both prompt paths, tray switching, stop/retry/setup routing | Local compatible end-to-end run and visual evidence |
-| Shareable build | 15 | Unsigned Windows x64 package, first-run docs, secret scan | Packaged launch with empty provider store |
+| Agent core | 6-8 | Contract, secure metadata, activity, deterministic mock executor | Offline Node tests |
+| Offline agent shell | 9 | Settings, workspace/permissions, response window, Simple activity | Runnable mock-agent screenshot and checklist |
+| Codex Workspace Agent | 10-11 | Isolated Codex execution plus Comprehensive activity | Sandbox probes, fake-process tests, optional live smoke |
+| Claude Code Agent | 12 | Claude executor behind the same contract | Parity tests and optional live smoke |
+| Advanced permissions | 13 | Full Computer opt-in, warnings, permission switching | Adversarial boundary tests and screenshot |
+| Pet integration | 14 | Renderer, file drop, terminal goals, tray switching, Stop | Offline end-to-end run and visual evidence |
+| Shareable test build | 15 | Unsigned Windows x64 package and first-run guide | Packaged launch with empty connection store |
 
-Deferred animation rows and hook-driven reactions are not selected by the standard entry prompt and require a separate explicit request after Task 15.
+Direct API agent loops, multiple agents, schedules, and persistent history remain deferred.
 
 ## Working method
 
-- One session or architect chat executes one numbered task, verifies it, updates BUILD_LOG.md, and commits it.
-- Read only this file, BUILD_LOG.md, and the exact next task before implementation; use RESEARCH.md sections linked by that task when needed.
-- Evidence before done: run the specified focused tests and the full suite. Visual tasks require durable screenshots because Electron can fail silently.
-- On PowerShell use npm.cmd. Remove inherited ELECTRON_RUN_AS_NODE only in the child shell before live Electron runs.
-- Two failed fixes for the same problem means stop stacking changes and return to the last verified checkpoint.
-- Do not start the next numbered task in the same implementation chat.
-- Do not make a real-provider credential mandatory merely because one is available.
+- One implementation session executes one numbered task, verifies it, updates BUILD_LOG.md, and
+  commits it.
+- Start each task with a concise ETA and revise it only when the estimate materially changes.
+- Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
+- Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
+- Evidence before done: focused tests, full Node suite, pytest, clean Git status, and visual proof
+  for runnable UI gates.
+- Each major milestone includes exact launch instructions and a manual checklist for the user.
+- Do not begin the next milestone until the current runnable state is demonstrated and logged.
+- Two failed fixes for the same problem means return to the last verified checkpoint.
 
 ## Model and effort policy
 
-Any capable coding model may execute a task. Use the strongest available model and higher reasoning effort for Task 6 contract design, Task 7 secret storage, Tasks 10-11 CLI security, Task 12 IPC/settings, Task 14 integration, and Task 15 packaging. Tasks 8-9 and 13 are narrower but still require exact protocol or Electron verification.
-
-Model choice never changes authentication, credential, no-fallback, or verification rules.
+Any capable coding model may execute a task. Use higher reasoning for agent contracts, secret
+storage, permission isolation, process parsing, IPC, and packaging. Model choice never changes
+authentication, permission, redaction, or verification rules.
 
 ## Order
 
-Tasks 6 through 15 are serial. Each consumes contracts or files from the prior task. Do not run them in parallel worktrees unless the plan explicitly identifies a truly independent correction.
+Tasks 6-15 are serial because each consumes contracts and files from prior tasks. Do not run them
+in parallel worktrees unless the plan explicitly isolates a correction.
 
 ## Standard entry prompt
 
-> Read Claude Pet/docs/project-context.md and Claude Pet/docs/BUILD_LOG.md, then execute the next incomplete task in Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md.
-> One task only. Follow the session contract and working method in project-context.md.
+> Read Claude Pet/docs/project-context.md and Claude Pet/docs/BUILD_LOG.md, then execute the next
+> incomplete task in Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md. One task only.
+> Follow the session contract and stop at every user test gate.
 
 ## Session contract
 
 Every implementation session must:
 
-1. Start from a clean branch/worktree whose base contains the previous task's final commit.
-2. Read this file, BUILD_LOG.md, and only the exact plan task plus its linked research.
-3. Record surprises immediately in BUILD_LOG.md field notes.
-4. Execute the task's red-green test cycle and required visual or packaging checks.
-5. End with exact test output, git status, a session-log entry, and a commit or explicit blocker.
-6. Never claim readiness for the next task until the current task's final commit is an ancestor of the branch the next architect will use.
+1. Start from a clean branch/worktree whose base contains the prior task's final commit.
+2. State a realistic ETA before implementation.
+3. Read this file, BUILD_LOG.md, and only the exact task plus linked sources.
+4. Record surprises immediately in BUILD_LOG.md field notes.
+5. Execute the task's red-green cycle and required runnable/visual checks.
+6. End with exact test output, Git status, evidence paths, and a commit or explicit blocker.
+7. Stop at milestone user-test gates instead of silently beginning the next layer.
+8. Never claim next-task readiness until the current final commit is an ancestor of its base.
 
 ## Document routing
 
-- Product requirements and settled invariants: superpowers/specs/claude-pet-spec.md
-- Exact implementation tasks and code contracts: superpowers/plans/2026-07-13-claude-pet.md
-- Evidence, source comparisons, and rationale: RESEARCH.md
-- Session history, discoveries, fixes, and handoff state: BUILD_LOG.md
-- This file changes only when architecture, task order, or the session contract changes.
+- Product requirements: `superpowers/specs/claude-pet-spec.md`
+- Approved agent-first design: `superpowers/specs/2026-07-22-agent-first-provider-redesign.md`
+- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md`
+- Evidence and rationale: `RESEARCH.md`
+- Session history and handoffs: `BUILD_LOG.md`
