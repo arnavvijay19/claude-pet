@@ -5,10 +5,9 @@
 
 ## Purpose
 
-Create one beginner-friendly HTML file that serves as both:
-
-- a live development checklist for Claude Pet Tasks 1-15; and
-- a simple user manual for launching, configuring, testing, and using the app.
+Create one beginner-friendly HTML to-do list for Claude Pet. Each item tells the user what remains,
+why it matters, and what the user personally needs to do. The same list tracks Tasks 1-15 and the
+small user tests needed along the way.
 
 The checklist is a temporary coordination aid. It must be safe to delete after Task 15 is complete
 and verified. It does not replace the canonical implementation plan, specifications, build log, or
@@ -22,29 +21,26 @@ requests. The user can open it by double-clicking it in Windows.
 
 ## Page structure
 
-The page contains:
+The page contains one checklist with:
 
-1. A prominent **Start Here** card showing the current task and next action.
-2. A progress summary with completed and total checklist-item counts.
-3. A **Build Progress** section covering Tasks 1-15 in plain language.
-4. A **How to Run and Use Claude Pet** section covering launch, tray, Settings, Offline Demo,
-   Codex, Claude Code, prompts, file drop, activity views, Stop, and permission modes. Features not
-   built yet must be visibly labeled as unavailable until their owning task is complete.
-5. A **User Test Gates** section for Tasks 9 and 11-15.
-6. Editable **Notes and Blockers** fields.
-7. A short **For AI Assistants** section explaining how to update canonical defaults without
-   inventing completion claims.
-8. A **Project Finished** section that explains when the file may be deleted.
+1. A short **Start Here** box showing the next thing to do.
+2. One item for each project Task 1-15. Each item has a checkbox, a plain-English explanation, and a
+   short **What you need to do** line. Tasks that need no user action say so.
+3. Small user-test items directly beneath the task that creates the feature. These explain exactly
+   what to click or look for without pretending unfinished features already work.
+4. One notes box for the user or an AI to record a blocker or next step.
+5. A short final item explaining that the file can be deleted after Task 15 is verified.
+
+There is no separate dashboard, export system, technical architecture guide, or full user manual.
 
 ## Interaction and saved state
 
 - Every checklist item uses a real HTML checkbox.
 - Checkbox state and editable notes save automatically to browser `localStorage`.
-- Stable item IDs preserve saved state when an AI edits labels or adds future detail.
-- A progress indicator updates immediately after a checkbox change.
-- **Export progress** downloads a small JSON file containing checkbox state and notes.
-- **Reset personal progress** clears browser-saved values and restores the file's canonical defaults
-  after a confirmation prompt.
+- Stable item IDs preserve saved state when an AI edits explanations.
+- A simple completed/total count updates after a checkbox change.
+- A **Reset checklist** button clears browser-saved values and restores the file's canonical
+  defaults after a confirmation prompt.
 - The page works when opened through a local `file://` URL.
 
 ## Canonical state and AI updates
@@ -54,10 +50,9 @@ next task; later tasks begin unchecked. Browser-saved user state is personal and
 treated as proof that repository work is complete.
 
 An AI updating the file must first verify the canonical plan, `docs/project-context.md`,
-`docs/BUILD_LOG.md`, current Git state, and relevant test evidence. It may then update the default
-checkbox state, current-task text, instructions, or newly available user features. The checklist
-must link to the canonical files and explicitly state that conflicts are resolved in favor of those
-files.
+`docs/BUILD_LOG.md`, current Git state, and relevant test evidence. It may then check completed
+defaults, change the Start Here item, and improve explanations. A short comment at the top of the
+HTML records these rules; the visible page does not burden the user with AI workflow details.
 
 ## Safety and deletion
 
@@ -75,9 +70,9 @@ Before handoff:
 2. Verify all checkboxes can be toggled and persist after reload.
 3. Verify progress counts update correctly.
 4. Verify notes persist.
-5. Verify JSON export contains only checklist state and notes.
-6. Verify reset restores canonical defaults.
-7. Verify no external URLs, network requests, credentials, or executable command paths exist.
-8. Verify the displayed project state matches the current canonical repository documents.
+5. Verify reset restores canonical defaults.
+6. Verify no external URLs, network requests, credentials, or executable command paths exist.
+7. Verify the displayed project state matches the current canonical repository documents.
+8. Verify every unfinished task clearly says what the user needs to do, including when the answer is
+   "nothing yet."
 9. Run `git diff --check` and confirm no unrelated files changed.
-
