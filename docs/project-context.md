@@ -11,9 +11,9 @@ and why),
 
 ## One sentence
 
-A transparent always-on-top Electron pet accepts user-initiated goals, runs one multi-step Codex or
-Claude Code agent inside a visible permission boundary, and shows its work live in Simple or
-Comprehensive form.
+A transparent always-on-top Electron pet accepts user-initiated goals, runs one multi-step Offline
+Demo, Codex, or Claude Code agent inside a visible permission boundary, and shows its work live in
+Simple or Comprehensive form.
 
 ## Current state
 
@@ -21,8 +21,10 @@ Comprehensive form.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
+- Its reviewed security-boundary correction is committed at `0f6f9ba`.
 - The next incomplete task is **Task 6: agent contract, activity schema, errors, and manager core**.
-- No AI account is required for canonical automated work; fake executors are the completion path.
+- No AI account is required for canonical work; the shipped Offline Demo Agent is the user-visible
+  offline completion path and fake processes cover CLI adapters.
 - Real Codex or Claude Code runs are optional smoke tests when the tester is already signed in.
 
 ## Architecture
@@ -35,11 +37,13 @@ Electron main process
 ├─ response-preload.js        response/activity actions
 ├─ bridge/promptServer.js     loopback POST /prompt (complete foundation)
 ├─ agent/agentManager.js      immutable run, busy guard, stop, attribution
-├─ agent/activityStore.js     normalized current-run activity
+├─ agent/activitySanitizer.js recursive redaction before validation/storage/IPC
+├─ agent/activityStore.js     discriminated current-run activity
 ├─ agent/connectionStore.js   public agent metadata and future encrypted secrets
 ├─ agent/cliRunner.js         bounded official-CLI process boundary
+├─ agent/windowsProcessTree.js verified Windows child/grandchild termination
 └─ agent/executors/
-   ├─ mockExecutor.js
+   ├─ offlineDemoExecutor.js
    ├─ codexCli.js
    └─ claudeCodeCli.js
 
@@ -53,14 +57,15 @@ Context-isolated vanilla-JS renderers
 
 1. **Agent-first.** One goal may perform many tool actions; there is still only one run at a time.
 2. **Workspace is the default boundary.** Reads, writes, and child network outside the selected
-   workspace are denied except for minimal runtime/auth paths. A prompt instruction is not a
-   security boundary.
-3. **Full Computer is advanced opt-in.** It requires a separate warning and remains visibly badged.
+   workspace are denied except for minimal runtime/auth paths. Codex ignores hostile project config,
+   hooks, and rules; Claude uses safe mode. A prompt instruction is not a security boundary.
+3. **Full Computer is advanced opt-in.** It requires a main-owned native warning bound to the
+   connection and remains visibly badged; renderer state is never confirmation proof.
 4. **Provider login stays official.** The app launches official CLI auth and never reads tokens.
 5. **Connection changes are snapshot-safe.** Workspace, permissions, model, and effort changes affect
    only the next run.
-6. **Activity is structured.** Both live views consume validated events; renderers never parse raw
-   CLI streams.
+6. **Activity is structured.** Both live views consume recursively sanitized discriminated events;
+   renderers never parse raw CLI streams.
 7. **Sensitive output stays in main.** No credentials, environment dumps, hidden reasoning, raw
    stderr, or unbounded command output crosses IPC.
 8. **Direct APIs wait for a real tool loop.** Do not ship chat-only OpenAI, Anthropic, or custom
@@ -73,8 +78,8 @@ Context-isolated vanilla-JS renderers
 | Milestone | Plan tasks | Runnable deliverable | Canonical proof |
 |---|---:|---|---|
 | Complete foundation | 1-5 | Assets, Electron shell, state machine, tray, prompt server | Existing tests and Task 4 screenshot |
-| Agent core | 6-8 | Contract, secure metadata, activity, deterministic mock executor | Offline Node tests |
-| Offline agent shell | 9 | Settings, workspace/permissions, response window, Simple activity | Runnable mock-agent screenshot and checklist |
+| Agent core | 6-8 | Contract, secure metadata, activity, shipped Offline Demo Agent | Offline Node tests |
+| Offline agent shell | 9 | Workspace/text Settings, response window, Simple activity | Runnable Offline Demo screenshot and checklist |
 | Codex Workspace Agent | 10-11 | Isolated Codex execution plus Comprehensive activity | Sandbox probes, fake-process tests, optional live smoke |
 | Claude Code Agent | 12 | Claude executor behind the same contract | Parity tests and optional live smoke |
 | Advanced permissions | 13 | Full Computer opt-in, warnings, permission switching | Adversarial boundary tests and screenshot |
@@ -101,6 +106,10 @@ Direct API agent loops, multiple agents, schedules, and persistent history remai
 Any capable coding model may execute a task. Use higher reasoning for agent contracts, secret
 storage, permission isolation, process parsing, IPC, and packaging. Model choice never changes
 authentication, permission, redaction, or verification rules.
+
+The product registries are separate and exact: Codex CLI `>=0.144.6` exposes `gpt-5.6-sol`,
+`gpt-5.6-terra`, and `gpt-5.6-luna`; Claude Code `>=2.1.217` exposes `fable`, `opus`, and `sonnet`;
+Offline Demo exposes only `offline-demo`. Unlisted values and silent fallback are rejected.
 
 ## Order
 

@@ -28,7 +28,9 @@ Sources: [official Claude Code best practices](https://code.claude.com/docs/en/b
 
 ### Applied to this user's setup
 - Superpowers loop (brainstorm → spec → plan → execute → verify → finish) is already the top-recommended solo-dev SDD framework; the existing plan already mandates it.
-- Provider choice is deliberately deferred: all remaining implementation and verification must work with mocks or a local compatible endpoint. A paid key or consumer subscription is optional smoke-test input, never a build gate.
+- Provider access is never a build gate: the shipped Offline Demo Agent exercises every canonical
+  offline milestone without credentials or network. Real Codex/Claude accounts are optional smoke
+  test inputs only; direct or custom compatible API executors remain deferred.
 
 ---
 
@@ -84,14 +86,15 @@ Research refreshed 2026-07-22. Primary sources: [Electron safeStorage](https://e
 
 - Claude Pet is agent-first. Codex and Claude Code tool use is intentional; the prior no-tool/chat-only assumption is obsolete.
 - Codex `read-only` prevents writes but permits file reads, so it cannot enforce the selected-workspace privacy promise by itself.
-- Codex 0.138+ permission profiles combine filesystem and network rules on native Windows. `:minimal = read` plus `:workspace_roots/. = write` avoids broad root reads, and deny globs can protect `.env` files. Permission profiles do not compose with legacy `--sandbox`; use one system only.
+- The supported Codex baseline is 0.144.6. Permission profiles combine filesystem and network rules on native Windows. `:minimal = read` plus `:workspace_roots/. = write` avoids broad root reads, and deny globs can protect `.env` files. Permission profiles do not compose with legacy `--sandbox`; use one system only.
 - `codex sandbox -P <profile> -C <workspace> -- <command>` applies a named profile to deterministic non-model probes. The plan uses it to prove workspace reads/writes and outside/network denial before advertising Workspace Agent.
 - `codex exec --json` emits JSONL events including `thread.*`, `turn.*`, `item.*`, and `error`; item types include messages, reasoning summaries, commands, file changes, MCP calls, web searches, and plan updates. This is the source for normalized live activity.
 - `codex exec` streams progress to stderr and the final agent message to stdout in formatted mode. The app uses JSONL instead so renderers never parse terminal prose.
 - Codex child shell environments can be reduced with `shell_environment_policy`; the app starts from `core` and excludes key/token/secret/provider variables.
-- Claude Code exposes official auth status/login, print mode, stream JSON, model/effort controls, no-session-persistence, MCP restrictions, and permission modes. Workspace Agent remains fail-closed unless the installed version passes equivalent isolation probes without relying on prompt obedience.
+- Codex project `.codex` layers have higher precedence than user/profile configuration when trusted. The app-owned home must mark the selected workspace untrusted, disable hooks, ignore rules, and set approval policy `never`; hostile project config/hook/rule fixtures are part of the permission probe.
+- The supported Claude Code baseline is 2.1.217. Workspace execution uses `--safe-mode` and `--permission-mode dontAsk` with strict empty MCP configuration; hostile `.claude` settings/hooks/plugins/instructions are canonical fixtures. Workspace Agent remains fail-closed unless the installed version passes equivalent isolation probes without relying on prompt obedience.
 - Electron 43 asynchronous `decryptStringAsync` resolves `{ result, shouldReEncrypt }`, not a string. The wrapper must unwrap `result` and let the store rotate ciphertext when requested.
-- Public connection metadata is a security boundary and must use an explicit allowlist. Removing only a known ciphertext field is insufficient.
+- Public connection metadata is a security boundary and must use an explicit allowlist that omits internal `options`. Removing only a known ciphertext field is insufficient.
 - A separate response BrowserWindow preserves the 192x208 pet geometry and has room for Simple/Comprehensive live activity, permission badges, Stop, and recovery actions.
 - Direct OpenAI, Anthropic, and custom API connections remain future agent executors. Shipping them now as chat-only connections would contradict the approved product direction; a future adapter needs an app-owned tool loop.
 
@@ -115,7 +118,7 @@ Electron main process
 ├─ agent/connectionStore.js   allowlisted metadata and future encrypted secrets
 ├─ agent/cliRunner.js         bounded official-CLI process boundary
 └─ agent/executors/
-   ├─ mockExecutor.js
+   ├─ offlineDemoExecutor.js
    ├─ codexCli.js
    └─ claudeCodeCli.js
 Renderer processes (vanilla JS, context isolated)
@@ -133,7 +136,7 @@ Invariants:
 3. Full Computer authority is a separately confirmed per-connection opt-in with a visible badge.
 4. Consumer authentication happens only inside installed official CLI flows; credential files stay opaque.
 5. One user request may use many tools, but agentManager runs exactly one agent run with no queue, retry, or fallback.
-6. Both live views consume the same validated activity stream and never expose hidden reasoning or raw CLI output.
+6. Both live views consume the same recursively sanitized discriminated activity stream and never expose hidden reasoning or raw CLI output.
 7. pet.json remains the animation contract; agent additions do not change sprite APIs.
 8. Every major milestone is runnable and canonical tests require no provider account.
 
@@ -147,11 +150,11 @@ Invariants:
 ## Resolved decisions / release watch items
 
 - **Agent-first direction — DECIDED 2026-07-22.** The pet is an all-purpose tool-using agent. Workspace Agent is default; Full Computer is an advanced opt-in; chat-only direct API connections are deferred until they have a real tool loop.
-- **CLI profile isolation — VERIFIED.** Dedicated CODEX_HOME and CLAUDE_CONFIG_DIR keep provider login separate. Credential files remain opaque; app-owned permission/config files may be written without reading auth files.
+- **CLI profile isolation — VERIFIED.** Dedicated CODEX_HOME and CLAUDE_CONFIG_DIR keep provider login separate. Codex additionally marks the workspace untrusted, disables hooks, ignores rules, and denies non-interactive escalation; Claude uses safe mode and `dontAsk`. Credential files remain opaque; app-owned permission/config files may be written without reading auth files.
 - **Codex workspace isolation — SUPPORTED WITH A GATE.** Current native-Windows Codex permission profiles can deny broad reads and child network while writing the selected workspace. The app must run deterministic `codex sandbox` probes and fail closed before offering Workspace Agent.
 
 - **Click-through vs drag-drop — DECIDED: MVP ships with no `setIgnoreMouseEvents` at all.** The conflict is fundamental, not a bug to work around: `forward: true` delivers only mouse-*move* events; clicks and drops always pass through ([Electron docs](https://www.electronjs.org/docs/latest/tutorial/custom-window-interactions), [electron#38396](https://github.com/electron/electron/issues/38396)), and forwarding silently breaks after a page reload on Windows ([electron#15376](https://github.com/electron/electron/issues/15376)). The sprite-sized window barely overlaps anything, so click-through buys nothing. If ever added: toggle ignore **off** whenever the cursor is over the sprite and never during a drag.
 - **Electron visual verification — recipe confirmed.** The installed chrome-devtools-mcp plugin's config has fixed args (launches its own Chrome; no `--browserUrl`), so to inspect the pet renderer: (1) main.js gates `app.commandLine.appendSwitch('remote-debugging-port', '9222')` + `appendSwitch('remote-allow-origins', '*')` behind `PET_DEBUG=1`; (2) a project-local `.mcp.json` registers `npx chrome-devtools-mcp@latest --browserUrl=http://127.0.0.1:9222`; (3) the agent uses `take_screenshot`/`take_snapshot` against the running window ([Electron+CDP-MCP recipe](https://carljin.com/%E4%BD%BF%E7%94%A8-chrome-devtools-mcp-%E8%B0%83%E8%AF%95-electron-%E5%BA%94%E7%94%A8/)). `--ws-endpoint` is the fallback if browserUrl misbehaves. The `stealth-browser` skill is **not applicable** here: it drives its own Chromium and cannot attach to an Electron window — it solves bot-detection on third-party sites, which this project never touches; given the account's compliance posture, don't reach for it in this repo.
-- **Provider purchase or account availability is not a blocker.** Every task uses fake processes or the deterministic mock executor for canonical verification. Live CLI runs remain optional.
+- **Provider purchase or account availability is not a blocker.** Every task uses fake processes or the shipped deterministic Offline Demo Agent for canonical verification. Live CLI runs remain optional.
 - **Claude Code distribution terms remain a release gate.** Personal local testing of the official CLI adapter does not establish permission to market Claude subscription access in a third-party app; re-check Anthropic terms before public distribution.
 - **Windows package signing is separate from functional packaging.** The plan produces an unsigned x64 test/share build; public release signing and SmartScreen reputation are later distribution work.

@@ -230,5 +230,15 @@ link the note to it — this file is the inbox, not the archive.
   windows; the canonical plan's next task is Task 6, and provider purchase/login is optional.
 - 2026-07-22 SUPERSEDE: The 2026-07-21 five-adapter chat-first tail is obsolete. The user wants
   an all-purpose tool-using agent rather than a small chat connection. Canonical Tasks 6-15 now
-  build testable vertical milestones using mock, Codex CLI, and Claude Code CLI executors; direct
-  API tool loops are deferred.
+  build testable vertical milestones using the shipped Offline Demo Agent, Codex CLI, and Claude
+  Code CLI executors; direct API tool loops are deferred. The approved design was committed as
+  `354e8cb`; the first canonical agent-first Tasks 6-15 plan handoff was committed as `650f3ea`.
+- 2026-07-22 SECURITY PLAN REVIEW: A read-only review of `b45d578..650f3ea` found workspace-config
+  isolation, activity redaction/schema, public metadata, native Full Computer confirmation,
+  non-interactive approvals, task ownership, long-stream/Windows Stop, Offline Demo product status,
+  prompt error publication, and safeStorage-unavailable gaps. The approved corrected design is
+  committed as `0f6f9ba`; the canonical plan, research, and this handoff were corrected before Task
+  6 implementation. Review-fix verification: canonical Node suite 8/8 passed (the restricted first
+  attempt hit the known worker `spawn EPERM`, then the approved canonical rerun passed), pytest 1/1
+  passed, and the 26-item plan/spec/docs coverage scan plus `git diff --check` passed. Provider login
+  remains optional and Task 6 remains next.

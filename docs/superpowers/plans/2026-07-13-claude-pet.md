@@ -29,6 +29,8 @@ asset tooling, official Codex CLI and Claude Code CLI processes, Windows x64.
 - Full Computer Agent is an advanced per-connection opt-in with separate confirmation and a visible
   badge.
 - Official CLIs exclusively own consumer authentication; credential files remain opaque.
+- Offline Demo Agent is a shipped first-release executor: Workspace-only, credential-free,
+  network-free, deterministic, and visible in normal Settings/package flows.
 - Direct API executors stay deferred until they implement a complete app-owned tool loop.
 - Renderers receive only allowlisted connection metadata, normalized activity, and public errors.
 - Goal text, raw provider output, hidden reasoning, raw stderr, and activity history are not
@@ -36,6 +38,13 @@ asset tooling, official Codex CLI and Claude Code CLI processes, Windows x64.
 - Every task runs focused tests, `npm.cmd test`, `py -m pytest`, `git diff --check`, updates
   `docs/BUILD_LOG.md`, and commits without starting the next task.
 - Tasks 9, 11, 12, 13, 14, and 15 are runnable user test gates; stop after reporting each gate.
+- Task 9 is Workspace/text-only; Task 13 solely owns Full Computer authorization and UI; Task 14
+  solely owns file-drop integration.
+- Non-interactive Workspace runs fail closed: Codex uses approval policy `never`; Claude uses
+  permission mode `dontAsk`; neither has an approval/resume channel in the first release.
+- Supported baselines are exact: Codex CLI `>=0.144.6` with `gpt-5.6-sol`, `gpt-5.6-terra`, and
+  `gpt-5.6-luna`; Claude Code `>=2.1.217` with `fable`, `opus`, and `sonnet`; Offline Demo uses
+  `offline-demo`. Reject older CLIs, unlisted models, unsupported efforts, and silent fallback.
 
 ---
 
@@ -56,6 +65,7 @@ Historical details remain in Git and `docs/BUILD_LOG.md`.
 **Files:**
 - Create: `src/agent/agentErrors.js`
 - Create: `src/agent/agentContract.js`
+- Create: `src/agent/activitySanitizer.js`
 - Create: `src/agent/activitySchema.js`
 - Create: `src/agent/activityStore.js`
 - Create: `src/agent/agentManager.js`
@@ -67,18 +77,27 @@ Historical details remain in Git and `docs/BUILD_LOG.md`.
 - Executor methods: `getStatus`, `beginSetup`, `listModels`, `getCapabilities`,
   `verifyPermissionProfile`, `runGoal`.
 - `runGoal(request, emitActivity, abortSignal)` resolves `{ text, changedFiles }`.
-- `createActivityStore({ clock })` exposes `begin(run)`, `append(event)`, `snapshot()`, `clear()`,
-  and `subscribe(listener)`.
+- `sanitizeActivityValue(value)` recursively returns a bounded redacted clone or throws
+  `ACTIVITY_INVALID`; `validateActivityEvent(value)` returns one exact discriminated event.
+- `createActivityStore({ clock })` exposes `begin(run)`, `append(event)`, `snapshot()`, `clear()`, and
+  `subscribe(listener)`; `append` sanitizes, validates, stores, and only then publishes.
 - `createAgentManager({ store, executors, activity })` exposes `getSnapshot`, `select`, status/setup
   methods, `runGoal(text)`, and `stop()`.
 
 - [ ] **Step 1: Write failing contract and manager tests**
 
 Cover exact cases: six executor methods required; no selection returns `AGENT_REQUIRED`; busy is
-reserved before asynchronous selection lookup; nested connection/options are immutable during a
-run; unsupported effort rejects before execution; every executor event is validated; a second goal
-returns `AGENT_BUSY`; Stop aborts and returns `RUN_STOPPED`; success/failure clears busy; no retry or
-fallback occurs.
+reserved before asynchronous selection lookup; nested connection/model capability values are
+immutable during a run; unsupported effort rejects before execution; every executor event is
+sanitized and validated; a second goal returns `AGENT_BUSY`; Stop aborts and returns `RUN_STOPPED`;
+success/failure clears busy; no retry or fallback occurs.
+
+For activity, test every exact variant and reject unknown fields. Recursively redact credential keys
+and values in nested objects/arrays, commands, URL userinfo/query/fragment, authorization and cookie
+headers, environment assignments, and credential-profile paths. Reject absolute/traversing file
+paths, non-finite numbers, unsupported object types, depth over 6, more than 200 nodes, summaries over
+240 characters, details over 8192 characters, and serialized events over 32768 bytes. Prove the
+stored snapshot and subscriber payload are already sanitized and immutable.
 
 Use a deferred fake executor:
 
@@ -127,13 +146,34 @@ function validateExecutor(executor) {
 }
 ~~~
 
-- [ ] **Step 4: Add normalized activity store**
+- [ ] **Step 4: Add recursive sanitizer and discriminated activity store**
 
-Accepted event fields are `phase`, `kind`, `summary`, `detail`, `status`, `path`, `command`,
-`exitCode`, `destination`, and `usage`. Reject unknown fields, summaries over 240 characters,
-details over 8192 characters, non-finite numbers, absolute credential-profile paths, strings
-matching key/token/Bearer patterns, and event kinds outside `status`, `file`, `command`, `network`,
-`permission`, `usage`, `message`.
+Common fields are exactly `phase`, `kind`, `summary`, optional `detail`, and optional `status`.
+Variant fields are exactly:
+
+~~~js
+const VARIANT_FIELDS = Object.freeze({
+  status: [],
+  tool: ['toolName'],
+  file: ['path', 'operation'],
+  command: ['command', 'exitCode'],
+  network: ['destination'],
+  permission: ['permission', 'decision'],
+  usage: ['usage'],
+  message: [],
+});
+~~~
+
+File `operation` is one of `read`, `create`, `modify`, `delete`; `path` is workspace-relative and
+cannot contain `..`. Network `destination` is reduced to scheme/host/optional port. Permission
+`decision` is `allowed` or `blocked`. Usage accepts only finite non-negative `inputTokens`,
+`outputTokens`, `cachedTokens`, and `totalTokens`.
+
+`sanitizeActivityValue` walks arrays and plain objects before schema validation, redacts values
+under credential-shaped keys, applies string redaction everywhere, and enforces the depth/node/string
+and total serialized-size limits from Step 1. It never mutates its input. Validation then rejects
+unknown fields and invalid discriminants. No raw executor value can reach storage, subscribers, or
+IPC by another path.
 
 The store assigns monotonically increasing `sequence`, a clock timestamp, keeps at most 1000
 events, publishes immutable snapshots, and clears all run data on `clear()`.
@@ -166,10 +206,12 @@ Commit: `feat: add agent manager and activity core`
 - `decrypt(buffer)` resolves `{ value, shouldReEncrypt }`.
 - `createConnectionStore({ filePath, crypto, randomId })` exposes `initialize`, `listConnections`,
   `getConnection`, `getSecret`, `saveConnection`, `removeConnection`, `getActiveSelection`, and
-  `setActiveSelection`.
+  `setActiveSelection`; Task 13 adds the only caller of internal `setFullAccess(connectionId,
+  enabled)`.
 - Store schema: `{ version: 1, activeSelection, connections: [] }`.
 - Public fields: `id`, `executorType`, `label`, `workspacePath`, `permissionProfile`,
-  `fullAccessConfirmed`, `modelId`, `effort`, `options`, `keyHint`, `hasSecret`.
+  `fullAccessConfirmed`, `modelId`, `effort`, `keyHint`, `hasSecret`. Public objects never contain an
+  `options` field.
 
 - [ ] **Step 1: Write failing persistence/security tests**
 
@@ -177,7 +219,10 @@ Test Electron's real async return shape `{ result: 'secret', shouldReEncrypt: tr
 rewrites ciphertext atomically; sync fallback returns `shouldReEncrypt: false`; plaintext never
 appears on disk; unexpected `apiKey`, `secret`, `token`, and `internalNote` properties never enter a
 public object; corrupt schema/decryption returns `SECRET_STORE_FAILED`; removal clears active
-selection; workspace and permissions persist.
+selection; workspace and permissions persist. When `crypto.isAvailable()` is false, CLI-only and
+Offline Demo metadata loads/saves normally, while any secret-bearing save, encrypted-secret read,
+rotation, or migration returns `SECRET_STORE_FAILED` and neither writes plaintext nor drops existing
+ciphertext. Renderer-shaped save input containing `fullAccessConfirmed` or `options` is rejected.
 
 - [ ] **Step 2: Verify RED**
 
@@ -201,6 +246,10 @@ async function decrypt(buffer) {
 `getSecret` re-encrypts and atomically saves only when `shouldReEncrypt` is true, then returns the
 string value.
 
+Before every secret-bearing operation, await `crypto.isAvailable()`. Unavailable encryption is not
+equivalent to an empty secret. Metadata-only writes preserve existing ciphertext byte-for-byte and
+must not call `encrypt` or `decrypt`.
+
 - [ ] **Step 4: Implement an explicit public allowlist**
 
 ~~~js
@@ -214,15 +263,16 @@ function publicConnection(connection) {
     fullAccessConfirmed: connection.fullAccessConfirmed === true,
     modelId: connection.modelId || '',
     effort: connection.effort || null,
-    options: structuredClone(connection.options || {}),
     keyHint: connection.keyHint || null,
     hasSecret: Boolean(connection.encryptedKey),
   };
 }
 ~~~
 
-Validate disk objects and save input against exact keys. Write through `connections.json.tmp`, fsync
-where supported, rename, and never fall back to plaintext.
+Validate disk objects and save input against exact keys. `saveConnection` ignores no unknown input:
+it rejects it. Only the internal main-process method `setFullAccess` may change
+`fullAccessConfirmed`; no IPC handler exposes that method directly. Write through
+`connections.json.tmp`, fsync where supported, rename, and never fall back to plaintext.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -232,38 +282,43 @@ Commit: `feat: add secure agent connection store`
 
 ---
 
-### Task 8: Deterministic mock executor
+### Task 8: Shipped Offline Demo Agent
 
 **Files:**
-- Create: `src/agent/executors/mockExecutor.js`
-- Test: `tests/mockExecutor.test.js`
+- Create: `src/agent/executors/offlineDemoExecutor.js`
+- Test: `tests/offlineDemoExecutor.test.js`
 - Modify: `docs/BUILD_LOG.md`
 
 **Interfaces:**
-- `createMockExecutor({ clock, gate })` implements the complete executor contract.
+- `createOfflineDemoExecutor({ clock, gate })` implements the complete executor contract.
 - `gate.wait(signal)` provides deterministic delayed-run control.
-- Goal `fail:<CODE>` produces a known error; other goals emit a fixed activity sequence and result.
+- Goal `fail:COMMAND_FAILED` produces that known error; other goals emit a fixed activity sequence
+  and result.
+- Status is always ready, capabilities are Workspace-only/no-network/no-auth, `listModels()` returns
+  exactly `[{ id: 'offline-demo', efforts: [] }]`, and Full Computer is unsupported.
 
 - [ ] **Step 1: Write failing executor tests**
 
 Assert deterministic status/file/command/usage/message events, stable final response, changed-file
 summary, delayed completion, Stop while delayed, no events after abort, error mapping, and no secret
-or environment-shaped values in events.
+or environment-shaped values in events. Assert no login/secret/network methods are called, the exact
+model registry, Workspace-only capability, and `UNSUPPORTED_OPTION` for Full Computer or effort.
 
 - [ ] **Step 2: Verify RED**
 
-Run: `npm.cmd test -- tests/mockExecutor.test.js`
+Run: `npm.cmd test -- tests/offlineDemoExecutor.test.js`
 
-- [ ] **Step 3: Implement mock execution**
+- [ ] **Step 3: Implement the product Offline Demo execution**
 
 Emit: preparing status; inspecting file event; running command event; optional `gate.wait(signal)`;
 completed command with exit code 0; responding status; usage; final message. Return
-`{ text: 'Banana Baron completed the offline agent run.', changedFiles: ['notes/mock-result.txt'] }`.
+`{ text: 'Banana Baron completed the Offline Demo run.', changedFiles:
+['notes/offline-demo-result.txt'] }`.
 Abort must throw an `AbortError` before any post-gate event.
 
 - [ ] **Step 4: Verify and commit**
 
-Commit: `test: add deterministic offline agent executor`
+Commit: `feat: add deterministic offline demo agent`
 
 ---
 
@@ -285,18 +340,21 @@ Commit: `test: add deterministic offline agent executor`
 - Modify: `docs/BUILD_LOG.md`
 
 **Interfaces:**
-- Runtime composes store, activity, manager, and mock executor after `app.whenReady()`.
+- Runtime composes store, activity, manager, and the shipped Offline Demo Agent after
+  `app.whenReady()`; no test-only executor is
+  exposed in normal or packaged Settings.
 - Settings IPC exposes public snapshots and save/select/remove/test actions.
 - Response preload exposes `onState`, `onActivity`, `stop`, `dismiss`, `openSettings`, and
   `setActivityView`.
-- Prompt controller exposes `submitText`, `submitFile`, `stop`, and `dismiss`.
+- Prompt controller exposes `submitText`, `stop`, and `dismiss`. File submission does not exist until
+  Task 14.
 
 - [ ] **Step 1: Write failing view-model, IPC, response, and integration tests**
 
-Cover mock connection creation; workspace validation; Workspace/Full Computer copy; separate
-full-access confirmation; no secret keys in serialized IPC; sender validation; Simple view default;
-remembered activity-view preference; elapsed time; Stop; deterministic delayed cancellation;
-terminal/file convergence; busy state; no automatic retry.
+Cover Offline Demo connection creation; workspace validation; Workspace-only copy and controls; no
+Full Computer control or file-submit IPC; no secret keys or `options` in serialized IPC; sender
+validation; Simple view default; remembered activity-view preference; elapsed time; Stop;
+deterministic delayed cancellation; terminal submission; busy state; no automatic retry.
 
 - [ ] **Step 2: Verify RED**
 
@@ -310,19 +368,24 @@ active work area beside the pet.
 
 Render all text with `textContent`. Simple view shows phase, summary, executor/model, workspace,
 permission badge, elapsed time, and Stop. Comprehensive is present but initially shows the same
-normalized events in a basic timeline; Task 11 adds Codex-specific richness.
+normalized events in a basic timeline; Task 11 adds Codex-specific richness. Offline Demo is labeled
+as a built-in offline agent, never as a mock, test connection, or provider.
 
-- [ ] **Step 4: Wire mock runtime and prompt server**
+- [ ] **Step 4: Wire Offline Demo runtime and prompt server**
 
 Change prompt server to `start(onPrompt)`, preserve all Task 5 validation, and invoke callbacks with
 `Promise.resolve().then(() => onPrompt(text)).catch(() => {})` so synchronous and asynchronous UI
-failures cannot escape the HTTP request handler. Return HTTP 202 immediately.
+failures cannot escape the HTTP request handler. Return HTTP 202 immediately. `promptController`
+must catch manager rejection first, convert it with `toPublicError`, publish the sanitized terminal
+failure to response/activity state, and then rethrow; test that publication occurs before the server
+catch isolates the rejection.
 
 - [ ] **Step 5: Verify runnable milestone and stop**
 
 Run focused/full suites. Start Electron with only the child `ELECTRON_RUN_AS_NODE` removed. Create a
-mock connection, choose a temporary workspace, submit a terminal goal, switch Simple/Comprehensive,
-and stop a delayed goal. Save the screenshot and a manual checklist in BUILD_LOG.
+real Offline Demo connection through Settings, choose a temporary workspace, submit a terminal goal,
+switch Simple/Comprehensive, and stop a delayed goal. Confirm Full Computer and file submission are
+absent. Save the screenshot and a manual checklist in BUILD_LOG.
 
 Commit: `feat: add runnable offline agent shell`
 
@@ -334,21 +397,39 @@ Commit: `feat: add runnable offline agent shell`
 
 **Files:**
 - Create: `src/agent/cliRunner.js`
+- Create: `src/agent/windowsProcessTree.js`
 - Create: `src/agent/codexPermissionProfile.js`
-- Test: `tests/cliRunner.test.js`, `tests/codexPermissionProfile.test.js`
+- Create: `tests/fixtures/processTreeChild.js`, `tests/fixtures/processTreeGrandchild.js`
+- Test: `tests/cliRunner.test.js`, `tests/windowsProcessTree.test.js`
+- Test: `tests/codexPermissionProfile.test.js`
 - Modify: `docs/BUILD_LOG.md`
 
 **Interfaces:**
 - Runner exposes `capture(spec)`, `streamJsonl(spec, onEvent)`, and `launch(spec)`.
+- `terminateWindowsProcessTree({ pid, execFile, waitForExit })` invokes `taskkill.exe` without a shell
+  using `['/PID', String(pid), '/T', '/F']`, then proves the child and recorded grandchild have exited.
 - Profile module exposes `writeCodexProfile({ codexHome, workspacePath, profile })` and
   `probeCodexWorkspace({ runner, codexHome, workspacePath, outsideSentinel })`.
 
 - [ ] **Step 1: Write failing process and profile tests**
 
-Cover Windows `.cmd` resolution; stdin-only goals; stdout/stderr 1 MiB caps; JSONL split-chunk
-decoding; timeout; abort/kill; cleanup listeners; minimal environment; exact app-owned profile TOML;
-no legacy `--sandbox` mixing; and direct sandbox probes that allow workspace read/write while
-denying an outside sentinel and child network.
+Cover Windows `.cmd` resolution; stdin-only goals; `capture` stdout/stderr caps of 1 MiB each; JSONL
+split-chunk decoding; a 65536-byte maximum JSONL line; a 131072-byte maximum undecoded partial-line
+buffer; more than 1 MiB cumulative valid JSONL without failure; timeout; abort; cleanup listeners;
+minimal environment; and exact app-owned profile TOML.
+
+On Windows, spawn `processTreeChild.js`, which records its PID, spawns
+`processTreeGrandchild.js`, records that PID, and waits. Abort the runner and assert both PIDs no
+longer exist after `taskkill.exe` receives `['/PID', String(childPid), '/T', '/F']`; a successful
+immediate-child exit with a living grandchild fails the test. Also cover taskkill failure and timeout
+while waiting for tree exit.
+
+Create a hostile workspace containing `.codex/config.toml` that requests danger-full-access and
+enables hooks, `.codex/hooks.json` that writes an outside sentinel, and `.codex/rules/allow.rules`
+that attempts to broaden command authority. Direct real `codex sandbox` probes must allow workspace
+read/write, deny outside read/write and child network, leave the hook sentinel absent, and preserve
+the app profile. No provider login is required. Do not mix legacy `--sandbox` with the named
+permission profile.
 
 - [ ] **Step 2: Verify RED**
 
@@ -357,8 +438,11 @@ Run both focused tests.
 - [ ] **Step 3: Add bounded runner**
 
 Resolve with `where.exe` without a shell. Use `shell: true` only for a resolved `.cmd`. Use
-`child.stdin.end(goal)`. Decode UTF-8 with `StringDecoder`; cap stdout/stderr separately; one timer
-and abort listener kill the entire child tree and are removed on every completion path.
+`child.stdin.end(goal)`. `capture` caps stdout and stderr at 1 MiB each. `streamJsonl` caps each line
+at 65536 bytes and its undecoded partial buffer at 131072 bytes, streams every valid line, and has no
+cumulative stdout cap; callers retain only normalized bounded events. Stderr remains capped at 1
+MiB. One timer and abort listener call `terminateWindowsProcessTree`, wait for verified tree exit,
+and are removed on every completion path. `child.kill()` alone is never treated as Windows Stop.
 
 - [ ] **Step 4: Generate the Workspace Agent profile**
 
@@ -366,8 +450,15 @@ Write app-owned `config.toml` under the dedicated `CODEX_HOME` without reading c
 
 ~~~toml
 default_permissions = "pet-workspace"
+approval_policy = "never"
 allow_login_shell = false
 web_search = "disabled"
+
+[features]
+hooks = false
+
+[projects."Z:\\workspace"]
+trust_level = "untrusted"
 
 [permissions.pet-workspace.filesystem]
 ":minimal" = "read"
@@ -385,9 +476,14 @@ inherit = "core"
 exclude = ["*KEY*", "*TOKEN*", "*SECRET*", "ANTHROPIC_*", "OPENAI_*", "CODEX_API_KEY"]
 ~~~
 
-Use `codex sandbox -P pet-workspace -C <workspace> -- <probe command>` for deterministic non-model
-isolation probes. If an installed Codex version cannot pass read, write, outside-read, outside-write,
-and network probes, return `PERMISSION_PROFILE_UNAVAILABLE` and do not advertise Workspace Agent.
+Generate the project table with
+`'[projects.' + JSON.stringify(path.resolve(workspacePath)) + ']'`; the literal example above must
+become the normalized selected path. For each deterministic non-model probe, call the runner with
+`['sandbox', '-P', 'pet-workspace', '-C', workspacePath, '--', 'powershell.exe', '-NoProfile',
+'-Command', probe.source]`. If an installed Codex version cannot pass read, write, outside-read,
+outside-write, network, hostile-project-override, and hook-sentinel probes, return
+`PERMISSION_PROFILE_UNAVAILABLE` and do not advertise Workspace Agent. TOML-quote the normalized
+workspace path as data; never concatenate an unescaped table name.
 
 - [ ] **Step 5: Verify and commit**
 
@@ -407,17 +503,23 @@ Commit: `feat: add Codex process and permission boundary`
 - Modify: `docs/BUILD_LOG.md`
 
 **Interfaces:**
-- Codex runs `exec --ephemeral --json --skip-git-repo-check --color never` with optional validated
-  `--model`, stdin goal, workspace cwd, and dedicated `CODEX_HOME`. The app-owned `config.toml`
-  selects `pet-workspace`; do not pass legacy `--sandbox` or an undefined CLI config profile.
+- `codexModels.js` exports exact minimum version `0.144.6`, model IDs `gpt-5.6-sol`,
+  `gpt-5.6-terra`, `gpt-5.6-luna`, and efforts `none`, `low`, `medium`, `high`, `xhigh`, `max`.
+- Codex runs `exec --ephemeral --json --skip-git-repo-check --color never --strict-config
+  --ignore-rules --disable hooks` with validated `--model`, stdin goal, workspace cwd, and dedicated
+  `CODEX_HOME`. The app-owned `config.toml` selects `pet-workspace`, approval `never`, and untrusted
+  project status; do not pass legacy `--sandbox` or an undefined CLI config profile.
 - Mapper accepts documented `thread.*`, `turn.*`, `item.*`, and `error` JSONL events.
 
 - [ ] **Step 1: Write failing adapter and mapping tests**
 
-Cover official login status/setup; supported model/effort registry; no user config outside dedicated
-home; exact profile args; JSONL chunking; agent message final response; command/file/network/usage
-mapping; hidden reasoning exclusion; stderr redaction; malformed/unknown event handling; nonzero,
-timeout, and abort behavior.
+Cover official login status/setup; semantic version rejection below `0.144.6`; exact model/effort
+registry; unlisted model rejection; no silent fallback; no user config outside dedicated home; exact
+hermetic args; hostile workspace `.codex` files cannot remove `--ignore-rules`, enable hooks, alter
+approval/profile, or create a hook sentinel; JSONL chunking; more than 1 MiB cumulative valid events;
+agent message final response; tool/command/file/network/permission/usage mapping through the Task 6
+sanitizer; hidden reasoning exclusion; stderr redaction; malformed/unknown event handling; nonzero,
+timeout, abort, and permission denial behavior.
 
 - [ ] **Step 2: Verify RED**
 
@@ -426,8 +528,10 @@ Run focused tests.
 - [ ] **Step 3: Implement Codex executor**
 
 `getStatus` uses `codex login status` in the dedicated home. `beginSetup` visibly launches official
-`codex login`. `verifyPermissionProfile` runs Task 10 probes. `runGoal` streams JSONL and returns the
-last completed `agent_message`; it never parses formatted terminal output.
+`codex login`. Before either is advertised runnable, parse `codex --version` and require `>=0.144.6`.
+`verifyPermissionProfile` runs Task 10 probes. `runGoal` streams JSONL and returns the last completed
+`agent_message`; it never parses formatted terminal output. Sandbox escalation requests rejected by
+approval `never` map to `PERMISSION_BLOCKED`; there is no approval wait or resume path.
 
 Map `command_execution`, `file_change`, MCP calls, web searches, plan updates, public reasoning
 summaries, and usage into bounded normalized events. Never emit raw reasoning or environment data.
@@ -440,9 +544,11 @@ Comprehensive derive from the same activity snapshot.
 
 - [ ] **Step 5: Verify runnable milestone and stop**
 
-Canonical completion uses fake runner tests. If already signed in, optionally run against a
-disposable sample workspace and capture the live screenshot. Record whether the smoke test ran; it
-is not required for completion.
+Canonical completion uses fake runner tests plus a development-only `CLAUDE_PET_TEST_EXECUTOR` hook
+that injects deterministic Codex-shaped activity only when `app.isPackaged === false` and
+`NODE_ENV === 'test'`. Packaged startup rejects the variable. Use that path to capture the required
+signed-out screenshot. If already signed in, optionally run against a disposable hostile sample
+workspace and record whether the live smoke ran; it is not required for completion.
 
 Commit: `feat: add Codex workspace agent`
 
@@ -461,18 +567,27 @@ Commit: `feat: add Codex workspace agent`
 - Create: `docs/evidence/task-12-claude-agent.png`
 - Modify: `docs/BUILD_LOG.md`
 
+**Interfaces:**
+- `claudeModels.js` exports exact minimum version `2.1.217`, aliases `fable`, `opus`, `sonnet`, and
+  efforts `low`, `medium`, `high`, `xhigh`, `max`.
+
 - [ ] **Step 1: Write failing parity tests**
 
-Cover `claude auth status --json`, visible official login, dedicated `CLAUDE_CONFIG_DIR`, stdin-only
-goal, stream JSON events, no Chrome/slash commands/MCP inheritance, model/effort validation, event
-normalization, timeout, abort, and sanitized failures. Test permission diagnostics separately from
-model execution.
+Cover `claude auth status --json`, visible official login, semantic version rejection below
+`2.1.217`, exact model/effort registry, unlisted model rejection, no fallback model, dedicated
+`CLAUDE_CONFIG_DIR`, stdin-only goal, stream JSON events, safe mode, `dontAsk`, no
+Chrome/slash-command/MCP inheritance, and a hostile `.claude` tree containing settings, hooks,
+plugins, agents, commands, skills, and CLAUDE.md that cannot add tools or write a sentinel. Cover
+event normalization through the Task 6 sanitizer, timeout, abort, permission denial, and sanitized
+failures. Test permission diagnostics separately from model execution.
 
 - [ ] **Step 2: Implement executor with fail-closed Workspace support**
 
 Use print mode, `--output-format stream-json`, `--input-format text`,
-`--no-session-persistence`, `--no-chrome`, `--disable-slash-commands`, `--strict-mcp-config`, and an
-empty MCP config. Use a minimal child environment.
+`--no-session-persistence`, `--safe-mode`, `--permission-mode dontAsk`, `--no-chrome`,
+`--disable-slash-commands`, `--strict-mcp-config`, and an empty MCP config. Do not pass
+`--fallback-model`. Use a minimal child environment. Parse `claude --version` and require
+`>=2.1.217` before advertising the executor runnable.
 
 Expose Workspace Agent only when the installed Claude Code permission boundary passes the same
 outside-read, outside-write, and child-network probes without depending on prompt obedience. If it
@@ -481,9 +596,9 @@ Task 13's explicit confirmation. Do not weaken the Workspace contract for parity
 
 - [ ] **Step 3: Verify runnable milestone and stop**
 
-Run fake-process tests and full suites. Optional live smoke uses a disposable workspace when already
-signed in. Save evidence only if the live path is available; otherwise save the Settings diagnostic
-state proving the fail-closed result.
+Run fake-process and hostile-workspace tests plus full suites. Optional live smoke uses a disposable
+hostile workspace when already signed in. Save evidence only if the live path is available;
+otherwise save the Settings diagnostic state proving the fail-closed result.
 
 Commit: `feat: add Claude Code agent executor`
 
@@ -501,19 +616,38 @@ Commit: `feat: add Claude Code agent executor`
 - Create: `docs/evidence/task-13-full-computer-warning.png`
 - Modify: `docs/BUILD_LOG.md`
 
+**Interfaces:**
+- `requestFullAccess({ settingsWindow, connectionId, connectionStore, dialog })` is main-only. It
+  resolves `true` only after a native dialog accepts the same current connection and requested Full
+  Computer profile, then calls internal `connectionStore.setFullAccess(connectionId, true)`.
+- Settings IPC accepts only `{ connectionId, requestedProfile }`, where `requestedProfile` is
+  `workspace` or `full-computer`. A workspace request calls internal `setFullAccess(id, false)`
+  without a warning; a Full Computer request must pass `requestFullAccess`. Reject unknown fields
+  including `fullAccessConfirmed`, booleans, nonces, or confirmation payloads.
+
 - [ ] **Step 1: Write failing policy/UI tests**
 
-Assert Workspace default; Full Computer cannot save without a fresh explicit confirmation payload;
-confirmation is connection-specific; profile/model changes during a run affect only next run; full
-badge appears in Settings, tray, Simple, and Comprehensive views; disabling full access restores
-workspace preflight; no renderer can bypass main validation.
+Assert Workspace default; a renderer cannot save Full Computer directly; forged
+`fullAccessConfirmed`, confirmation payloads, stored booleans, and calls from the wrong sender are
+rejected; native dialog cancel leaves the connection unchanged; acceptance is bound to the current
+connection ID and requested profile; changing/removing the connection while the dialog is open fails
+closed; profile/model changes during a run affect only the next run; the Full Computer badge appears
+in Settings, tray, Simple, and Comprehensive views; disabling full access restores workspace
+preflight. Mock `dialog.showMessageBox` in tests but never replace it with a renderer modal.
 
 - [ ] **Step 2: Implement policy and executor args**
 
+Main calls `dialog.showMessageBox(settingsWindow, { type: 'warning', buttons: ['Cancel', 'Enable Full
+Computer'], defaultId: 0, cancelId: 0, noLink: true, title: 'Enable Full Computer Agent?', message:
+'This agent can access files, commands, and networks outside the selected workspace.', detail:
+'Only enable this for a connection and goal you trust.' })`, then re-reads the connection before an
+accepted response is persisted. A checkbox may request the dialog but is never evidence.
+
 Codex Full Computer adds the argument pair `-c`, `default_permissions=":danger-full-access"` without
-passing legacy `--sandbox`. Claude Full Computer adds `--dangerously-skip-permissions`; this flag is
-forbidden in Workspace mode. Both require `fullAccessConfirmed === true` in the immutable run
-snapshot. Never infer confirmation from a checkbox left over from another connection.
+passing legacy `--sandbox`. Claude Full Computer replaces `--permission-mode dontAsk` with
+`--dangerously-skip-permissions`; this flag is forbidden in Workspace mode. Both require the
+main-owned `fullAccessConfirmed === true` in the immutable run snapshot. No IPC value can set that
+field, and Offline Demo rejects Full Computer.
 
 - [ ] **Step 3: Verify runnable warning gate and stop**
 
@@ -541,8 +675,8 @@ Commit: `feat: add advanced full-computer agent mode`
 
 Test regular UTF-8 <=262144 bytes, fatal decoding, NUL/binary/directory/oversize/read failure,
 basename-only prompt, escaped closing attachment tag, one-time attachment not workspace expansion,
-terminal/file convergence, busy, Stop, switching-next-run, tray selectors, and mock changed-file
-summary.
+terminal/file convergence, busy, Stop, switching-next-run, tray selectors, and Offline Demo
+changed-file summary. Prove no file-submit preload or IPC existed before this task.
 
 - [ ] **Step 2: Implement file boundary and renderer**
 
@@ -559,9 +693,9 @@ selection or busy changes. Destroy/abort cleanly on quit.
 
 - [ ] **Step 4: Verify runnable offline E2E and stop**
 
-With a temporary userData directory, create a mock Workspace Agent through real Settings, submit a
-terminal goal, drop a text file, inspect both activity views, stop a delayed run, switch connection
-settings for the next run, and verify no console errors. Save evidence and checklist.
+With a temporary userData directory, create an Offline Demo Workspace Agent through real Settings,
+submit a terminal goal, drop a text file, inspect both activity views, stop a delayed run, switch
+connection settings for the next run, and verify no console errors. Save evidence and checklist.
 
 Commit: `feat: integrate agent-first pet workflow`
 
@@ -604,14 +738,15 @@ Install `@electron/packager` as a dev dependency. Add:
 
 README covers no-connection first run; Codex/Claude official login; workspace selection; Workspace
 and Full Computer permission meanings; Simple/Comprehensive activity; terminal/file goals; Stop;
-offline mock testing; userData location; unsigned SmartScreen warning; no-affiliation statement; and
+Offline Demo testing; userData location; unsigned SmartScreen warning; no-affiliation statement; and
 exact verification commands. Include no real account identifiers or provider branding assets.
 
 - [ ] **Step 4: Package, scan, launch, and zip**
 
 Run icon tests, full Node/pytest, package, verifier, then launch the packaged EXE with a fresh
-`--user-data-dir`. Verify pet, tray, Settings, empty store, mock offline run, activity views, and
-Full Computer warning. Save screenshot. Zip the canonical folder to the canonical zip name.
+`--user-data-dir`. Verify pet, tray, Settings, empty store, Offline Demo run, activity views, and
+Full Computer warning. Save screenshot. Confirm `CLAUDE_PET_TEST_EXECUTOR` is rejected by the
+packaged app. Zip the canonical folder to the canonical zip name.
 
 - [ ] **Step 5: Final requirement audit and commit**
 
@@ -640,18 +775,19 @@ After Task 15 and only on explicit request:
 
 | Requirement | Task |
 |---|---:|
-| Agent contract, errors, immutable run, busy/Stop | 6 |
-| SafeStorage async shape and explicit public allowlist | 7 |
-| Deterministic delayed mock executor | 8 |
-| Runnable offline Settings/response/Simple activity | 9 |
-| Codex process and enforceable workspace profile | 10 |
-| Codex executor and Comprehensive activity | 11 |
-| Claude Code parity without weakening isolation | 12 |
-| Advanced Full Computer opt-in and visible badges | 13 |
+| Agent contract, recursive activity sanitizer/union, immutable run, busy/Stop | 6 |
+| SafeStorage async/unavailable behavior and options-free public allowlist | 7 |
+| Shipped deterministic Offline Demo Agent | 8 |
+| Workspace/text-only shell and controller-owned terminal errors | 9 |
+| Long JSONL, verified Windows tree Stop, untrusted Codex workspace profile | 10 |
+| Codex minimum/model registry, hermetic executor, Comprehensive activity, signed-out evidence | 11 |
+| Claude minimum/model registry, safe mode/dontAsk parity, hostile-workspace isolation | 12 |
+| Main-owned native Full Computer confirmation and visible badges | 13 |
 | Pet renderer, file boundary, both prompt paths, offline E2E | 14 |
 | Canonical package path, secret scan, README, Windows package | 15 |
 
-Interface chain: Tasks 6-8 define and fake the executor surface; Task 9 proves the shell through the
-same manager used later; Tasks 10-12 add real executors; Task 13 changes only permission selection;
-Task 14 integrates the existing pet inputs; Task 15 packages that exact path. No task creates a
-parallel test-only orchestration route.
+Interface chain: Tasks 6-8 define the executor surface and shipped Offline Demo; Task 9 proves the
+Workspace/text shell through the same manager used later; Tasks 10-12 add hermetic real executors;
+Task 13 exclusively adds Full Computer permission selection; Task 14 exclusively integrates the pet
+file input; Task 15 packages that exact path. No task creates a parallel test-only orchestration
+route.
