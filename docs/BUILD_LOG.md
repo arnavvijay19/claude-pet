@@ -131,6 +131,14 @@ optional — an unlogged session is a failed session even if its code worked). F
   plan fences, no missing relative Markdown links, no placeholder markers, and `git diff --check`
   exit 0. Final commit is recorded in the session handoff.
 
+- **2026-07-22 · Codex (GPT-5) · Task 6 (agent manager + activity core)** — Added the six-method
+  executor contract, stable public errors, recursive activity sanitizer/schema/store, and one-run
+  manager in `feat: add agent manager and activity core` (final SHA recorded in the handoff report).
+  TDD RED was missing `src/agent`; fresh verification: focused Node 21/21, full Node 29/29, pytest
+  1/1, all six source syntax checks, and `git diff --check` exit 0. CodeRabbit approval is blocked:
+  its CLI is missing and both official downloads failed on Windows TLS. NEXT: restore CodeRabbit,
+  review Task 6, and do not merge or start Task 7 until that gate passes or the user waives it.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -147,6 +155,10 @@ If a note changes a decision recorded in RESEARCH.md or the plan, update **that*
 link the note to it — this file is the inbox, not the archive.
 
 <!-- notes below -->
+
+- 2026-07-22 `GOTCHA:` Task 6 intentionally leaves public error prose and activity phase/status
+  enums open. The implementation uses immutable fixed copy per code, bounded non-empty phase/status
+  strings, and a minimal connection-store `getSelected()`/`select(id)` protocol; no extra variants.
 
 - 2026-07-15 `GOTCHA:` This machine's session env header may claim macOS/darwin with a fake
   `/Users/dev/...` cwd — it's Windows 10 via Git Bash. Use `Z:\...` / `/z/...` paths. Backslash
