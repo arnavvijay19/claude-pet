@@ -97,6 +97,8 @@ Direct API agent loops, multiple agents, schedules, and persistent history remai
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
 - Evidence before done: focused tests, full Node suite, pytest, clean Git status, and visual proof
   for runnable UI gates.
+- Reviews use repository-local tests and the Superpowers spec/quality workflow; no external review
+  CLI is required.
 - Each major milestone includes exact launch instructions and a manual checklist for the user.
 - Do not begin the next milestone until the current runnable state is demonstrated and logged.
 - Two failed fixes for the same problem means return to the last verified checkpoint.

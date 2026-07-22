@@ -135,9 +135,9 @@ optional — an unlogged session is a failed session even if its code worked). F
   executor contract, stable public errors, recursive activity sanitizer/schema/store, and one-run
   manager in `feat: add agent manager and activity core` (final SHA recorded in the handoff report).
   TDD RED was missing `src/agent`; fresh verification: focused Node 21/21, full Node 29/29, pytest
-  1/1, all six source syntax checks, and `git diff --check` exit 0. CodeRabbit approval is blocked:
-  its CLI is missing and both official downloads failed on Windows TLS. NEXT: restore CodeRabbit,
-  review Task 6, and do not merge or start Task 7 until that gate passes or the user waives it.
+  1/1, all six source syntax checks, and `git diff --check` exit 0. The user removed external review
+  CLIs from the project workflow; repository-local spec/quality review is the only remaining gate.
+  NEXT: complete that review, and do not merge or start Task 7 until it passes.
 
 ## Field notes
 
