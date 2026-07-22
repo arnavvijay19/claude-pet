@@ -135,16 +135,16 @@ optional — an unlogged session is a failed session even if its code worked). F
   executor contract, stable public errors, recursive activity sanitizer/schema/store, and one-run
   manager in `feat: add agent manager and activity core` (final SHA recorded in the handoff report).
   TDD RED was missing `src/agent`; fresh verification: focused Node 21/21, full Node 29/29, pytest
-  1/1, all six source syntax checks, and `git diff --check` exit 0. The user removed external review
-  CLIs from the project workflow; repository-local spec/quality review is the only remaining gate.
-  NEXT: complete that review, and do not merge or start Task 7 until it passes.
+  1/1, all six source syntax checks, and `git diff --check` exit 0. Repository-local review found
+  four contract-boundary defects; the following entry records their fixes and clean re-review.
 
 - **2026-07-22 · Codex (GPT-5) · Task 6 repository-local review fixes** — Hardened executor
   signatures, the exact run-request boundary, per-run activity emission, and credential file-path
   rejection in `fix: harden agent manager contract boundaries` (final SHA in the handoff report).
   TDD regressions witnessed RED then GREEN; fresh verification: focused Node 25/25, full Node 33/33,
-  pytest 1/1, changed-source syntax checks, and `git diff --check` exit 0. Re-review is pending; Task
-  7 remains unstarted.
+  pytest 1/1, changed-source syntax checks, and `git diff --check` exit 0. Repository-local re-review:
+  spec compliant, task quality approved, zero issues. NEXT: merge Task 6, then Task 7 may begin only
+  from a base containing Task 6's final commit.
 
 ## Field notes
 
@@ -165,7 +165,8 @@ link the note to it — this file is the inbox, not the archive.
 
 - 2026-07-22 `FIX:` Repository-local Task 6 review found four contract-boundary bugs: executor
   argument drift, overbroad run requests, stale activity callbacks, and credential-path sentinels
-  accepted as file paths. Regressions and fixes are in the follow-up commit; re-review is pending.
+  accepted as file paths. Regressions and fixes are in the follow-up commit; re-review passed with
+  spec compliance and task quality approved and no remaining issues.
 
 - 2026-07-22 `GOTCHA:` Task 6 intentionally leaves public error prose and activity phase/status
   enums open. The implementation uses immutable fixed copy per code, bounded non-empty phase/status
