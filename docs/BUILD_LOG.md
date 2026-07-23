@@ -168,6 +168,11 @@ optional — an unlogged session is a failed session even if its code worked). F
   focused Node 8/8, canonical Node 48/48, pytest 1/1, two source syntax checks, and `git diff --check`.
   NEXT: merge this task branch, then execute Task 8 only.
 
+- **2026-07-23 · Codex (GPT-5) · Task 7 review correction** — Commit `4af6855` closes the
+  unavailable-safeStorage clear path: `secret: null` and `secret: ''` now return
+  `SECRET_STORE_FAILED` and preserve the existing ciphertext. TDD RED/GREEN: focused Node 8/8;
+  fresh canonical Node 48/48, pytest 1/1, syntax check, and `git diff --check` all passed.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
