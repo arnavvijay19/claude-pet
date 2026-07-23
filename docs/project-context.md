@@ -17,12 +17,13 @@ Simple or Comprehensive form.
 
 ## Current state
 
-- Tasks 1-5 are complete and merged on `master`.
+- Tasks 1-5 are complete and merged on `master`; Task 6 is complete and reviewed on its task branch.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
-- The next incomplete task is **Task 6: agent contract, activity schema, errors, and manager core**.
+- The next incomplete task is **Task 7: allowlisted connection store and safeStorage boundary**; merge
+  Task 6's final branch commit first.
 - No AI account is required for canonical work; the shipped Offline Demo Agent is the user-visible
   offline completion path and fake processes cover CLI adapters.
 - Real Codex or Claude Code runs are optional smoke tests when the tester is already signed in.

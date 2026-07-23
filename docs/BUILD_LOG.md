@@ -157,7 +157,8 @@ optional — an unlogged session is a failed session even if its code worked). F
 - **2026-07-22 · Codex (GPT-5) · Task 6 final sanitizer fixes** — Closed the last two review gaps:
   sparse arrays now fail before sanitizer allocation/traversal bounds can be bypassed, and attached
   curl `-uUSER:PASS` credentials redact before activity storage or publication. TDD RED/GREEN and
-  fresh final verification are recorded in the Task 6 handoff; repository-local re-review is pending.
+  fresh final verification are recorded in the Task 6 handoff. Direct final repository-local audit
+  found no remaining issues; Task 6 is complete on its branch. NEXT: merge Task 6 before Task 7.
 
 ## Field notes
 
@@ -183,7 +184,7 @@ link the note to it — this file is the inbox, not the archive.
 
 - 2026-07-22 `SUPERSEDE:` The later final-audit re-review found two remaining sanitizer gaps:
   sparse arrays bypassed node accounting and attached curl `-uUSER:PASS` leaked Basic-auth data.
-  The final sanitizer follow-up fixes both; re-review must use the final commit range.
+  The final sanitizer follow-up fixes both; direct final audit passed on the final commit range.
 
 - 2026-07-22 `GOTCHA:` Task 6 intentionally leaves public error prose and activity phase/status
   enums open. The implementation uses immutable fixed copy per code, bounded non-empty phase/status
