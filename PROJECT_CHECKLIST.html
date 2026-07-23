@@ -264,8 +264,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Task 7 — save agent connections safely.</p>
-      <p><strong>What you need to do:</strong> Merge the completed Task 6 branch, then ask an AI to execute Task 7 only. You do not need an AI account for Tasks 6–9.</p>
+      <p><strong>Next:</strong> Task 8 — add the Offline Demo Agent.</p>
+      <p><strong>What you need to do:</strong> Merge the completed Task 7 branch, then ask an AI to execute Task 8 only. You do not need an AI account for Tasks 6–9.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -341,21 +341,21 @@
         title: 'Task 6 — Build the agent manager and activity foundation',
         done: true,
         explanation: 'The shared rules for one agent goal, cancellation, safe activity, and sensitive-detail redaction are built and reviewed.',
-        action: 'Nothing. This task is complete; merge its branch before starting Task 7.',
+        action: 'Nothing. This task is complete.',
       },
       {
         id: 'task-7',
         title: 'Task 7 — Save connections safely',
-        done: false,
-        explanation: 'This adds the safe place for agent choices, workspaces, permissions, and any future encrypted secrets.',
-        action: 'Merge Task 6, then ask the AI to execute Task 7 only. Confirm its security tests pass before marking this complete.',
+        done: true,
+        explanation: 'Agent choices, workspaces, permissions, and encrypted future secrets now have an allowlisted, tested storage boundary.',
+        action: 'Nothing. This task is complete.',
       },
       {
         id: 'task-8',
         title: 'Task 8 — Add the Offline Demo Agent',
         done: false,
         explanation: 'This creates a built-in test agent that works without an account, login, API key, or network.',
-        action: 'Nothing manual. Ask the AI to execute Task 8 after Task 7. This is the safe agent used for later user testing.',
+        action: 'Merge Task 7, then ask the AI to execute Task 8 only. This is the safe agent used for later user testing.',
       },
       {
         id: 'task-9',

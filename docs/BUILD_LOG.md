@@ -160,6 +160,14 @@ optional — an unlogged session is a failed session even if its code worked). F
   fresh final verification are recorded in the Task 6 handoff. Direct final repository-local audit
   found no remaining issues; Task 6 is complete on its branch. NEXT: merge Task 6 before Task 7.
 
+- **2026-07-23 · Codex (GPT-5) · Task 7 (allowlisted connection store and safeStorage boundary)** —
+  Added the async Electron safeStorage adapter and atomically persisted v1 connection store. Public
+  connection metadata is explicitly allowlisted; secrets stay base64 ciphertext on disk, unavailable
+  safeStorage blocks every secret path while preserving metadata/ciphertext, and stale ciphertext
+  rotates only after successful decrypt. TDD RED observed the missing modules; fresh verification:
+  focused Node 8/8, canonical Node 48/48, pytest 1/1, two source syntax checks, and `git diff --check`.
+  NEXT: merge this task branch, then execute Task 8 only.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -285,3 +293,7 @@ link the note to it — this file is the inbox, not the archive.
   attempt hit the known worker `spawn EPERM`, then the approved canonical rerun passed), pytest 1/1
   passed, and the 26-item plan/spec/docs coverage scan plus `git diff --check` passed. Provider login
   remains optional and Task 6 remains next.
+
+- 2026-07-23 `GOTCHA:` In Codex's restricted shell, canonical Node tests fail before loading test
+  files with `spawn EPERM`; use the approved elevated `npm.cmd test` for canonical evidence. The
+  default `python` is a Hermes virtual environment without pytest; use `py -m pytest -q` here.
