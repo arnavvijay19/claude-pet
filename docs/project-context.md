@@ -100,6 +100,8 @@ Direct API agent loops, multiple agents, schedules, and persistent history remai
   for runnable UI gates.
 - Reviews use repository-local tests and the Superpowers spec/quality workflow; no external review
   CLI is required.
+- After every verified implementation-plan step, refresh `PROJECT_CHECKLIST.html` from the canonical
+  project context and build log before continuing to the next step.
 - Each major milestone includes exact launch instructions and a manual checklist for the user.
 - Do not begin the next milestone until the current runnable state is demonstrated and logged.
 - Two failed fixes for the same problem means return to the last verified checkpoint.
@@ -134,9 +136,10 @@ Every implementation session must:
 3. Read this file, BUILD_LOG.md, and only the exact task plus linked sources.
 4. Record surprises immediately in BUILD_LOG.md field notes.
 5. Execute the task's red-green cycle and required runnable/visual checks.
-6. End with exact test output, Git status, evidence paths, and a commit or explicit blocker.
-7. Stop at milestone user-test gates instead of silently beginning the next layer.
-8. Never claim next-task readiness until the current final commit is an ancestor of its base.
+6. Refresh `PROJECT_CHECKLIST.html` after every verified implementation-plan step.
+7. End with exact test output, Git status, evidence paths, and a commit or explicit blocker.
+8. Stop at milestone user-test gates instead of silently beginning the next layer.
+9. Never claim next-task readiness until the current final commit is an ancestor of its base.
 
 ## Document routing
 
