@@ -22,10 +22,11 @@ Simple or Comprehensive form.
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
-- The next incomplete task is **Task 8: Offline Demo Agent**. Its clean task branch must start from
-  this merged Task 7 final state.
-- No AI account is required for canonical work; the shipped Offline Demo Agent is the user-visible
-  offline completion path and fake processes cover CLI adapters.
+- The next incomplete task is **Task 9: Runnable offline agent shell**. Its clean task branch must
+  start from this merged Task 8 final state.
+- No AI account is required for canonical work; Task 8 shipped the built-in Offline Demo executor,
+  and Task 9 owns connecting it to normal Settings and response-window flows. Fake processes cover
+  CLI adapters.
 - Real Codex or Claude Code runs are optional smoke tests when the tester is already signed in.
 
 ## Architecture

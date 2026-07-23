@@ -177,6 +177,21 @@ optional — an unlogged session is a failed session even if its code worked). F
   Task 7 commit `cdd7c2a`; the stale checklist instruction was reconciled to Task 8. NEXT: begin
   Task 8 only from a clean worktree based on this merged `master` state.
 
+- **2026-07-23 · Codex (GPT-5) · Task 8 (Offline Demo executor implementation)** — Added the
+  deterministic, credential-free, network-free Workspace-only executor. It exposes only the
+  `offline-demo` model, rejects Full Computer and reasoning-effort requests, emits bounded normalized
+  activity, supports deterministic delayed Stop, and returns the fixed Banana Baron result. TDD RED
+  observed the missing executor module; focused Node 6/6, canonical Node 54/54, pytest 1/1, and
+  `git diff --check` passed. The task review found a scope conflict: the global requirement that
+  Offline Demo be visible in normal Settings/package flows cannot be met until Task 9's exclusively
+  owned runtime and Settings composition. NEXT: resolve this Task 8 review finding before merge; do
+  not begin Task 9 without an explicit decision.
+
+- **2026-07-23 · Codex (GPT-5) · Task 8 review resolution** — The task boundary governs: Task 8
+  ships and verifies the real built-in executor; Task 9 exclusively owns runtime registration and
+  normal Settings/package visibility. No Task 9 files were changed. The Task 8 scope is complete;
+  merge it, then prepare a clean worktree for Task 9 only.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
