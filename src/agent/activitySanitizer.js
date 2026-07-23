@@ -35,6 +35,7 @@ function sanitizeString(value) {
   let result = value;
   result = result.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi, redactUrl);
   result = result.replace(/((?:^|[\s"'`])(?:-u|--user)(?:\s+|=))(?:"[^"]*"|'[^']*'|[^\s"';&|]+)/gi, `$1${REDACTED}`);
+  result = result.replace(/((?:^|[\s"'`])-u)(?=[^\s"';&|]*:)[^\s"';&|]+/gi, `$1${REDACTED}`);
   result = result.replace(/(^|\r?\n)(\s*(?:authorization|proxy-authorization|cookie|set-cookie)\s*:\s*)[^\r\n]*/gi, `$1$2${REDACTED}`);
   result = result.replace(/((?:authorization|proxy-authorization)\s*:\s*)(?:(?:bearer|basic)\s+)?[^"'\r\n;&|]+/gi, `$1${REDACTED}`);
   result = result.replace(/((?:cookie|set-cookie)\s*:\s*)[^"'\r\n]+/gi, `$1${REDACTED}`);
@@ -69,7 +70,14 @@ function sanitizeActivityValue(value) {
     ancestors.add(current);
     try {
       if (Array.isArray(current)) {
-        const clone = current.map((item) => walk(item, depth + 1));
+        for (let index = 0; index < current.length; index += 1) {
+          if (!Object.hasOwn(current, index)) invalid();
+        }
+        if (current.length > MAX_NODES - state.nodes) invalid();
+        const clone = new Array(current.length);
+        for (let index = 0; index < current.length; index += 1) {
+          clone[index] = walk(current[index], depth + 1);
+        }
         return credentialValue ? REDACTED : clone;
       }
       const clone = {};

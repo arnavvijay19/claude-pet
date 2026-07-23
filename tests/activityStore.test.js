@@ -74,6 +74,26 @@ test('redacts nested credentials, commands, URLs, headers, environment values, a
   assert.match(serialized, /REDACTED/);
 });
 
+test('redacts attached curl -u credentials before snapshot and subscriber publication', () => {
+  const store = createActivityStore({ clock: () => 1 });
+  store.begin({ connectionId: 'demo' });
+  let published;
+  store.subscribe((snapshot) => { published = snapshot; });
+
+  const stored = store.append({
+    phase: 'run', kind: 'command', summary: 'Request',
+    command: 'curl -ualice:swordfish https://example.com && tool -update', exitCode: 0,
+  });
+
+  for (const value of [stored, store.snapshot(), published]) {
+    const serialized = JSON.stringify(value);
+    assert.equal(serialized.includes('alice'), false);
+    assert.equal(serialized.includes('swordfish'), false);
+  }
+  assert.match(stored.command, /curl -u\[REDACTED\]/);
+  assert.match(stored.command, /tool -update/);
+});
+
 test('rejects unsafe paths and invalid usage values', () => {
   for (const path of ['C:\\secret.txt', 'C:outside.txt', '/etc/passwd', '..\\secret.txt', 'src/../secret.txt']) {
     assert.throws(
@@ -143,6 +163,29 @@ test('walks credential-key values before redacting them', () => {
   ]) {
     assert.throws(() => sanitizeActivityValue(value), (error) => error.code === 'ACTIVITY_INVALID');
   }
+});
+
+test('rejects ordinary and credential-key sparse arrays before storage or publication', () => {
+  const sparse = Array(201);
+  const credentialSparse = Array(201);
+  const store = createActivityStore({ clock: () => 1 });
+  store.begin({ connectionId: 'demo' });
+  let publications = 0;
+  store.subscribe(() => { publications += 1; });
+
+  for (const value of [
+    sparse,
+    { phase: 'run', kind: 'status', summary: 'No', authorization: credentialSparse },
+  ]) {
+    assert.throws(() => store.append(value), (error) => error.code === 'ACTIVITY_INVALID');
+  }
+  assert.deepEqual(store.snapshot().events, []);
+  assert.equal(publications, 0);
+  assert.throws(() => sanitizeActivityValue(sparse), (error) => error.code === 'ACTIVITY_INVALID');
+  assert.throws(
+    () => sanitizeActivityValue({ authorization: credentialSparse }),
+    (error) => error.code === 'ACTIVITY_INVALID',
+  );
 });
 
 test('stores and publishes only sanitized immutable values', () => {

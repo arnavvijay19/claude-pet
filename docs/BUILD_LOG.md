@@ -154,6 +154,11 @@ optional — an unlogged session is a failed session even if its code worked). F
   checks, and `git diff --check` exit 0. Repository-local re-review is pending. NEXT: re-review the
   complete Task 6 range; do not start Task 7 until that gate passes.
 
+- **2026-07-22 · Codex (GPT-5) · Task 6 final sanitizer fixes** — Closed the last two review gaps:
+  sparse arrays now fail before sanitizer allocation/traversal bounds can be bypassed, and attached
+  curl `-uUSER:PASS` credentials redact before activity storage or publication. TDD RED/GREEN and
+  fresh final verification are recorded in the Task 6 handoff; repository-local re-review is pending.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -175,6 +180,10 @@ link the note to it — this file is the inbox, not the archive.
   argument drift, overbroad run requests, stale activity callbacks, and credential-path sentinels.
   Its no-remaining-issues claim was superseded by the later final audit; the new fixes are in
   `fix: align agent core with secure store contract`, with re-review pending.
+
+- 2026-07-22 `SUPERSEDE:` The later final-audit re-review found two remaining sanitizer gaps:
+  sparse arrays bypassed node accounting and attached curl `-uUSER:PASS` leaked Basic-auth data.
+  The final sanitizer follow-up fixes both; re-review must use the final commit range.
 
 - 2026-07-22 `GOTCHA:` Task 6 intentionally leaves public error prose and activity phase/status
   enums open. The implementation uses immutable fixed copy per code, bounded non-empty phase/status
