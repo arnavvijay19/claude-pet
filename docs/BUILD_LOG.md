@@ -173,6 +173,10 @@ optional — an unlogged session is a failed session even if its code worked). F
   `SECRET_STORE_FAILED` and preserve the existing ciphertext. TDD RED/GREEN: focused Node 8/8;
   fresh canonical Node 48/48, pytest 1/1, syntax check, and `git diff --check` all passed.
 
+- **2026-07-23 · Codex (GPT-5) · Task 7 integration** — `master` fast-forwarded through final
+  Task 7 commit `cdd7c2a`; the stale checklist instruction was reconciled to Task 8. NEXT: begin
+  Task 8 only from a clean worktree based on this merged `master` state.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
