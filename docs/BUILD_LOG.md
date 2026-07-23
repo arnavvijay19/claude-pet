@@ -161,7 +161,7 @@ optional — an unlogged session is a failed session even if its code worked). F
   found no remaining issues; Task 6 is complete on its branch. NEXT: merge Task 6 before Task 7.
 
 - **2026-07-23 · Codex (GPT-5) · Task 7 (allowlisted connection store and safeStorage boundary)** —
-  Added the async Electron safeStorage adapter and atomically persisted v1 connection store. Public
+  Implementation commit `18af9e1` adds the async Electron safeStorage adapter and atomically persisted v1 connection store. Public
   connection metadata is explicitly allowlisted; secrets stay base64 ciphertext on disk, unavailable
   safeStorage blocks every secret path while preserving metadata/ciphertext, and stale ciphertext
   rotates only after successful decrypt. TDD RED observed the missing modules; fresh verification:
