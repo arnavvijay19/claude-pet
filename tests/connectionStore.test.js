@@ -200,5 +200,10 @@ test('preserves existing encrypted ciphertext during unavailable metadata writes
   assert.equal(cryptographyCalls, 0);
   await assert.rejects(store.getSecret(saved.id), (error) => error.code === 'SECRET_STORE_FAILED');
   await assert.rejects(store.saveConnection(saveInput({ id: saved.id, secret: 'replacement' })), (error) => error.code === 'SECRET_STORE_FAILED');
+  for (const secret of [null, '']) {
+    await assert.rejects(store.saveConnection(saveInput({ id: saved.id, secret })), (error) => error.code === 'SECRET_STORE_FAILED');
+    const unchanged = JSON.parse(await fs.readFile(filePath, 'utf8')).connections[0].encryptedKey;
+    assert.equal(unchanged, before);
+  }
   assert.equal(cryptographyCalls, 0);
 });

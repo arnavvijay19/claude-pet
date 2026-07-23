@@ -175,10 +175,10 @@ function createConnectionStore({ filePath, crypto, randomId }) {
     if (typeof connection.id !== 'string' || connection.id.length === 0 || (!existing && find(connection.id))) throw failure();
 
     if (Object.hasOwn(input, 'secret')) {
+      if (!await isAvailable()) throw failure();
       if (input.secret === null || input.secret === '') {
         // Intentionally omit encryptedKey to clear a previously saved secret.
       } else {
-        if (!await isAvailable()) throw failure();
         try {
           const encrypted = await crypto.encrypt(input.secret);
           if (!Buffer.isBuffer(encrypted)) throw new Error('safeStorage did not return a buffer');
