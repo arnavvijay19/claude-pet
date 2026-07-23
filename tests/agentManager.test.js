@@ -33,14 +33,15 @@ function fakeExecutor(overrides = {}) {
   };
 }
 
-function harness({ connection, executor = fakeExecutor(), getSelected } = {}) {
+function harness({ connection, executor = fakeExecutor(), getActiveSelection } = {}) {
   let selected = connection === undefined ? {
-    id: 'connection-1', executor: 'demo', model: 'agent-model', effort: 'high',
-    permissionProfile: { mode: 'workspace', nested: { level: 1 } },
+    id: 'connection-1', executorType: 'demo', modelId: 'agent-model', effort: 'high',
+    workspacePath: 'Z:\\workspace', permissionProfile: { mode: 'workspace', nested: { level: 1 } },
   } : connection;
   const store = {
-    getSelected: getSelected || (async () => selected),
-    select: async (id) => { selected = { ...selected, id }; return selected; },
+    getActiveSelection: getActiveSelection || (async () => selected?.id || null),
+    getConnection: async (id) => (selected?.id === id ? selected : null),
+    setActiveSelection: async (id) => { selected = id ? { ...selected, id } : null; },
   };
   const activity = createActivityStore({ clock: () => 123 });
   return {
@@ -87,24 +88,58 @@ test('returns AGENT_REQUIRED when no connection is selected', async () => {
 
 test('reserves busy before awaiting selected connection lookup', async () => {
   const selection = deferred();
-  const { manager } = harness({ getSelected: () => selection.promise });
+  const { manager } = harness({ getActiveSelection: () => selection.promise });
   const first = manager.runGoal('first');
   await assert.rejects(manager.runGoal('second'), (error) => error.code === 'AGENT_BUSY');
-  selection.resolve({
-    id: 'connection-1', executor: 'demo', model: 'agent-model', effort: 'high',
-    permissionProfile: { mode: 'workspace' },
-  });
+  selection.resolve('connection-1');
   await first;
+});
+
+test('uses the canonical Task 7 connection store and public connection fields', async () => {
+  let activeSelection = 'connection-1';
+  const connections = new Map([
+    ['connection-1', {
+      id: 'connection-1', executorType: 'demo', label: 'Demo', workspacePath: 'Z:\\workspace',
+      permissionProfile: 'workspace', fullAccessConfirmed: false, modelId: 'agent-model',
+      effort: 'high', keyHint: null, hasSecret: false,
+    }],
+    ['connection-2', {
+      id: 'connection-2', executorType: 'demo', label: 'Other', workspacePath: 'Z:\\other',
+      permissionProfile: 'workspace', fullAccessConfirmed: false, modelId: 'agent-model',
+      effort: 'low', keyHint: null, hasSecret: false,
+    }],
+  ]);
+  const store = {
+    getActiveSelection: async () => activeSelection,
+    setActiveSelection: async (id) => { activeSelection = id; },
+    getConnection: async (id) => connections.get(id) || null,
+  };
+  let request;
+  const executor = fakeExecutor({
+    runGoal: async (value) => { request = value; return { text: 'done', changedFiles: [] }; },
+  });
+  const activity = createActivityStore({ clock: () => 1 });
+  const manager = createAgentManager({ store, executors: { demo: executor }, activity });
+
+  await manager.runGoal('work');
+  assert.deepEqual(request, {
+    goal: 'work', workspace: 'Z:\\workspace', permissionProfile: 'workspace',
+    model: 'agent-model', effort: 'high', options: {},
+  });
+  assert.equal(Object.getPrototypeOf(request.options), Object.prototype);
+  assert.equal(Object.isFrozen(request.options), true);
+  assert.deepEqual(await manager.select('connection-2'), connections.get('connection-2'));
+  assert.equal(activeSelection, 'connection-2');
+  assert.equal(await manager.select(null), null);
+  assert.equal(activeSelection, null);
 });
 
 test('sends only the exact deeply immutable executor request snapshot', async () => {
   const gate = deferred();
   const connection = {
-    id: 'connection-1', executor: 'demo',
-    model: { id: 'agent-model', internalMetadata: 'must-not-leak' }, effort: 'high',
-    workspace: { path: 'Z:\\workspace', nested: { trusted: true } },
+    id: 'connection-1', executorType: 'demo', modelId: 'agent-model', effort: 'high',
+    workspacePath: 'Z:\\workspace',
     permissionProfile: { mode: 'workspace', nested: { level: 1 } },
-    options: { retries: 0, nested: { colors: ['blue'] } },
     internalToken: 'must-not-leak',
   };
   let request;
@@ -121,8 +156,6 @@ test('sends only the exact deeply immutable executor request snapshot', async ()
   const pending = manager.runGoal('work');
   await new Promise((resolve) => setImmediate(resolve));
   connection.permissionProfile.nested.level = 9;
-  connection.workspace.nested.trusted = false;
-  connection.options.nested.colors.push('red');
   assert.equal(Object.isFrozen(seenConnection), true);
   assert.equal(Object.isFrozen(seenConnection.permissionProfile.nested), true);
   assert.deepEqual(Object.keys(request), [
@@ -130,16 +163,15 @@ test('sends only the exact deeply immutable executor request snapshot', async ()
   ]);
   assert.deepEqual(request, {
     goal: 'work',
-    workspace: { path: 'Z:\\workspace', nested: { trusted: true } },
+    workspace: 'Z:\\workspace',
     permissionProfile: { mode: 'workspace', nested: { level: 1 } },
     model: 'agent-model',
     effort: 'high',
-    options: { retries: 0, nested: { colors: ['blue'] } },
+    options: {},
   });
   assert.equal(Object.isFrozen(request), true);
-  assert.equal(Object.isFrozen(request.workspace.nested), true);
   assert.equal(Object.isFrozen(request.permissionProfile.nested), true);
-  assert.equal(Object.isFrozen(request.options.nested.colors), true);
+  assert.equal(Object.isFrozen(request.options), true);
   assert.equal(JSON.stringify(request).includes('must-not-leak'), false);
   gate.resolve();
   await pending;
@@ -156,7 +188,7 @@ test('rejects unsupported effort before execution', async () => {
   assert.equal(executions, 0);
 });
 
-test('rejects non-JSON option values with UNSUPPORTED_OPTION before execution', async () => {
+test('rejects non-JSON selected connection values with UNSUPPORTED_OPTION before execution', async () => {
   const unsupported = [
     new Date(),
     Infinity,
@@ -168,14 +200,36 @@ test('rejects non-JSON option values with UNSUPPORTED_OPTION before execution', 
   for (const options of unsupported) {
     let executions = 0;
     const connection = {
-      id: 'connection-1', executor: 'demo', model: 'agent-model', effort: 'high',
-      permissionProfile: { mode: 'workspace' }, options,
+      id: 'connection-1', executorType: 'demo', modelId: 'agent-model', effort: 'high',
+      workspacePath: 'Z:\\workspace', permissionProfile: { mode: 'workspace' }, internalNote: options,
     };
     const executor = fakeExecutor({
       runGoal: async () => { executions += 1; return { text: '', changedFiles: [] }; },
     });
     const { manager } = harness({ connection, executor });
     await assert.rejects(manager.runGoal('work'), (error) => error.code === 'UNSUPPORTED_OPTION');
+    assert.equal(executions, 0);
+  }
+});
+
+test('rejects non-plain executor preflight snapshots with PROVIDER_OUTPUT_INVALID', async () => {
+  const cases = [
+    { getStatus: async () => new Date() },
+    { getCapabilities: async () => new Map([['efforts', ['high']]]) },
+    { listModels: async () => [new Date()] },
+    { verifyPermissionProfile: async () => new Date() },
+  ];
+  for (const overrides of cases) {
+    let executions = 0;
+    const executor = fakeExecutor({
+      ...overrides,
+      runGoal: async () => { executions += 1; return { text: 'done', changedFiles: [] }; },
+    });
+    const { manager } = harness({ executor });
+    await assert.rejects(
+      manager.runGoal('work'),
+      (error) => error.code === 'PROVIDER_OUTPUT_INVALID',
+    );
     assert.equal(executions, 0);
   }
 });
@@ -196,6 +250,25 @@ test('sanitizes and validates every executor activity event before publication',
   const serialized = JSON.stringify(activity.snapshot());
   assert.equal(serialized.includes('secret'), false);
   assert.equal(activity.snapshot().events.length, 1);
+});
+
+test('isolates subscriber exceptions across manager begin, append, and clear', async () => {
+  const executor = fakeExecutor({
+    runGoal: async (_request, emitActivity) => {
+      emitActivity({ phase: 'run', kind: 'status', summary: 'Working' });
+      return { text: 'done', changedFiles: [] };
+    },
+  });
+  const { manager, activity } = harness({ executor });
+  const observed = [];
+  activity.subscribe(() => { throw new Error('subscriber failed'); });
+  activity.subscribe((snapshot) => observed.push(snapshot));
+
+  const result = await manager.runGoal('work');
+  assert.equal(result.text, 'done');
+  assert.equal(observed.length, 2);
+  assert.doesNotThrow(() => activity.clear());
+  assert.deepEqual(observed.at(-1), { run: null, events: [] });
 });
 
 test('ignores delayed activity from a settled run after the next run begins', async () => {
@@ -252,13 +325,10 @@ test('Stop during asynchronous selection prevents preflight and returns RUN_STOP
   const executor = fakeExecutor({
     getStatus: async () => { statusCalls += 1; return { installed: true }; },
   });
-  const { manager } = harness({ executor, getSelected: () => selection.promise });
+  const { manager } = harness({ executor, getActiveSelection: () => selection.promise });
   const pending = manager.runGoal('work');
   assert.equal(manager.stop(), true);
-  selection.resolve({
-    id: 'connection-1', executor: 'demo', model: 'agent-model', effort: 'high',
-    permissionProfile: { mode: 'workspace' },
-  });
+  selection.resolve('connection-1');
   await assert.rejects(pending, (error) => error.code === 'RUN_STOPPED');
   assert.equal(statusCalls, 0);
   assert.equal(manager.getSnapshot().busy, false);
@@ -305,8 +375,8 @@ test('does not retry or fall back after an executor failure', async () => {
   let primaryCalls = 0;
   let fallbackCalls = 0;
   const selected = {
-    id: 'connection-1', executor: 'primary', model: 'agent-model', effort: 'high',
-    permissionProfile: { mode: 'workspace' },
+    id: 'connection-1', executorType: 'primary', modelId: 'agent-model', effort: 'high',
+    workspacePath: 'Z:\\workspace', permissionProfile: { mode: 'workspace' },
   };
   const primary = fakeExecutor({
     runGoal: async () => { primaryCalls += 1; throw new AgentError('RATE_LIMITED'); },
@@ -314,7 +384,11 @@ test('does not retry or fall back after an executor failure', async () => {
   const fallback = fakeExecutor({
     runGoal: async () => { fallbackCalls += 1; return { text: 'fallback', changedFiles: [] }; },
   });
-  const store = { getSelected: async () => selected, select: async () => selected };
+  const store = {
+    getActiveSelection: async () => selected.id,
+    setActiveSelection: async () => {},
+    getConnection: async () => selected,
+  };
   const activity = createActivityStore({ clock: () => 1 });
   const manager = createAgentManager({ store, executors: { primary, fallback }, activity });
   await assert.rejects(manager.runGoal('work'), (error) => error.code === 'RATE_LIMITED');

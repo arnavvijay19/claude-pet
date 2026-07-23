@@ -41,12 +41,23 @@ test('rejects unknown fields and invalid discriminants', () => {
   );
 });
 
+test('preserves an own __proto__ field so store schema validation rejects it', () => {
+  const store = createActivityStore({ clock: () => 1 });
+  store.begin({ connectionId: 'demo' });
+  const event = JSON.parse('{"phase":"run","kind":"status","summary":"No","__proto__":{"polluted":true}}');
+
+  assert.throws(() => store.append(event), (error) => error.code === 'ACTIVITY_INVALID');
+  assert.deepEqual(store.snapshot().events, []);
+  assert.equal({}.polluted, undefined);
+});
+
 test('redacts nested credentials, commands, URLs, headers, environment values, and profile paths', () => {
   const source = {
     apiKey: 'top-secret',
     nested: [{ note: 'Authorization: Bearer abc123\nCookie: sid=cookie-secret' }],
     command: 'OPENAI_API_KEY=sk-live tool --token abc --url https://user:pass@example.com/a?q=secret#frag',
     headers: 'curl -H "Authorization: Bearer bearer-command-secret" -H "Cookie: sid=one; second=cookie-second-secret" https://example.com',
+    basicCommand: 'curl -u alice:swordfish a && curl --user bob:hunter2 b && curl --user=carol:rosebud c && curl -u "dave:letmein" d',
     profile: 'read C:\\Users\\me\\.aws\\credentials, C:\\Users\\me\\.codex\\auth.json and ~/.config/gcloud/application_default_credentials.json',
   };
 
@@ -54,8 +65,9 @@ test('redacts nested credentials, commands, URLs, headers, environment values, a
 
   assert.equal(clean.apiKey, '[REDACTED]');
   const serialized = JSON.stringify(clean);
-  for (const secret of ['top-secret', 'abc123', 'cookie-secret', 'sk-live', 'user', 'pass', 'q=secret', 'frag',
-    'bearer-command-secret', 'cookie-second-secret', '.codex']) {
+  for (const secret of ['top-secret', 'abc123', 'cookie-secret', 'sk-live', 'user:pass', 'q=secret', 'frag',
+    'bearer-command-secret', 'cookie-second-secret', 'alice', 'swordfish', 'bob', 'hunter2', 'carol',
+    'rosebud', 'dave', 'letmein', '.codex']) {
     assert.equal(serialized.includes(secret), false, secret);
   }
   assert.equal(source.apiKey, 'top-secret');
@@ -63,7 +75,7 @@ test('redacts nested credentials, commands, URLs, headers, environment values, a
 });
 
 test('rejects unsafe paths and invalid usage values', () => {
-  for (const path of ['C:\\secret.txt', '/etc/passwd', '..\\secret.txt', 'src/../secret.txt']) {
+  for (const path of ['C:\\secret.txt', 'C:outside.txt', '/etc/passwd', '..\\secret.txt', 'src/../secret.txt']) {
     assert.throws(
       () => validateActivityEvent({ phase: 'run', kind: 'file', summary: 'File', path, operation: 'read' }),
       (error) => error.code === 'ACTIVITY_INVALID',
@@ -119,6 +131,18 @@ test('enforces depth, node, string, object type, and serialized size bounds', ()
     () => sanitizeActivityValue({ values: Array.from({ length: 160 }, () => 'x'.repeat(210)) }),
     (error) => error.code === 'ACTIVITY_INVALID',
   );
+});
+
+test('walks credential-key values before redacting them', () => {
+  const cyclic = {};
+  cyclic.self = cyclic;
+  for (const value of [
+    { token: Array.from({ length: 201 }, () => 1) },
+    { password: new Date() },
+    { apiKey: cyclic },
+  ]) {
+    assert.throws(() => sanitizeActivityValue(value), (error) => error.code === 'ACTIVITY_INVALID');
+  }
 });
 
 test('stores and publishes only sanitized immutable values', () => {

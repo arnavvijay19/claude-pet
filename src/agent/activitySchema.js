@@ -41,7 +41,7 @@ function normalizeDestination(value) {
 function validatePath(value) {
   boundedString(value, 8192);
   if (value.includes('[REDACTED_PATH]')) invalid();
-  if (/^(?:[A-Za-z]:[\\/]|[\\/]{1,2})/.test(value)) invalid();
+  if (/^(?:[A-Za-z]:|[\\/]{1,2})/.test(value)) invalid();
   const pieces = value.replace(/\\/g, '/').split('/');
   if (pieces.some((piece) => piece === '..' || piece === '')) invalid();
 }

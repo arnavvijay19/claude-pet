@@ -34,6 +34,7 @@ function sanitizeString(value) {
   if (value.length > MAX_STRING_LENGTH) invalid();
   let result = value;
   result = result.replace(/\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi, redactUrl);
+  result = result.replace(/((?:^|[\s"'`])(?:-u|--user)(?:\s+|=))(?:"[^"]*"|'[^']*'|[^\s"';&|]+)/gi, `$1${REDACTED}`);
   result = result.replace(/(^|\r?\n)(\s*(?:authorization|proxy-authorization|cookie|set-cookie)\s*:\s*)[^\r\n]*/gi, `$1$2${REDACTED}`);
   result = result.replace(/((?:authorization|proxy-authorization)\s*:\s*)(?:(?:bearer|basic)\s+)?[^"'\r\n;&|]+/gi, `$1${REDACTED}`);
   result = result.replace(/((?:cookie|set-cookie)\s*:\s*)[^"'\r\n]+/gi, `$1${REDACTED}`);
@@ -46,26 +47,44 @@ function sanitizeString(value) {
 
 function sanitizeActivityValue(value) {
   const state = { nodes: 0 };
+  const ancestors = new Set();
 
   function walk(current, depth, credentialValue = false) {
     state.nodes += 1;
     if (state.nodes > MAX_NODES || depth > MAX_DEPTH) invalid();
-    if (credentialValue) return REDACTED;
-    if (current === null || typeof current === 'boolean') return current;
+    if (current === null || typeof current === 'boolean') return credentialValue ? REDACTED : current;
     if (typeof current === 'number') {
       if (!Number.isFinite(current)) invalid();
-      return current;
+      return credentialValue ? REDACTED : current;
     }
-    if (typeof current === 'string') return sanitizeString(current);
+    if (typeof current === 'string') {
+      const sanitized = sanitizeString(current);
+      return credentialValue ? REDACTED : sanitized;
+    }
     if (typeof current !== 'object') invalid();
-    if (Array.isArray(current)) return current.map((item) => walk(item, depth + 1));
-    if (Object.getPrototypeOf(current) !== Object.prototype && Object.getPrototypeOf(current) !== null) invalid();
-
-    const clone = {};
-    for (const [key, item] of Object.entries(current)) {
-      clone[key] = walk(item, depth + 1, isCredentialKey(key));
+    if (ancestors.has(current)) invalid();
+    if (!Array.isArray(current)
+        && Object.getPrototypeOf(current) !== Object.prototype
+        && Object.getPrototypeOf(current) !== null) invalid();
+    ancestors.add(current);
+    try {
+      if (Array.isArray(current)) {
+        const clone = current.map((item) => walk(item, depth + 1));
+        return credentialValue ? REDACTED : clone;
+      }
+      const clone = {};
+      for (const [key, item] of Object.entries(current)) {
+        Object.defineProperty(clone, key, {
+          value: walk(item, depth + 1, isCredentialKey(key)),
+          enumerable: true,
+          configurable: true,
+          writable: true,
+        });
+      }
+      return credentialValue ? REDACTED : clone;
+    } finally {
+      ancestors.delete(current);
     }
-    return clone;
   }
 
   const sanitized = walk(value, 0);

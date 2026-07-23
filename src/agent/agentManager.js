@@ -4,42 +4,50 @@ const { validateExecutor } = require('./agentContract.js');
 const { AgentError } = require('./agentErrors.js');
 const { deepFreeze } = require('./activityStore.js');
 
-function cloneFrozen(value) {
-  return deepFreeze(structuredClone(value));
-}
-
-function sanitizeOptions(value, ancestors = new Set()) {
+function clonePlainJson(value, errorCode, ancestors = new Set()) {
+  const reject = () => { throw new AgentError(errorCode); };
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return value;
   if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new AgentError('UNSUPPORTED_OPTION');
+    if (!Number.isFinite(value)) reject();
     return value;
   }
-  if (!value || typeof value !== 'object') throw new AgentError('UNSUPPORTED_OPTION');
-  if (ancestors.has(value)) throw new AgentError('UNSUPPORTED_OPTION');
+  if (!value || typeof value !== 'object' || ancestors.has(value)) reject();
   ancestors.add(value);
   try {
     if (Array.isArray(value)) {
+      if (Object.getPrototypeOf(value) !== Array.prototype) reject();
+      const keys = Reflect.ownKeys(value);
+      if (keys.some((key) => key !== 'length'
+          && (typeof key !== 'string' || !/^(?:0|[1-9]\d*)$/.test(key)))) reject();
       for (let index = 0; index < value.length; index += 1) {
-        if (!Object.hasOwn(value, index)) throw new AgentError('UNSUPPORTED_OPTION');
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+        if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) reject();
       }
-      return value.map((item) => sanitizeOptions(item, ancestors));
+      return value.map((item) => clonePlainJson(item, errorCode, ancestors));
     }
     const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) {
-      throw new AgentError('UNSUPPORTED_OPTION');
-    }
+    if (prototype !== Object.prototype && prototype !== null) reject();
     const clone = {};
     for (const key of Reflect.ownKeys(value)) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
       if (typeof key !== 'string' || !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-        throw new AgentError('UNSUPPORTED_OPTION');
+        reject();
       }
-      clone[key] = sanitizeOptions(descriptor.value, ancestors);
+      Object.defineProperty(clone, key, {
+        value: clonePlainJson(descriptor.value, errorCode, ancestors),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
     }
     return clone;
   } finally {
     ancestors.delete(value);
   }
+}
+
+function cloneFrozenJson(value, errorCode) {
+  return deepFreeze(clonePlainJson(value, errorCode));
 }
 
 function modelIdOf(model) {
@@ -49,10 +57,13 @@ function modelIdOf(model) {
 }
 
 function effortOf(connection) {
-  return connection.effort
-    || (connection.model && typeof connection.model === 'object' && connection.model.options?.effort)
-    || null;
+  return connection.effort || null;
 }
+
+const PUBLIC_CONNECTION_FIELDS = Object.freeze([
+  'id', 'executorType', 'label', 'workspacePath', 'permissionProfile',
+  'fullAccessConfirmed', 'modelId', 'effort', 'keyHint', 'hasSecret',
+]);
 
 function executorFrom(registry, identifier) {
   const executor = registry instanceof Map ? registry.get(identifier) : registry?.[identifier];
@@ -69,7 +80,10 @@ function throwIfAborted(signal) {
 }
 
 function createAgentManager({ store, executors, activity }) {
-  if (!store || typeof store.getSelected !== 'function' || typeof store.select !== 'function') {
+  if (!store
+    || typeof store.getActiveSelection !== 'function'
+    || typeof store.setActiveSelection !== 'function'
+    || typeof store.getConnection !== 'function') {
     throw new TypeError('Agent manager requires a connection store.');
   }
   if (!activity || typeof activity.begin !== 'function' || typeof activity.append !== 'function') {
@@ -80,12 +94,17 @@ function createAgentManager({ store, executors, activity }) {
   let selectedConnectionId = null;
 
   async function selectedExecutor(signal) {
-    const selected = await store.getSelected();
+    const activeSelection = await store.getActiveSelection();
+    const selected = activeSelection ? await store.getConnection(activeSelection) : null;
     throwIfAborted(signal);
     if (!selected) throw new AgentError('AGENT_REQUIRED');
-    const options = sanitizeOptions(selected.options ?? {});
-    const connection = cloneFrozen({ ...selected, options });
-    const identifier = connection.executor || connection.type;
+    const selectedSnapshot = clonePlainJson(selected, 'UNSUPPORTED_OPTION');
+    const connection = {};
+    for (const field of PUBLIC_CONNECTION_FIELDS) {
+      if (Object.hasOwn(selectedSnapshot, field)) connection[field] = selectedSnapshot[field];
+    }
+    deepFreeze(connection);
+    const identifier = connection.executorType;
     if (typeof identifier !== 'string' || !identifier) throw new AgentError('AGENT_REQUIRED');
     selectedConnectionId = connection.id || null;
     return { connection, identifier, executor: executorFrom(executors, identifier) };
@@ -94,12 +113,15 @@ function createAgentManager({ store, executors, activity }) {
   async function delegate(method) {
     const { connection, executor } = await selectedExecutor();
     if (method === 'getCapabilities') {
-      return executor[method](connection, modelIdOf(connection.model));
+      return cloneFrozenJson(
+        await executor[method](connection, connection.modelId || null),
+        'PROVIDER_OUTPUT_INVALID',
+      );
     }
     if (method === 'verifyPermissionProfile') {
-      return executor[method](connection);
+      return cloneFrozenJson(await executor[method](connection), 'PROVIDER_OUTPUT_INVALID');
     }
-    return executor[method](connection);
+    return cloneFrozenJson(await executor[method](connection), 'PROVIDER_OUTPUT_INVALID');
   }
 
   function getSnapshot() {
@@ -111,7 +133,8 @@ function createAgentManager({ store, executors, activity }) {
 
   async function select(id) {
     if (active) throw new AgentError('AGENT_BUSY');
-    const selected = await store.select(id);
+    await store.setActiveSelection(id);
+    const selected = id ? await store.getConnection(id) : null;
     selectedConnectionId = selected?.id || id || null;
     return selected;
   }
@@ -126,18 +149,24 @@ function createAgentManager({ store, executors, activity }) {
       const { connection, identifier, executor } = await selectedExecutor(controller.signal);
       reservation.connectionId = connection.id || null;
 
-      const status = cloneFrozen(await executor.getStatus(connection));
+      const status = cloneFrozenJson(await executor.getStatus(connection), 'PROVIDER_OUTPUT_INVALID');
       throwIfAborted(controller.signal);
       if (status?.installed === false) throw new AgentError('CLI_NOT_INSTALLED');
       if (status?.authenticated === false) throw new AgentError('AUTH_REQUIRED');
       if (status?.workspaceAvailable === false) throw new AgentError('WORKSPACE_UNAVAILABLE');
 
-      const modelId = modelIdOf(connection.model);
-      const capabilities = cloneFrozen(await executor.getCapabilities(connection, modelId));
+      const modelId = connection.modelId || null;
+      const capabilities = cloneFrozenJson(
+        await executor.getCapabilities(connection, modelId),
+        'PROVIDER_OUTPUT_INVALID',
+      );
       throwIfAborted(controller.signal);
-      const models = cloneFrozen(await executor.listModels(connection));
+      const models = cloneFrozenJson(await executor.listModels(connection), 'PROVIDER_OUTPUT_INVALID');
       throwIfAborted(controller.signal);
-      const permission = cloneFrozen(await executor.verifyPermissionProfile(connection));
+      const permission = cloneFrozenJson(
+        await executor.verifyPermissionProfile(connection),
+        'PROVIDER_OUTPUT_INVALID',
+      );
       throwIfAborted(controller.signal);
       if (permission === false || permission?.available === false) {
         throw new AgentError('PERMISSION_PROFILE_UNAVAILABLE');
@@ -159,19 +188,22 @@ function createAgentManager({ store, executors, activity }) {
         throw new AgentError('UNSUPPORTED_OPTION');
       }
 
-      const request = cloneFrozen({
+      const request = cloneFrozenJson({
         goal: text,
-        workspace: connection.workspace,
+        workspace: connection.workspacePath,
         permissionProfile: connection.permissionProfile,
         model: modelId,
         effort,
-        options: connection.options ?? {},
-      });
+        options: {},
+      }, 'UNSUPPORTED_OPTION');
       activity.begin({ connectionId: connection.id || null, executor: identifier, model: modelId });
       const emitActivity = (event) => {
         if (active === reservation) activity.append(event);
       };
-      const result = await executor.runGoal(request, emitActivity, controller.signal);
+      const result = cloneFrozenJson(
+        await executor.runGoal(request, emitActivity, controller.signal),
+        'PROVIDER_OUTPUT_INVALID',
+      );
       throwIfAborted(controller.signal);
       if (!result || typeof result.text !== 'string' || !Array.isArray(result.changedFiles)
           || result.changedFiles.some((path) => typeof path !== 'string')) {

@@ -146,6 +146,14 @@ optional — an unlogged session is a failed session even if its code worked). F
   spec compliant, task quality approved, zero issues. NEXT: merge Task 6, then Task 7 may begin only
   from a base containing Task 6's final commit.
 
+- **2026-07-22 · Codex (GPT-5) · Task 6 final-audit fixes** — Aligned the manager with the canonical
+  Task 7 connection-store/public-field contract and hardened prototype, path, Basic-auth,
+  subscriber, credential-walk, and plain-JSON boundaries in `fix: align agent core with secure
+  store contract` (final SHA in the handoff report). Every finding had a witnessed RED/GREEN;
+  fresh verification: focused Node 30/30, full Node 38/38, pytest 1/1, four changed-source syntax
+  checks, and `git diff --check` exit 0. Repository-local re-review is pending. NEXT: re-review the
+  complete Task 6 range; do not start Task 7 until that gate passes.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -164,13 +172,14 @@ link the note to it — this file is the inbox, not the archive.
 <!-- notes below -->
 
 - 2026-07-22 `FIX:` Repository-local Task 6 review found four contract-boundary bugs: executor
-  argument drift, overbroad run requests, stale activity callbacks, and credential-path sentinels
-  accepted as file paths. Regressions and fixes are in the follow-up commit; re-review passed with
-  spec compliance and task quality approved and no remaining issues.
+  argument drift, overbroad run requests, stale activity callbacks, and credential-path sentinels.
+  Its no-remaining-issues claim was superseded by the later final audit; the new fixes are in
+  `fix: align agent core with secure store contract`, with re-review pending.
 
 - 2026-07-22 `GOTCHA:` Task 6 intentionally leaves public error prose and activity phase/status
   enums open. The implementation uses immutable fixed copy per code, bounded non-empty phase/status
-  strings, and a minimal connection-store `getSelected()`/`select(id)` protocol; no extra variants.
+  strings, and the canonical Task 7 `getActiveSelection()`/`setActiveSelection(id)`/
+  `getConnection(id)` protocol; no extra variants.
 
 - 2026-07-15 `GOTCHA:` This machine's session env header may claim macOS/darwin with a fake
   `/Users/dev/...` cwd — it's Windows 10 via Git Bash. Use `Z:\...` / `/z/...` paths. Backslash

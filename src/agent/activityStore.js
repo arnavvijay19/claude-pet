@@ -23,7 +23,13 @@ function createActivityStore({ clock = Date.now } = {}) {
 
   function publish() {
     const current = snapshot();
-    for (const listener of listeners) listener(current);
+    for (const listener of listeners) {
+      try {
+        listener(current);
+      } catch {
+        // Subscribers are observers and cannot affect store or run state.
+      }
+    }
   }
 
   function begin(value) {
