@@ -22,6 +22,8 @@ test('writes an app-owned untrusted Workspace Agent config without reading crede
   assert.match(content, /^allow_login_shell = false$/m);
   assert.match(content, /^web_search = "disabled"$/m);
   assert.match(content, /^hooks = false$/m);
+  assert.match(content, /^\[windows\]$/m);
+  assert.match(content, /^sandbox = "elevated"$/m);
   assert.match(content, new RegExp('\\[projects\\.' + JSON.stringify(path.resolve(workspacePath)).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\]'));
   assert.match(content, /^"\*\*\/\*\.env" = "deny"$/m);
   assert.match(content, /^enabled = false$/m);
