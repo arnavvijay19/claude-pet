@@ -5,13 +5,13 @@ const { safeStorage } = require('electron');
 const { start: startPromptServer } = require('./bridge/promptServer.js');
 const { createAgentRuntime } = require('./agentRuntime.js');
 const { createPromptController, readRunContext } = require('./promptController.js');
-const { createSettingsWindow } = require('./settingsWindow.js');
+const { createSettingsWindowController } = require('./settingsWindow.js');
 const { createResponseWindow } = require('./responseWindow.js');
 const { createResponsePreferences } = require('./response/responsePreferences.js');
 
 let petWindow = null;
 let tray = null;
-let settingsWindow = null;
+let settingsWindowController = null;
 let responseWindow = null;
 let runtime = null;
 let promptController = null;
@@ -50,7 +50,7 @@ function createTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show', click: () => petWindow?.show() },
     { label: 'Hide', click: () => petWindow?.hide() },
-    { label: 'Settings', click: () => { settingsWindow?.show(); settingsWindow?.focus(); } },
+    { label: 'Settings', click: () => settingsWindowController?.show() },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]));
@@ -80,8 +80,8 @@ app.whenReady().then(async () => {
   }, randomId: () => crypto.randomUUID() });
   await runtime.initialize();
   responseWindow = createResponseWindow({ BrowserWindow, screen });
-  settingsWindow = createSettingsWindow({ BrowserWindow, ipcMain, store: runtime.store, manager: runtime.manager });
-  settingsWindow.show();
+  settingsWindowController = createSettingsWindowController({ BrowserWindow, ipcMain, store: runtime.store, manager: runtime.manager });
+  settingsWindowController.show();
   const responsePreferences = createResponsePreferences({ filePath: path.join(app.getPath('userData'), 'response-preferences.json') });
   const responseState = require('./response/responseState.js').createResponseState({ readPreference: responsePreferences.read, writePreference: responsePreferences.write });
   const publish = () => { const state = responseState.snapshot(); responseWindow?.webContents.send('response:state', state); responseWindow?.webContents.send('response:activity', state); };
@@ -90,7 +90,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('response:stop', () => promptController.stop());
   ipcMain.handle('response:state', () => responseState.snapshot());
   ipcMain.handle('response:dismiss', () => promptController.dismiss());
-  ipcMain.handle('response:open-settings', () => settingsWindow?.show());
+  ipcMain.handle('response:open-settings', () => settingsWindowController?.show());
   ipcMain.handle('response:set-activity-view', (_event, value) => { responseState.setActivityView(value); publish(); return responseState.snapshot(); });
   startPromptServer((text) => promptController.submitText(text).catch(() => {}));
   createTray();

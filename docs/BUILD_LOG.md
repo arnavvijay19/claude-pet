@@ -199,6 +199,10 @@ optional — an unlogged session is a failed session even if its code worked). F
   launches and serves the loopback prompt on `127.0.0.1:47611`. The visual user-test gate remains
   pending because this session's Windows-control connector could not start.
 
+- **2026-07-24 · Codex (GPT-5) · Task 9 Settings lifecycle correction** — Closing Settings then
+  choosing the tray item previously called `show()` on Electron's destroyed window. The tray and
+  response actions now recreate Settings first; the focused regression test is green.
+
 ### Task 9 manual user-test checklist (pending)
 
 1. Launch with the command in the Task 9 handoff, then enter a temporary workspace in Settings and

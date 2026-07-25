@@ -30,4 +30,17 @@ function createSettingsWindow({ BrowserWindow, ipcMain, store, manager }) {
   window.loadFile(path.join(__dirname, 'settings', 'index.html'));
   return window;
 }
-module.exports = { createSettingsWindow, registerSettingsIpc };
+
+function createSettingsWindowController(options) {
+  let window = null;
+  return Object.freeze({
+    show() {
+      if (!window || window.isDestroyed()) window = createSettingsWindow(options);
+      window.show();
+      window.focus();
+      return window;
+    },
+  });
+}
+
+module.exports = { createSettingsWindow, createSettingsWindowController, registerSettingsIpc };

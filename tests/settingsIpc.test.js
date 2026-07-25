@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { registerSettingsIpc } = require('../src/settingsWindow.js');
+const { createSettingsWindowController, registerSettingsIpc } = require('../src/settingsWindow.js');
 
 function harness() {
   const handlers = new Map();
@@ -33,4 +33,23 @@ test('requires a non-empty workspace and selects a newly saved Offline Demo conn
   await assert.rejects(save({ sender }, { ...draft, workspacePath: '   ' }));
   await save({ sender }, draft);
   assert.deepEqual(selected, ['saved']);
+});
+
+test('recreates Settings after the user closes its previous window', () => {
+  const windows = [];
+  class FakeBrowserWindow {
+    constructor() { this.webContents = {}; this.destroyed = false; this.shown = 0; this.focused = 0; windows.push(this); }
+    loadFile() {}
+    isDestroyed() { return this.destroyed; }
+    show() { this.shown += 1; }
+    focus() { this.focused += 1; }
+  }
+  const controller = createSettingsWindowController({ BrowserWindow: FakeBrowserWindow, ipcMain: { handle() {} }, store: {}, manager: {} });
+  const first = controller.show();
+  first.destroyed = true;
+  const second = controller.show();
+  assert.notEqual(second, first);
+  assert.equal(windows.length, 2);
+  assert.equal(second.shown, 1);
+  assert.equal(second.focused, 1);
 });
