@@ -3,6 +3,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
 
 const { createCliRunner } = require('../src/agent/cliRunner.js');
 
@@ -99,6 +102,47 @@ test('streamJsonl rejects oversized JSONL records and undecoded partial buffers'
   }
 });
 
+test('streamJsonl immediately terminates a still-running process after invalid JSONL', async () => {
+  const child = fakeChild();
+  const kills = [];
+  const signal = {
+    aborted: false,
+    listeners: new Set(),
+    addEventListener(type, listener) { if (type === 'abort') this.listeners.add(listener); },
+    removeEventListener(type, listener) { if (type === 'abort') this.listeners.delete(listener); },
+  };
+  const { runner } = runnerHarness({
+    spawn() {
+      setImmediate(() => child.stdout.emit('data', Buffer.from('{not-json}\n')));
+      return child;
+    },
+    terminateWindowsProcessTree: async (spec) => { kills.push(spec); },
+  });
+
+  await assert.rejects(
+    runner.streamJsonl({ command: 'tool', args: [], timeoutMs: 1000, signal }, () => {}),
+    (error) => error.code === 'PROVIDER_OUTPUT_INVALID',
+  );
+  assert.deepEqual(kills, [{ pid: 1234, execFile: 'tool', waitForExit: undefined }]);
+  assert.equal(signal.listeners.size, 0);
+});
+
+test('streamJsonl returns no more than one MiB of stderr', async () => {
+  const child = fakeChild();
+  const { runner } = runnerHarness({
+    spawn() {
+      setImmediate(() => {
+        child.stderr.emit('data', Buffer.alloc(1024 * 1024 + 100, 'e'));
+        child.emit('close', 0, null);
+      });
+      return child;
+    },
+  });
+
+  const result = await runner.streamJsonl({ command: 'tool', args: [] }, () => {});
+  assert.equal(Buffer.byteLength(result.stderr), 1024 * 1024);
+});
+
 test('timeout and abort terminate the complete Windows tree and remove listeners', async () => {
   for (const mode of ['timeout', 'abort']) {
     const child = fakeChild();
@@ -119,5 +163,40 @@ test('timeout and abort terminate the complete Windows tree and remove listeners
     await assert.rejects(pending, (error) => error.code === (mode === 'timeout' ? 'REQUEST_TIMEOUT' : 'RUN_STOPPED'));
     assert.deepEqual(kills, [{ pid: 1234, execFile: 'tool', waitForExit: undefined }]);
     assert.equal(signal.listeners.size, 0);
+  }
+});
+
+test('aborting cliRunner terminates a real Windows child and grandchild process tree', { skip: process.platform !== 'win32' }, async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-pet-runner-tree-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const childPidPath = path.join(directory, 'child.pid');
+  const grandchildPidPath = path.join(directory, 'grandchild.pid');
+  const fixtures = path.join(__dirname, 'fixtures');
+  const controller = new AbortController();
+  const grandchildPids = [];
+  const runner = createCliRunner({ resolveCommand: async () => process.execPath });
+  const pending = runner.capture({
+    command: 'node',
+    args: [
+      path.join(fixtures, 'processTreeChild.js'), childPidPath, grandchildPidPath,
+      path.join(fixtures, 'processTreeGrandchild.js'),
+    ],
+    signal: controller.signal,
+    grandchildPids,
+    timeoutMs: 5000,
+  });
+  const readPid = async (filePath) => {
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      try { return Number(await fs.readFile(filePath, 'utf8')); } catch { await new Promise((resolve) => setTimeout(resolve, 25)); }
+    }
+    throw new Error('Timed out waiting for fixture PID.');
+  };
+  const childPid = await readPid(childPidPath);
+  grandchildPids.push(await readPid(grandchildPidPath));
+  controller.abort();
+
+  await assert.rejects(pending, (error) => error.code === 'RUN_STOPPED');
+  for (const pid of [childPid, ...grandchildPids]) {
+    assert.throws(() => process.kill(pid, 0), (error) => error.code === 'ESRCH');
   }
 });

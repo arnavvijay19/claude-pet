@@ -264,8 +264,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Finish the Task 10 Windows sandbox setup check.</p>
-      <p><strong>What you need to do:</strong> Open Codex as an administrator, run <code>/setup-default-sandbox</code>, and approve its Windows prompt. Then ask an AI to rerun the Task 10 live probe. Do not start Task 11 yet.</p>
+      <p><strong>Next:</strong> Integrate the completed Task 10 branch, then begin Task 11.</p>
+      <p><strong>What you need to do:</strong> Nothing more for Windows sandbox setup. Task 10 now launches the standalone sandbox helper and correctly keeps Workspace Agent unavailable because this machine permits outside reads. Do not weaken that fail-closed result.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -367,9 +367,9 @@
       {
         id: 'task-10',
         title: 'Task 10 — Add the safe Codex process boundary',
-        done: false,
-        explanation: 'The bounded official-Codex process boundary and Windows process-tree Stop are built and tested. Its live Workspace profile is correctly blocked until Codex completes the required elevated Windows sandbox setup.',
-        action: 'Open Codex as an administrator, run /setup-default-sandbox, approve the Windows prompt, then ask an AI to rerun the hostile-workspace Task 10 probe. Do not start Task 11 before it passes.',
+        done: true,
+        explanation: 'The bounded official-Codex process boundary, Windows process-tree Stop, and fail-closed Workspace probe are complete. The standalone helper launch was repaired; native Windows still rejects Workspace availability when inherited outside-read ACLs cannot be enforced.',
+        action: 'Nothing. Task 10 is complete. Do not advertise Workspace Agent on this machine; integrate this branch before starting Task 11.',
       },
       {
         id: 'task-11',

@@ -17,21 +17,23 @@ Simple or Comprehensive form.
 
 ## Current state
 
-- Tasks 1-8 are complete and merged on `master`; Task 9 and Task 10's code/test work are complete
-  on their dedicated branch. Task 10's positive live Windows sandbox validation awaits the supported
-  administrator setup.
+- Tasks 1-8 are complete and merged on `master`; Task 9 and Task 10 are complete on their dedicated
+  branches. Task 10's live probe now reaches the elevated backend and correctly fails closed because
+  native Windows permits outside reads on this machine's inherited `Z:\` ACLs; do not weaken the
+  Workspace profile to make it appear available.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
-- The next incomplete work is the **Task 10 elevated Windows sandbox setup follow-up**. Do not begin
-  Task 11 until the real `pet-workspace` probes pass after Codex's administrator setup.
+- The next incomplete work is **Task 11: Codex Workspace Agent and Comprehensive activity**. Do not
+  begin it until Task 10's branch is integrated.
 - No AI account is required for canonical Task 10 tests. Task 9 shipped the built-in Offline Demo
   runtime, normal Settings/response flows, and the visible pet renderer; fake processes cover CLI
   adapters. Task 10 added the bounded CLI/process-tree/profile foundation; the local Codex 0.145.0
-  installation meets the version baseline and the app-owned profile requests an elevated sandbox, but
-  Codex's local helper setup still needs administrator approval. Workspace Agent remains fail-closed
-  in a normal shell until that setup succeeds.
+  installation meets the version baseline and the app-owned profile requests an elevated sandbox. The
+  standalone helper-launch gap was repaired by installing the matching `codex-command-runner.exe`
+  beside the launcher; `:workspace` now starts commands. Workspace Agent remains fail-closed because
+  the hostile probe correctly detects the native Windows outside-read limitation.
 - Real Codex or Claude Code runs are optional smoke tests when the tester is already signed in.
 
 ## Architecture

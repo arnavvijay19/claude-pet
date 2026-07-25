@@ -89,12 +89,15 @@ function createCliRunner({
     let finished = false;
     let timeout = null;
     let rejectExecution;
+    let dataCleanup = null;
     const signal = spec.signal;
     const finishCleanup = () => {
       if (timeout !== null) clearTimeout(timeout);
       if (signal) signal.removeEventListener('abort', onAbort);
+      dataCleanup?.();
+      dataCleanup = null;
     };
-    const stop = async (code) => {
+    const stop = async (errorOrCode) => {
       if (finished) return;
       finished = true;
       finishCleanup();
@@ -110,7 +113,7 @@ function createCliRunner({
         rejectExecution(error instanceof AgentError ? error : new AgentError('COMMAND_FAILED', { cause: error }));
         return;
       }
-      rejectExecution(new AgentError(code));
+      rejectExecution(errorOrCode instanceof AgentError ? errorOrCode : new AgentError(errorOrCode));
     };
     const onAbort = () => { void stop('RUN_STOPPED'); };
 
@@ -136,7 +139,9 @@ function createCliRunner({
         finishCleanup();
         resolve({ exitCode, signal: childSignal });
       });
-      onData(child);
+      dataCleanup = onData(child, (error) => {
+        void stop(error instanceof AgentError ? error : new AgentError('COMMAND_FAILED', { cause: error }));
+      }) || null;
     });
     return result;
   }
@@ -155,11 +160,10 @@ function createCliRunner({
     async streamJsonl(spec, onEvent) {
       if (typeof onEvent !== 'function') throw new AgentError('PROVIDER_OUTPUT_INVALID');
       let pending = Buffer.alloc(0);
-      let streamError = null;
-      const result = await execute(spec, (child) => {
-        child.stderr.on('data', () => {});
-        child.stdout.on('data', (chunk) => {
-          if (streamError) return;
+      let stderr = Buffer.alloc(0);
+      const result = await execute(spec, (child, fail) => {
+        const onStderr = (chunk) => { stderr = cappedBufferAppend(stderr, chunk, MAX_CAPTURE_BYTES); };
+        const onStdout = (chunk) => {
           pending = Buffer.concat([pending, Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)]);
           try {
             while (true) {
@@ -175,13 +179,18 @@ function createCliRunner({
               throw new AgentError('PROVIDER_OUTPUT_INVALID');
             }
           } catch (error) {
-            streamError = error instanceof AgentError ? error : new AgentError('PROVIDER_OUTPUT_INVALID', { cause: error });
+            fail(error instanceof AgentError ? error : new AgentError('PROVIDER_OUTPUT_INVALID', { cause: error }));
           }
-        });
+        };
+        child.stderr.on('data', onStderr);
+        child.stdout.on('data', onStdout);
+        return () => {
+          child.stderr.removeListener('data', onStderr);
+          child.stdout.removeListener('data', onStdout);
+        };
       });
-      if (streamError) throw streamError;
       if (pending.length !== 0 || result.exitCode !== 0) throw new AgentError('PROVIDER_OUTPUT_INVALID');
-      return result;
+      return { ...result, stderr: stderr.toString('utf8') };
     },
 
     async launch(spec) {

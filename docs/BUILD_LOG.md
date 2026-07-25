@@ -253,6 +253,21 @@ optional — an unlogged session is a failed session even if its code worked). F
   their child starts with `CreateProcessWithLogonW failed: 2`. The elevated `/setup-default-sandbox`
   result must be inspected; Task 10 remains fail-closed and Task 11 has not begun.
 
+- **2026-07-26 - Codex (GPT-5) - Task 10 final Windows boundary** - Repaired the standalone
+  `codex-cli 0.145.0` installation by placing its matching `codex-command-runner.exe` beside the
+  launcher (SHA-256 `65905BDE57F03520EC791950EF622EF579440A507383A9C2272DFDF84128BDA6`);
+  the built-in `:workspace` profile now launches `sandbox-ok`. The app probe now creates a complete
+  disposable hostile project, marks that exact project untrusted without touching the selected
+  workspace's `.codex`, uses a host-preflighted non-loopback network target, and restores/removes all
+  owned probe state on every path. The real hostile probe reaches command execution and correctly
+  returns `PERMISSION_PROFILE_UNAVAILABLE` because inherited `Z:\` ACLs allow the sandbox account to
+  read outside the selected workspace (`outside-read returned 0; expected 1`); profile, hook sentinel,
+  and fixture residue checks pass. Review fixes also make malformed JSONL terminate the verified
+  Windows tree immediately, retain at most 1 MiB of streaming stderr, test abort through the real
+  runner child/grandchild path, and close failed network preflights. Final evidence: focused Task 10
+  Node 19/19, canonical Node 88/88, pytest 1/1, syntax and diff checks, plus an independent no-findings
+  re-review after its cleanup findings were fixed. Task 11 remains untouched.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
