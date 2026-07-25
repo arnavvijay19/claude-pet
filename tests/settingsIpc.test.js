@@ -37,6 +37,7 @@ test('requires a non-empty workspace and selects a newly saved Offline Demo conn
 
 test('recreates Settings after the user closes its previous window', () => {
   const windows = [];
+  const handlers = new Map();
   class FakeBrowserWindow {
     constructor() { this.webContents = {}; this.destroyed = false; this.shown = 0; this.focused = 0; windows.push(this); }
     loadFile() {}
@@ -44,7 +45,14 @@ test('recreates Settings after the user closes its previous window', () => {
     show() { this.shown += 1; }
     focus() { this.focused += 1; }
   }
-  const controller = createSettingsWindowController({ BrowserWindow: FakeBrowserWindow, ipcMain: { handle() {} }, store: {}, manager: {} });
+  const ipcMain = {
+    handle(channel, handler) {
+      if (handlers.has(channel)) throw new Error(`duplicate handler: ${channel}`);
+      handlers.set(channel, handler);
+    },
+    removeHandler(channel) { handlers.delete(channel); },
+  };
+  const controller = createSettingsWindowController({ BrowserWindow: FakeBrowserWindow, ipcMain, store: {}, manager: {} });
   const first = controller.show();
   first.destroyed = true;
   const second = controller.show();
@@ -52,4 +60,5 @@ test('recreates Settings after the user closes its previous window', () => {
   assert.equal(windows.length, 2);
   assert.equal(second.shown, 1);
   assert.equal(second.focused, 1);
+  assert.equal(handlers.size, 5);
 });

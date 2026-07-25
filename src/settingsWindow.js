@@ -2,6 +2,10 @@
 const path = require('node:path');
 const { createSettingsViewModel } = require('./settings/settingsViewModel.js');
 
+const SETTINGS_CHANNELS = Object.freeze([
+  'settings:snapshot', 'settings:save', 'settings:select', 'settings:remove', 'settings:test',
+]);
+
 function validDraft(value) {
   const required = ['executorType', 'label', 'workspacePath', 'permissionProfile', 'modelId', 'effort', 'keyHint'];
   return value && Object.keys(value).every((key) => required.includes(key) || key === 'id') && required.every((key) => Object.hasOwn(value, key))
@@ -24,8 +28,15 @@ function registerSettingsIpc({ ipcMain, sender, store, manager }) {
   ipcMain.handle('settings:remove', async (event, id) => { assertSender(event); return store.removeConnection(id); });
   ipcMain.handle('settings:test', async (event) => { assertSender(event); return { status: await manager.getStatus(), permission: await manager.verifyPermissionProfile() }; });
 }
+
+function unregisterSettingsIpc(ipcMain) {
+  if (typeof ipcMain.removeHandler !== 'function') return;
+  for (const channel of SETTINGS_CHANNELS) ipcMain.removeHandler(channel);
+}
+
 function createSettingsWindow({ BrowserWindow, ipcMain, store, manager }) {
   const window = new BrowserWindow({ width: 760, height: 680, show: false, autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false } });
+  unregisterSettingsIpc(ipcMain);
   registerSettingsIpc({ ipcMain, sender: window.webContents, store, manager });
   window.loadFile(path.join(__dirname, 'settings', 'index.html'));
   return window;

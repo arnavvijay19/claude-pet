@@ -203,6 +203,10 @@ optional — an unlogged session is a failed session even if its code worked). F
   choosing the tray item previously called `show()` on Electron's destroyed window. The tray and
   response actions now recreate Settings first; the focused regression test is green.
 
+- **2026-07-24 · Codex (GPT-5) · Task 9 Settings IPC correction** — Recreating Settings then
+  attempted to register the five `ipcMain.handle` channels a second time. Recreated windows now
+  replace their prior Settings handlers before registration; the duplicate-handler regression is green.
+
 ### Task 9 manual user-test checklist (pending)
 
 1. Launch with the command in the Task 9 handoff, then enter a temporary workspace in Settings and
