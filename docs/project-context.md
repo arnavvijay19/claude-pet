@@ -27,8 +27,9 @@ Simple or Comprehensive form.
   clean task branch must contain Task 10 implementation commit `218954e`.
 - No AI account is required for canonical Task 10 tests. Task 9 shipped the built-in Offline Demo
   runtime, normal Settings/response flows, and the visible pet renderer; fake processes cover CLI
-  adapters. Task 10 added the bounded CLI/process-tree/profile foundation; the local Codex 0.144.5
-  installation is intentionally unavailable until updated to the required 0.144.6 baseline.
+  adapters. Task 10 added the bounded CLI/process-tree/profile foundation; the local Codex 0.145.0
+  installation meets the version baseline but its restricted Windows sandbox requires an elevated
+  backend, so Workspace Agent availability remains fail-closed in a normal shell.
 - Real Codex or Claude Code runs are optional smoke tests when the tester is already signed in.
 
 ## Architecture

@@ -231,6 +231,13 @@ optional — an unlogged session is a failed session even if its code worked). F
   is 0.144.5, below the 0.144.6 baseline, so live Workspace availability remains fail-closed until
   it is updated; no login or live model run was required. NEXT: integrate this branch, then Task 11.
 
+- **2026-07-25 · Codex (GPT-5) · Task 10 live sandbox diagnostic** — After Codex CLI updated to
+  0.145.0, the real app-owned `codex sandbox -P pet-workspace` probe was run against a hostile
+  temporary workspace. It failed before executing the workspace-read command with `Restricted
+  read-only access requires the elevated Windows sandbox backend`; `probeCodexWorkspace` therefore
+  correctly returns `PERMISSION_PROFILE_UNAVAILABLE`. The normal-shell Codex Workspace Agent remains
+  fail-closed; no Task 11 code was started.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -364,3 +371,8 @@ link the note to it — this file is the inbox, not the archive.
 - 2026-07-25 `GOTCHA:` The locally installed `codex-cli 0.144.5` is below the required `0.144.6`
   baseline. Task 10's canonical fake-process/profile tests remain account-free, but this installation
   must fail closed and cannot be advertised for a live Workspace Agent until it is updated.
+
+- 2026-07-25 `SUPERSEDE:` The CLI was updated to `0.145.0`, so the version field note above is no
+  longer current. The real native-Windows sandbox probe still fails in this non-elevated shell before
+  the target command, requiring an elevated Windows sandbox backend; keep Workspace Agent unavailable
+  rather than weakening the restricted profile.
