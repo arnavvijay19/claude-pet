@@ -245,6 +245,14 @@ optional — an unlogged session is a failed session even if its code worked). F
   setup at `helper_firewall_policy_ineffective`; user must run `/setup-default-sandbox` as administrator
   and approve its UAC prompt before this Task 10 gate can pass. No Task 11 work started.
 
+- **2026-07-25 · Codex (GPT-5) · Task 10 Windows-helper follow-up** — The active Private profile
+  had `AllowInboundRules=False`, making every helper firewall allow-rule ineffective; the user
+  authorized restoring it to normal block-unless-allowed behavior and Windows now reports
+  `LocalPolicyModifyState=0`. Codex created `CodexSandboxOffline` and `CodexSandboxOnline` plus its
+  setup marker, but both the app-owned and built-in `:workspace` sandbox commands still fail before
+  their child starts with `CreateProcessWithLogonW failed: 2`. The elevated `/setup-default-sandbox`
+  result must be inspected; Task 10 remains fail-closed and Task 11 has not begun.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -388,3 +396,7 @@ link the note to it — this file is the inbox, not the archive.
   first live failure from missing backend to `helper_firewall_policy_ineffective`. This is a required
   Codex administrator setup/UAC step, not a profile permission to bypass; retain the fail-closed
   `PERMISSION_PROFILE_UNAVAILABLE` result until `/setup-default-sandbox` succeeds.
+
+- 2026-07-25 `GOTCHA:` The setup marker and sandbox users alone do not prove a usable native Windows
+  sandbox. After local firewall policy was restored, the direct built-in `:workspace` probe still
+  fails with `CreateProcessWithLogonW failed: 2`; retain the executable probe as the gate.
