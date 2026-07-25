@@ -2,7 +2,7 @@ const http = require('node:http');
 
 const PORT = 47611;
 
-function start(petWindow, onPrompt) {
+function start(onPrompt, { port = PORT } = {}) {
   const server = http.createServer((req, res) => {
     if (req.method !== 'POST' || req.url !== '/prompt') {
       res.writeHead(404).end();
@@ -23,12 +23,11 @@ function start(petWindow, onPrompt) {
         res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ error: 'text is required' }));
         return;
       }
-      petWindow.webContents.send('pet:prompt', { text: parsed.text });
-      onPrompt(parsed.text);
       res.writeHead(202, { 'Content-Type': 'application/json' }).end(JSON.stringify({ accepted: true }));
+      Promise.resolve().then(() => onPrompt(parsed.text)).catch(() => {});
     });
   });
-  server.listen(PORT, '127.0.0.1');
+  server.listen(port, '127.0.0.1');
   return server;
 }
 

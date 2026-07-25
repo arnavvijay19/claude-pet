@@ -192,6 +192,24 @@ optional — an unlogged session is a failed session even if its code worked). F
   normal Settings/package visibility. No Task 9 files were changed. The Task 8 scope is complete;
   merge it, then prepare a clean worktree for Task 9 only.
 
+- **2026-07-24 · Codex (GPT-5) · Task 9 (runnable Offline Demo shell)** — Added the normal
+  Settings, response, runtime, and terminal-prompt path for the built-in Workspace-only Offline
+  Demo agent, restored the missing pet sprite renderer, and removed the premature file-submit bridge.
+  Fresh verification: canonical Node 68/68, pytest 1/1, syntax, and diff checks pass; Electron
+  launches and serves the loopback prompt on `127.0.0.1:47611`. The visual user-test gate remains
+  pending because this session's Windows-control connector could not start.
+
+### Task 9 manual user-test checklist (pending)
+
+1. Launch with the command in the Task 9 handoff, then enter a temporary workspace in Settings and
+   choose **Save Offline Demo**.
+2. Use the terminal prompt path to submit an ordinary goal, then confirm the response shows the
+   selected workspace, Workspace permission badge, phase, elapsed time, and Offline Demo model.
+3. Switch **Simple** and **Comprehensive**; the latter shows the normalized activity timeline.
+4. Submit the deterministic delayed goal and select **Stop**; confirm it stops without retrying.
+5. Confirm there is no Full Computer control or file-submission path, then save a fresh screenshot
+   at `docs/evidence/task-9-offline-agent-shell.png` and report the result before Task 10 begins.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise

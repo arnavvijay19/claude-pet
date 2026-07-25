@@ -1,9 +1,20 @@
 const { app, BrowserWindow, Tray, Menu, screen, ipcMain } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const { safeStorage } = require('electron');
+const { start: startPromptServer } = require('./bridge/promptServer.js');
+const { createAgentRuntime } = require('./agentRuntime.js');
+const { createPromptController, readRunContext } = require('./promptController.js');
+const { createSettingsWindow } = require('./settingsWindow.js');
+const { createResponseWindow } = require('./responseWindow.js');
+const { createResponsePreferences } = require('./response/responsePreferences.js');
 
 let petWindow = null;
 let tray = null;
+let settingsWindow = null;
+let responseWindow = null;
+let runtime = null;
+let promptController = null;
 
 function createPetWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
@@ -39,6 +50,7 @@ function createTray() {
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Show', click: () => petWindow?.show() },
     { label: 'Hide', click: () => petWindow?.hide() },
+    { label: 'Settings', click: () => { settingsWindow?.show(); settingsWindow?.focus(); } },
     { type: 'separator' },
     { label: 'Quit', click: () => app.quit() },
   ]));
@@ -61,10 +73,27 @@ ipcMain.on('pet:move-window', (_event, { dx, dy }) => {
   petWindow.setPosition(x + dx, y + dy);
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createPetWindow();
+  runtime = createAgentRuntime({ userDataPath: app.getPath('userData'), crypto: {
+    isAvailable: async () => safeStorage.isEncryptionAvailable(), encrypt: async (value) => safeStorage.encryptString(value), decrypt: async (value) => ({ value: safeStorage.decryptString(value), shouldReEncrypt: false }),
+  }, randomId: () => crypto.randomUUID() });
+  await runtime.initialize();
+  responseWindow = createResponseWindow({ BrowserWindow, screen });
+  settingsWindow = createSettingsWindow({ BrowserWindow, ipcMain, store: runtime.store, manager: runtime.manager });
+  settingsWindow.show();
+  const responsePreferences = createResponsePreferences({ filePath: path.join(app.getPath('userData'), 'response-preferences.json') });
+  const responseState = require('./response/responseState.js').createResponseState({ readPreference: responsePreferences.read, writePreference: responsePreferences.write });
+  const publish = () => { const state = responseState.snapshot(); responseWindow?.webContents.send('response:state', state); responseWindow?.webContents.send('response:activity', state); };
+  runtime.activity.subscribe((activity) => { responseState.setActivity(activity); publish(); });
+  promptController = createPromptController({ manager: runtime.manager, getRunContext: () => readRunContext(runtime.store), response: { begin: (context) => { responseState.begin(context); responseWindow?.showInactive(); publish(); }, success: (value) => { responseState.success(value); publish(); }, failure: (value) => { responseState.failure(value); publish(); }, stopped: () => { responseState.stopped(); publish(); }, dismiss: () => { responseState.dismiss(); publish(); } } });
+  ipcMain.handle('response:stop', () => promptController.stop());
+  ipcMain.handle('response:state', () => responseState.snapshot());
+  ipcMain.handle('response:dismiss', () => promptController.dismiss());
+  ipcMain.handle('response:open-settings', () => settingsWindow?.show());
+  ipcMain.handle('response:set-activity-view', (_event, value) => { responseState.setActivityView(value); publish(); return responseState.snapshot(); });
+  startPromptServer((text) => promptController.submitText(text).catch(() => {}));
   createTray();
-  // promptServer wiring is added in Task 7 (the module doesn't exist yet).
 });
 
 app.on('window-all-closed', (event) => {

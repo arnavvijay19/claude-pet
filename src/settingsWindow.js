@@ -1,0 +1,33 @@
+'use strict';
+const path = require('node:path');
+const { createSettingsViewModel } = require('./settings/settingsViewModel.js');
+
+function validDraft(value) {
+  const required = ['executorType', 'label', 'workspacePath', 'permissionProfile', 'modelId', 'effort', 'keyHint'];
+  return value && Object.keys(value).every((key) => required.includes(key) || key === 'id') && required.every((key) => Object.hasOwn(value, key))
+    && value.executorType === 'offline-demo' && value.permissionProfile === 'workspace' && value.modelId === 'offline-demo' && value.effort === null;
+}
+function registerSettingsIpc({ ipcMain, sender, store, manager }) {
+  const assertSender = (event) => { if (event.sender !== sender) throw new Error('Invalid Settings sender'); };
+  const snapshot = async () => createSettingsViewModel({ connections: await store.listConnections(), activeId: await store.getActiveSelection() });
+  ipcMain.handle('settings:snapshot', async (event) => { assertSender(event); return snapshot(); });
+  ipcMain.handle('settings:save', async (event, draft) => {
+    assertSender(event);
+    if (!validDraft(draft) || draft.workspacePath.trim().length === 0) {
+      throw new Error('Invalid Workspace-only Offline Demo connection');
+    }
+    const saved = await store.saveConnection(draft);
+    await store.setActiveSelection(saved.id);
+    return snapshot();
+  });
+  ipcMain.handle('settings:select', async (event, id) => { assertSender(event); await store.setActiveSelection(id); return snapshot(); });
+  ipcMain.handle('settings:remove', async (event, id) => { assertSender(event); return store.removeConnection(id); });
+  ipcMain.handle('settings:test', async (event) => { assertSender(event); return { status: await manager.getStatus(), permission: await manager.verifyPermissionProfile() }; });
+}
+function createSettingsWindow({ BrowserWindow, ipcMain, store, manager }) {
+  const window = new BrowserWindow({ width: 760, height: 680, show: false, autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false } });
+  registerSettingsIpc({ ipcMain, sender: window.webContents, store, manager });
+  window.loadFile(path.join(__dirname, 'settings', 'index.html'));
+  return window;
+}
+module.exports = { createSettingsWindow, registerSettingsIpc };

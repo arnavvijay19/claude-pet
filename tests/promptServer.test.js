@@ -1,108 +1,98 @@
+'use strict';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
-const { start, PORT } = require('../src/bridge/promptServer.js');
+const { start } = require('../src/bridge/promptServer.js');
 
-function post(path, body) {
+function waitFor(server, event) {
   return new Promise((resolve, reject) => {
-    const data = JSON.stringify(body);
-    const req = http.request(
-      { hostname: '127.0.0.1', port: PORT, path, method: 'POST',
-        agent: false,
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } },
-      (res) => {
-        let chunks = '';
-        res.on('data', (c) => (chunks += c));
-        res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(chunks || '{}') }));
-      },
-    );
-    req.on('error', reject);
-    req.write(data);
-    req.end();
+    server.once(event, resolve);
+    server.once('error', reject);
   });
 }
 
-function postChunked(path, chunks) {
+async function startServer(onPrompt) {
+  const server = start(onPrompt, { port: 0 });
+  await waitFor(server, 'listening');
+  return server;
+}
+
+function post(server, path, body) {
   return new Promise((resolve, reject) => {
-    const req = http.request(
-      { hostname: '127.0.0.1', port: PORT, path, method: 'POST',
-        agent: false,
-        headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked' } },
-      (res) => {
-        let responseBody = '';
-        res.on('data', (chunk) => (responseBody += chunk));
-        res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(responseBody || '{}') }));
-      },
-    );
-    req.on('error', reject);
+    const data = JSON.stringify(body);
+    const request = http.request({
+      hostname: '127.0.0.1', port: server.address().port, path, method: 'POST', agent: false,
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+    }, (response) => {
+      let text = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => { text += chunk; });
+      response.on('end', () => resolve({ status: response.statusCode, body: JSON.parse(text || '{}') }));
+    });
+    request.on('error', reject);
+    request.end(data);
+  });
+}
+
+function postChunked(server, chunks) {
+  return new Promise((resolve, reject) => {
+    const request = http.request({
+      hostname: '127.0.0.1', port: server.address().port, path: '/prompt', method: 'POST', agent: false,
+      headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked' },
+    }, (response) => {
+      let text = '';
+      response.setEncoding('utf8');
+      response.on('data', (chunk) => { text += chunk; });
+      response.on('end', () => resolve({ status: response.statusCode, body: JSON.parse(text || '{}') }));
+    });
+    request.on('error', reject);
     void (async () => {
       for (const chunk of chunks) {
-        req.write(chunk);
-        await new Promise((resolveTurn) => setImmediate(resolveTurn));
+        request.write(chunk);
+        await new Promise((next) => setImmediate(next));
       }
-      req.end();
+      request.end();
     })().catch(reject);
   });
 }
 
-test('accepts a prompt, notifies the window, and calls onPrompt', async () => {
-  const sent = [];
+async function close(server) {
+  await new Promise((resolve) => server.close(resolve));
+}
+
+test('returns 202 immediately and isolates an asynchronous prompt-controller failure', async () => {
   const prompts = [];
-  const fakeWindow = { webContents: { send: (channel, payload) => sent.push({ channel, payload }) } };
-  const server = start(fakeWindow, (text) => prompts.push(text));
+  const server = await startServer(async (text) => { prompts.push(text); throw new Error('ignored'); });
   try {
-    const { status, body } = await post('/prompt', { text: 'hello pet' });
-    assert.equal(status, 202);
-    assert.deepEqual(body, { accepted: true });
-    assert.equal(sent.length, 1);
-    assert.equal(sent[0].channel, 'pet:prompt');
-    assert.equal(sent[0].payload.text, 'hello pet');
+    assert.deepEqual(await post(server, '/prompt', { text: 'hello pet' }), { status: 202, body: { accepted: true } });
+    await new Promise((next) => setImmediate(next));
     assert.deepEqual(prompts, ['hello pet']);
   } finally {
-    await new Promise((resolve) => server.close(resolve));
+    await close(server);
   }
 });
 
-test('rejects a request missing text', async () => {
-  const fakeWindow = { webContents: { send: () => {} } };
-  const server = start(fakeWindow, () => {});
+test('preserves Task 5 request validation', async () => {
+  const server = await startServer(() => {});
   try {
-    const { status } = await post('/prompt', {});
-    assert.equal(status, 400);
+    assert.equal((await post(server, '/wrong', { text: 'hello' })).status, 404);
+    assert.equal((await post(server, '/prompt', {})).status, 400);
+    assert.equal((await post(server, '/prompt', null)).status, 400);
   } finally {
-    await new Promise((resolve) => server.close(resolve));
+    await close(server);
   }
 });
 
-test('rejects a null JSON body', async () => {
-  const fakeWindow = { webContents: { send: () => {} } };
-  const server = start(fakeWindow, () => {});
-  try {
-    const { status } = await post('/prompt', null);
-    assert.equal(status, 400);
-  } finally {
-    server.closeAllConnections();
-    await new Promise((resolve) => server.close(resolve));
-  }
-});
-
-test('preserves split multibyte UTF-8 in chunked requests', async () => {
-  const sent = [];
+test('preserves split multi-byte UTF-8 text', async () => {
   const prompts = [];
-  const fakeWindow = { webContents: { send: (channel, payload) => sent.push({ channel, payload }) } };
-  const server = start(fakeWindow, (text) => prompts.push(text));
+  const server = await startServer((text) => prompts.push(text));
   const character = Buffer.from('é');
   try {
-    const { status } = await postChunked('/prompt', [
-      Buffer.from('{"text":"caf'),
-      character.subarray(0, 1),
-      character.subarray(1),
-      Buffer.from(' pet"}'),
-    ]);
-    assert.equal(status, 202);
-    assert.deepEqual(sent, [{ channel: 'pet:prompt', payload: { text: 'café pet' } }]);
+    assert.equal((await postChunked(server, [Buffer.from('{"text":"caf'), character.subarray(0, 1), character.subarray(1), Buffer.from(' pet"}')])).status, 202);
+    await new Promise((next) => setImmediate(next));
     assert.deepEqual(prompts, ['café pet']);
   } finally {
-    await new Promise((resolve) => server.close(resolve));
+    await close(server);
   }
 });

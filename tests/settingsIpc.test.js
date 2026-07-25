@@ -1,0 +1,36 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { registerSettingsIpc } = require('../src/settingsWindow.js');
+
+function harness() {
+  const handlers = new Map();
+  const sender = {};
+  const selected = [];
+  const store = { listConnections: async () => [{ id: 'offline', executorType: 'offline-demo', label: 'Offline Demo', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'offline-demo', effort: null }], getActiveSelection: async () => selected.at(-1) || 'offline', saveConnection: async (value) => ({ ...value, id: 'saved' }), setActiveSelection: async (id) => { selected.push(id); }, removeConnection: async () => true };
+  registerSettingsIpc({ ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) }, sender, store, manager: { getStatus: async () => ({ installed: true }), verifyPermissionProfile: async () => ({ available: true, allowed: true }) } });
+  return { handlers, sender, selected };
+}
+
+test('serves only public Settings snapshots to the expected sender', async () => {
+  const { handlers, sender } = harness();
+  const snapshot = await handlers.get('settings:snapshot')({ sender });
+  assert.equal(snapshot.connections[0].executorType, 'offline-demo');
+  assert.equal(JSON.stringify(snapshot).includes('secret'), false);
+  await assert.rejects(handlers.get('settings:snapshot')({ sender: {} }));
+});
+
+test('rejects Full Computer and unknown save fields', async () => {
+  const { handlers, sender } = harness();
+  await assert.rejects(handlers.get('settings:save')({ sender }, { executorType: 'offline-demo', label: 'Demo', workspacePath: 'Z:\\work', permissionProfile: 'full-computer', modelId: 'offline-demo', effort: null, keyHint: null }));
+  await assert.rejects(handlers.get('settings:save')({ sender }, { executorType: 'offline-demo', label: 'Demo', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'offline-demo', effort: null, keyHint: null, options: {} }));
+});
+
+test('requires a non-empty workspace and selects a newly saved Offline Demo connection', async () => {
+  const { handlers, sender, selected } = harness();
+  const save = handlers.get('settings:save');
+  const draft = { executorType: 'offline-demo', label: 'Demo', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'offline-demo', effort: null, keyHint: null };
+  await assert.rejects(save({ sender }, { ...draft, workspacePath: '   ' }));
+  await save({ sender }, draft);
+  assert.deepEqual(selected, ['saved']);
+});
