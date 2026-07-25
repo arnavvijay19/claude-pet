@@ -264,8 +264,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Task 11 — add the Codex Workspace Agent and Comprehensive activity.</p>
-      <p><strong>What you need to do:</strong> Ask an AI to execute Task 11 only from the verified Task 10 branch. No Codex login is needed for canonical tests; this computer's CLI must be updated to 0.144.6 or newer before an optional live smoke test.</p>
+      <p><strong>Next:</strong> Finish the Task 10 Windows sandbox setup check.</p>
+      <p><strong>What you need to do:</strong> Open Codex as an administrator, run <code>/setup-default-sandbox</code>, and approve its Windows prompt. Then ask an AI to rerun the Task 10 live probe. Do not start Task 11 yet.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -367,9 +367,9 @@
       {
         id: 'task-10',
         title: 'Task 10 — Add the safe Codex process boundary',
-        done: true,
-        explanation: 'The bounded official-Codex process boundary, app-owned Workspace profile, and verified Windows process-tree Stop behavior are built and tested.',
-        action: 'Nothing for the canonical task. Update Codex CLI to version 0.144.6 or newer before any optional live Workspace-Agent smoke test.',
+        done: false,
+        explanation: 'The bounded official-Codex process boundary and Windows process-tree Stop are built and tested. Its live Workspace profile is correctly blocked until Codex completes the required elevated Windows sandbox setup.',
+        action: 'Open Codex as an administrator, run /setup-default-sandbox, approve the Windows prompt, then ask an AI to rerun the hostile-workspace Task 10 probe. Do not start Task 11 before it passes.',
       },
       {
         id: 'task-11',

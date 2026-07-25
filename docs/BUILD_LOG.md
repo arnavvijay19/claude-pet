@@ -238,6 +238,13 @@ optional — an unlogged session is a failed session even if its code worked). F
   correctly returns `PERMISSION_PROFILE_UNAVAILABLE`. The normal-shell Codex Workspace Agent remains
   fail-closed; no Task 11 code was started.
 
+- **2026-07-25 · Codex (GPT-5) · Task 10 elevated-profile correction** — The app-owned profile was
+  missing the official `[windows] sandbox = "elevated"` setting, so `fdb48f3` adds it with a witnessed
+  RED/GREEN regression. Fresh canonical verification: Node 79/79, pytest 1/1, syntax, and diff checks
+  passed. The real probe now reaches the elevated backend but fails its administrator-owned helper
+  setup at `helper_firewall_policy_ineffective`; user must run `/setup-default-sandbox` as administrator
+  and approve its UAC prompt before this Task 10 gate can pass. No Task 11 work started.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -376,3 +383,8 @@ link the note to it — this file is the inbox, not the archive.
   longer current. The real native-Windows sandbox probe still fails in this non-elevated shell before
   the target command, requiring an elevated Windows sandbox backend; keep Workspace Agent unavailable
   rather than weakening the restricted profile.
+
+- 2026-07-25 `GOTCHA:` Adding `[windows] sandbox = "elevated"` to the app-owned profile turns the
+  first live failure from missing backend to `helper_firewall_policy_ineffective`. This is a required
+  Codex administrator setup/UAC step, not a profile permission to bypass; retain the fail-closed
+  `PERMISSION_PROFILE_UNAVAILABLE` result until `/setup-default-sandbox` succeeds.
