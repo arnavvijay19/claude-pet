@@ -15,7 +15,7 @@ function createResponseState({ now = Date.now, readPreference = () => null, writ
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     setActivityView(value) { if (!['simple', 'comprehensive'].includes(value)) return; view = value; writePreference(value); publish(); },
     begin(value) { run = { ...value }; events = []; busy = true; stopped = false; startedAt = now(); publish(); },
-    setActivity(value) { events = Array.isArray(value?.events) ? value.events.map(({ sequence, timestamp, ...event }) => event) : []; publish(); },
+    setActivity(value) { events = Array.isArray(value?.events) ? value.events.map(({ sequence, ...event }) => event) : []; publish(); },
     success(value) { busy = false; stopped = false; run = { ...(run || {}), result: value }; publish(); },
     failure(value) { busy = false; run = { ...(run || {}), error: value }; publish(); },
     stopped() { busy = false; stopped = true; publish(); },

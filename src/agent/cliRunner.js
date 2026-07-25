@@ -41,7 +41,7 @@ function resolveWithWhere(command) {
   return new Promise((resolve, reject) => {
     const child = defaultSpawn('where.exe', [command], {
       shell: false,
-      windowsHide: true,
+      windowsHide: spec.visible !== true,
       env: minimalEnvironment(),
     });
     let output = Buffer.alloc(0);

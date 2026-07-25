@@ -1,15 +1,17 @@
 'use strict';
 const path = require('node:path');
 const { createSettingsViewModel } = require('./settings/settingsViewModel.js');
+const { EFFORTS, MODEL_IDS } = require('./agent/executors/codexModels.js');
 
 const SETTINGS_CHANNELS = Object.freeze([
-  'settings:snapshot', 'settings:save', 'settings:select', 'settings:remove', 'settings:test',
+  'settings:snapshot', 'settings:save', 'settings:select', 'settings:remove', 'settings:test', 'settings:setup',
 ]);
 
 function validDraft(value) {
   const required = ['executorType', 'label', 'workspacePath', 'permissionProfile', 'modelId', 'effort', 'keyHint'];
-  return value && Object.keys(value).every((key) => required.includes(key) || key === 'id') && required.every((key) => Object.hasOwn(value, key))
-    && value.executorType === 'offline-demo' && value.permissionProfile === 'workspace' && value.modelId === 'offline-demo' && value.effort === null;
+  if (!value || !Object.keys(value).every((key) => required.includes(key) || key === 'id') || !required.every((key) => Object.hasOwn(value, key)) || value.permissionProfile !== 'workspace') return false;
+  if (value.executorType === 'offline-demo') return value.modelId === 'offline-demo' && value.effort === null;
+  return value.executorType === 'codex-cli' && MODEL_IDS.includes(value.modelId) && EFFORTS.includes(value.effort);
 }
 function registerSettingsIpc({ ipcMain, sender, store, manager }) {
   const assertSender = (event) => { if (event.sender !== sender) throw new Error('Invalid Settings sender'); };
@@ -27,6 +29,7 @@ function registerSettingsIpc({ ipcMain, sender, store, manager }) {
   ipcMain.handle('settings:select', async (event, id) => { assertSender(event); await store.setActiveSelection(id); return snapshot(); });
   ipcMain.handle('settings:remove', async (event, id) => { assertSender(event); return store.removeConnection(id); });
   ipcMain.handle('settings:test', async (event) => { assertSender(event); return { status: await manager.getStatus(), permission: await manager.verifyPermissionProfile() }; });
+  ipcMain.handle('settings:setup', async (event) => { assertSender(event); return manager.beginSetup(); });
 }
 
 function unregisterSettingsIpc(ipcMain) {

@@ -8,6 +8,7 @@ const workspace = document.querySelector('#workspace');
 const permission = document.querySelector('#permission');
 const elapsed = document.querySelector('#elapsed');
 const events = document.querySelector('#events');
+const changed = document.querySelector('#changed');
 const stop = document.querySelector('#stop');
 
 function render(state) {
@@ -21,9 +22,16 @@ function render(state) {
   elapsed.textContent = view.elapsed;
   stop.disabled = !view.canStop;
   events.hidden = view.activityView !== 'comprehensive';
+  changed.textContent = view.changedFiles.length ? `Changed: ${view.changedFiles.join(', ')}` : '';
   events.replaceChildren(...view.events.map((event) => {
     const item = document.createElement('li');
-    item.textContent = `${event.phase}: ${event.summary}`;
+    const row = document.createElement('details');
+    const title = document.createElement('summary');
+    const timestamp = Number.isFinite(event.timestamp) ? new Date(event.timestamp).toLocaleTimeString() : 'now';
+    title.textContent = `${timestamp} ${event.phase}: ${event.summary}`;
+    const detail = document.createElement('p');
+    detail.textContent = event.detail || event.status || event.kind;
+    row.append(title, detail); item.append(row);
     return item;
   }));
 }

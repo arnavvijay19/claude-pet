@@ -8,7 +8,7 @@ function harness() {
   const sender = {};
   const selected = [];
   const store = { listConnections: async () => [{ id: 'offline', executorType: 'offline-demo', label: 'Offline Demo', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'offline-demo', effort: null }], getActiveSelection: async () => selected.at(-1) || 'offline', saveConnection: async (value) => ({ ...value, id: 'saved' }), setActiveSelection: async (id) => { selected.push(id); }, removeConnection: async () => true };
-  registerSettingsIpc({ ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) }, sender, store, manager: { getStatus: async () => ({ installed: true }), verifyPermissionProfile: async () => ({ available: true, allowed: true }) } });
+  registerSettingsIpc({ ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) }, sender, store, manager: { getStatus: async () => ({ installed: true }), verifyPermissionProfile: async () => ({ available: true, allowed: true }), beginSetup: async () => ({ started: false }) } });
   return { handlers, sender, selected };
 }
 
@@ -33,6 +33,16 @@ test('requires a non-empty workspace and selects a newly saved Offline Demo conn
   await assert.rejects(save({ sender }, { ...draft, workspacePath: '   ' }));
   await save({ sender }, draft);
   assert.deepEqual(selected, ['saved']);
+});
+
+test('accepts only registered Workspace Codex models and can begin official setup', async () => {
+  const { handlers, sender, selected } = harness();
+  const draft = { executorType: 'codex-cli', label: 'Codex Workspace', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'gpt-5.6-terra', effort: 'medium', keyHint: null };
+  await handlers.get('settings:save')({ sender }, draft);
+  assert.deepEqual(selected, ['saved']);
+  await assert.rejects(handlers.get('settings:save')({ sender }, { ...draft, modelId: 'not-listed' }));
+  await assert.rejects(handlers.get('settings:save')({ sender }, { ...draft, effort: 'unsupported' }));
+  assert.deepEqual(await handlers.get('settings:setup')({ sender }), { started: false });
 });
 
 test('recreates Settings after the user closes its previous window', () => {
@@ -60,5 +70,5 @@ test('recreates Settings after the user closes its previous window', () => {
   assert.equal(windows.length, 2);
   assert.equal(second.shown, 1);
   assert.equal(second.focused, 1);
-  assert.equal(handlers.size, 5);
+  assert.equal(handlers.size, 6);
 });

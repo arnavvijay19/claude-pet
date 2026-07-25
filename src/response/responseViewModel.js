@@ -1,6 +1,19 @@
 'use strict';
 
 (function exposeResponseViewModel(root) {
+  function detailFor(event) {
+    if (typeof event.detail === 'string') return event.detail;
+    if (event.kind === 'file') return `${event.operation} ${event.path}`;
+    if (event.kind === 'command') return `${event.command} (exit ${event.exitCode})`;
+    if (event.kind === 'network') return event.destination;
+    if (event.kind === 'permission') return `${event.decision} ${event.permission}`;
+    if (event.kind === 'usage') {
+      const usage = event.usage || {};
+      return `input ${usage.inputTokens}, output ${usage.outputTokens}, cached ${usage.cachedTokens}, total ${usage.totalTokens}`;
+    }
+    if (event.kind === 'tool') return event.toolName;
+    return '';
+  }
   function createResponseViewModel(state = {}) {
     const run = state.run && typeof state.run === 'object' ? state.run : {};
     const events = Array.isArray(state.events) ? state.events : [];
@@ -15,7 +28,8 @@
       permissionBadge: run.permissionProfile === 'workspace' ? 'Workspace' : 'No permission profile',
       elapsed: `${Math.floor(elapsedMs / 1000)}s`,
       canStop: state.busy === true,
-      events,
+      events: events.map((event) => ({ ...event, detail: detailFor(event) })),
+      changedFiles: Array.isArray(run.result?.changedFiles) ? [...run.result.changedFiles] : [],
       activityView: state.activityView === 'comprehensive' ? 'comprehensive' : 'simple',
     });
   }

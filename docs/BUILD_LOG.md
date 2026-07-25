@@ -268,6 +268,17 @@ optional — an unlogged session is a failed session even if its code worked). F
   Node 19/19, canonical Node 88/88, pytest 1/1, syntax and diff checks, plus an independent no-findings
   re-review after its cleanup findings were fixed. Task 11 remains untouched.
 
+- **2026-07-25 · Codex (GPT-5) · Task 11 (Codex Workspace Agent)** — Added the
+  exact Codex 0.144.6 model/effort registry, dedicated-`CODEX_HOME` executor, hermetic JSONL
+  invocation, sanitized event mapping, Workspace-only Settings setup, and timestamped collapsible
+  Comprehensive activity rows derived from the same activity snapshot as Simple. The deterministic
+  `CLAUDE_PET_TEST_EXECUTOR=1` path is enabled only in an unpackaged `NODE_ENV=test` process and
+  is rejected when packaged. Fresh verification passed: Node 98/98, pytest 1/1, syntax checks, and
+  `git diff --check`. The manual deterministic Codex test passed: its Comprehensive view showed the
+  Codex executor/model, Workspace profile, elapsed duration, changed file, and timestamped command,
+  usage, and response rows; evidence is `docs/evidence/task-11-codex-workspace-agent.png`. No account
+  login or live model run occurred. Stop here for the Task 11 user test gate; do not begin Task 12.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise

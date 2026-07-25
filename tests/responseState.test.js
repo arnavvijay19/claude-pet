@@ -25,3 +25,13 @@ test('publishes normalized activity, busy state, elapsed time, and Stop state', 
   assert.equal(state.snapshot().busy, false);
   assert.equal(state.snapshot().stopped, true);
 });
+
+test('keeps the same timestamped activity snapshot when switching Simple and Comprehensive views', () => {
+  const state = createResponseState();
+  state.begin({ executor: 'codex-cli', model: 'gpt-5.6-terra', workspace: 'Z:\\work', permissionProfile: 'workspace' });
+  state.setActivity({ events: [{ sequence: 7, timestamp: 1234, phase: 'running', kind: 'command', summary: 'Codex command completed', command: 'git status', exitCode: 0 }] });
+  const simple = state.snapshot().events;
+  state.setActivityView('comprehensive');
+  assert.deepEqual(state.snapshot().events, simple);
+  assert.deepEqual(state.snapshot().events[0], { timestamp: 1234, phase: 'running', kind: 'command', summary: 'Codex command completed', command: 'git status', exitCode: 0 });
+});

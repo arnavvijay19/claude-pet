@@ -3,7 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { safeStorage } = require('electron');
 const { start: startPromptServer } = require('./bridge/promptServer.js');
-const { createAgentRuntime } = require('./agentRuntime.js');
+const { createAgentRuntime, shouldEnableTestExecutor } = require('./agentRuntime.js');
 const { createPromptController, readRunContext } = require('./promptController.js');
 const { createSettingsWindowController } = require('./settingsWindow.js');
 const { createResponseWindow } = require('./responseWindow.js');
@@ -74,10 +74,11 @@ ipcMain.on('pet:move-window', (_event, { dx, dy }) => {
 });
 
 app.whenReady().then(async () => {
+  if (app.isPackaged && process.env.CLAUDE_PET_TEST_EXECUTOR) throw new Error('CLAUDE_PET_TEST_EXECUTOR is unavailable in packaged builds.');
   createPetWindow();
   runtime = createAgentRuntime({ userDataPath: app.getPath('userData'), crypto: {
     isAvailable: async () => safeStorage.isEncryptionAvailable(), encrypt: async (value) => safeStorage.encryptString(value), decrypt: async (value) => ({ value: safeStorage.decryptString(value), shouldReEncrypt: false }),
-  }, randomId: () => crypto.randomUUID() });
+  }, randomId: () => crypto.randomUUID(), testExecutorEnabled: shouldEnableTestExecutor({ isPackaged: app.isPackaged, nodeEnv: process.env.NODE_ENV, value: process.env.CLAUDE_PET_TEST_EXECUTOR }) });
   await runtime.initialize();
   responseWindow = createResponseWindow({ BrowserWindow, screen });
   settingsWindowController = createSettingsWindowController({ BrowserWindow, ipcMain, store: runtime.store, manager: runtime.manager });
