@@ -207,7 +207,12 @@ optional — an unlogged session is a failed session even if its code worked). F
   attempted to register the five `ipcMain.handle` channels a second time. Recreated windows now
   replace their prior Settings handlers before registration; the duplicate-handler regression is green.
 
-### Task 9 manual user-test checklist (pending)
+- **2026-07-24 · user acceptance · Task 9 manual gate** — User confirmed the runnable Offline Demo
+  shell and Settings reopen behavior are good. Task 9 is complete on `39893b2`; prepare Task 10
+  from that commit only. The local visual screenshot remains uncommitted because it includes unrelated
+  desktop content.
+
+### Task 9 manual user-test checklist (completed)
 
 1. Launch with the command in the Task 9 handoff, then enter a temporary workspace in Settings and
    choose **Save Offline Demo**.
@@ -215,8 +220,8 @@ optional — an unlogged session is a failed session even if its code worked). F
    selected workspace, Workspace permission badge, phase, elapsed time, and Offline Demo model.
 3. Switch **Simple** and **Comprehensive**; the latter shows the normalized activity timeline.
 4. Submit the deterministic delayed goal and select **Stop**; confirm it stops without retrying.
-5. Confirm there is no Full Computer control or file-submission path, then save a fresh screenshot
-   at `docs/evidence/task-9-offline-agent-shell.png` and report the result before Task 10 begins.
+5. Confirm there is no Full Computer control or file-submission path. Keep any desktop-inclusive
+   screenshot local unless it can be safely redacted before committing.
 
 ## Field notes
 

@@ -17,16 +17,17 @@ Simple or Comprehensive form.
 
 ## Current state
 
-- Tasks 1-7 are complete and merged on `master`.
+- Tasks 1-8 are complete and merged on `master`; Task 9 is complete on its dedicated branch and
+  awaits the user's integration decision.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
-- The next incomplete task is **Task 9: Runnable offline agent shell**. Its clean task branch must
-  start from this merged Task 8 final state.
-- No AI account is required for canonical work; Task 8 shipped the built-in Offline Demo executor,
-  and Task 9 owns connecting it to normal Settings and response-window flows. Fake processes cover
-  CLI adapters.
+- The next incomplete task is **Task 10: Codex CLI runner and enforceable permission profiles**.
+  Its clean task branch must contain final Task 9 commit `39893b2`.
+- No AI account is required for canonical Task 10 tests. Task 9 shipped the built-in Offline Demo
+  runtime, normal Settings/response flows, and the visible pet renderer; fake processes cover CLI
+  adapters.
 - Real Codex or Claude Code runs are optional smoke tests when the tester is already signed in.
 
 ## Architecture
