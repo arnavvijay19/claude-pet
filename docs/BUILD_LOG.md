@@ -223,6 +223,14 @@ optional — an unlogged session is a failed session even if its code worked). F
 5. Confirm there is no Full Computer control or file-submission path. Keep any desktop-inclusive
    screenshot local unless it can be safely redacted before committing.
 
+- **2026-07-25 · Codex (GPT-5) · Task 10 (Codex process and permission boundary)** — Added the
+  bounded official-CLI runner, app-owned untrusted Workspace profile, deterministic fail-closed
+  sandbox-probe boundary, and verified Windows child/grandchild Stop in `218954e`. TDD RED observed
+  the three missing modules; focused Node 10/10 (including real process-tree termination), canonical
+  Node 79/79, pytest 1/1, source syntax checks, and `git diff --check` passed. Local `codex-cli`
+  is 0.144.5, below the 0.144.6 baseline, so live Workspace availability remains fail-closed until
+  it is updated; no login or live model run was required. NEXT: integrate this branch, then Task 11.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -352,3 +360,7 @@ link the note to it — this file is the inbox, not the archive.
 - 2026-07-23 `GOTCHA:` In Codex's restricted shell, canonical Node tests fail before loading test
   files with `spawn EPERM`; use the approved elevated `npm.cmd test` for canonical evidence. The
   default `python` is a Hermes virtual environment without pytest; use `py -m pytest -q` here.
+
+- 2026-07-25 `GOTCHA:` The locally installed `codex-cli 0.144.5` is below the required `0.144.6`
+  baseline. Task 10's canonical fake-process/profile tests remain account-free, but this installation
+  must fail closed and cannot be advertised for a live Workspace Agent until it is updated.
