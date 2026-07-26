@@ -17,16 +17,16 @@ Simple or Comprehensive form.
 
 ## Current state
 
-- Tasks 1-8 are complete and merged on `master`; Task 9 and Task 10 are complete on their dedicated
-  branches. Task 10's live probe now reaches the elevated backend and correctly fails closed because
-  native Windows permits outside reads on this machine's inherited `Z:\` ACLs; do not weaken the
-  Workspace profile to make it appear available.
+- Tasks 1-12 are complete; Task 12's Claude Code executor uses a dedicated `CLAUDE_CONFIG_DIR`,
+  strict safe-mode invocation, sanitized activity, and Settings diagnostics. Claude Workspace Agent
+  remains fail-closed because safe mode alone is not an enforceable outside-read, outside-write, and
+  child-network boundary; do not weaken the Workspace profile to make it appear available.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
-- The next incomplete work is **Task 11: Codex Workspace Agent and Comprehensive activity**. Do not
-  begin it until Task 10's branch is integrated.
+- The next incomplete work is **Task 13: Advanced Full Computer permission profile**. Do not begin
+  it until Task 12's branch is integrated and its user test gate is accepted.
 - No AI account is required for canonical Task 10 tests. Task 9 shipped the built-in Offline Demo
   runtime, normal Settings/response flows, and the visible pet renderer; fake processes cover CLI
   adapters. Task 10 added the bounded CLI/process-tree/profile foundation; the local Codex 0.145.0
@@ -90,7 +90,7 @@ Context-isolated vanilla-JS renderers
 | Agent core | 6-8 | Contract, secure metadata, activity, shipped Offline Demo Agent | Offline Node tests |
 | Offline agent shell | 9 | Workspace/text Settings, response window, Simple activity | Runnable Offline Demo screenshot and checklist |
 | Codex Workspace Agent | 10-11 | Isolated Codex execution plus Comprehensive activity | Sandbox probes, fake-process tests, optional live smoke |
-| Claude Code Agent | 12 | Claude executor behind the same contract | Parity tests and optional live smoke |
+| Claude Code Agent | 12 | Claude executor behind the same contract | Parity tests and fail-closed Settings diagnostic |
 | Advanced permissions | 13 | Full Computer opt-in, warnings, permission switching | Adversarial boundary tests and screenshot |
 | Pet integration | 14 | Renderer, file drop, terminal goals, tray switching, Stop | Offline end-to-end run and visual evidence |
 | Shareable test build | 15 | Unsigned Windows x64 package and first-run guide | Packaged launch with empty connection store |

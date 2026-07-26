@@ -45,6 +45,16 @@ test('accepts only registered Workspace Codex models and can begin official setu
   assert.deepEqual(await handlers.get('settings:setup')({ sender }), { started: false });
 });
 
+test('accepts only registered Workspace Claude models and starts the selected official setup', async () => {
+  const { handlers, sender, selected } = harness();
+  const draft = { executorType: 'claude-code-cli', label: 'Claude Code Workspace', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'sonnet', effort: 'high', keyHint: null };
+  await handlers.get('settings:save')({ sender }, draft);
+  assert.deepEqual(selected, ['saved']);
+  await assert.rejects(handlers.get('settings:save')({ sender }, { ...draft, modelId: 'not-listed' }));
+  await assert.rejects(handlers.get('settings:save')({ sender }, { ...draft, effort: 'unsupported' }));
+  assert.deepEqual(await handlers.get('settings:setup')({ sender }), { started: false });
+});
+
 test('recreates Settings after the user closes its previous window', () => {
   const windows = [];
   const handlers = new Map();

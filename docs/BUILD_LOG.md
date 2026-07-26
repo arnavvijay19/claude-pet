@@ -279,6 +279,17 @@ optional — an unlogged session is a failed session even if its code worked). F
   usage, and response rows; evidence is `docs/evidence/task-11-codex-workspace-agent.png`. No account
   login or live model run occurred. Stop here for the Task 11 user test gate; do not begin Task 12.
 
+- **2026-07-26 · Codex (GPT-5) · Task 12 (Claude Code agent parity)** — Added the exact Claude
+  Code 2.1.217 model/effort registry, dedicated `CLAUDE_CONFIG_DIR`, stdin-only safe-mode stream
+  invocation, strict empty MCP configuration, sanitized event mapping, official visible sign-in,
+  and Claude-aware Settings controls/diagnostics. Workspace verification deliberately returns
+  `PERMISSION_PROFILE_UNAVAILABLE`: safe mode prevents hostile `.claude` configuration, but it is
+  not represented as an operating-system boundary for outside reads, writes, or child network.
+  TDD recorded missing executor/mapper modules and the Claude Settings rejection; focused Node 13/13,
+  full Node 105/105, pytest 1/1, and `git diff --check` passed. Visual QA verified the fail-closed
+  Settings diagnostic and one-row control layout in `docs/evidence/task-12-claude-agent.png`; no live
+  model run occurred. Stop here for the Task 12 user test gate; do not begin Task 13.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise

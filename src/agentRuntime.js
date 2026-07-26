@@ -5,6 +5,7 @@ const { createActivityStore } = require('./agent/activityStore.js');
 const { createAgentManager } = require('./agent/agentManager.js');
 const { createOfflineDemoExecutor } = require('./agent/executors/offlineDemoExecutor.js');
 const { createCodexCliExecutor } = require('./agent/executors/codexCli.js');
+const { createClaudeCodeCliExecutor } = require('./agent/executors/claudeCodeCli.js');
 
 function shouldEnableTestExecutor({ isPackaged, nodeEnv, value } = {}) {
   return isPackaged !== true && nodeEnv === 'test' && value === '1';
@@ -55,7 +56,8 @@ function createAgentRuntime({ userDataPath, crypto, randomId, testExecutorEnable
   const codexExecutor = testExecutorEnabled
     ? createDeterministicCodexExecutor()
     : createCodexCliExecutor({ codexHome: path.join(userDataPath, 'codex-home') });
-  const manager = createAgentManager({ store, activity, executors: { 'offline-demo': createOfflineDemoExecutor({ gate: createAbortableDelayGate() }), 'codex-cli': codexExecutor } });
+  const claudeExecutor = createClaudeCodeCliExecutor({ claudeConfigDir: path.join(userDataPath, 'claude-config') });
+  const manager = createAgentManager({ store, activity, executors: { 'offline-demo': createOfflineDemoExecutor({ gate: createAbortableDelayGate() }), 'codex-cli': codexExecutor, 'claude-code-cli': claudeExecutor } });
   return Object.freeze({ store, activity, manager, initialize: () => store.initialize() });
 }
 module.exports = { createAbortableDelayGate, createAgentRuntime, shouldEnableTestExecutor };

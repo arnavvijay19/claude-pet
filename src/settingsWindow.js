@@ -2,6 +2,7 @@
 const path = require('node:path');
 const { createSettingsViewModel } = require('./settings/settingsViewModel.js');
 const { EFFORTS, MODEL_IDS } = require('./agent/executors/codexModels.js');
+const { EFFORTS: CLAUDE_EFFORTS, MODEL_IDS: CLAUDE_MODEL_IDS } = require('./agent/executors/claudeModels.js');
 
 const SETTINGS_CHANNELS = Object.freeze([
   'settings:snapshot', 'settings:save', 'settings:select', 'settings:remove', 'settings:test', 'settings:setup',
@@ -11,7 +12,8 @@ function validDraft(value) {
   const required = ['executorType', 'label', 'workspacePath', 'permissionProfile', 'modelId', 'effort', 'keyHint'];
   if (!value || !Object.keys(value).every((key) => required.includes(key) || key === 'id') || !required.every((key) => Object.hasOwn(value, key)) || value.permissionProfile !== 'workspace') return false;
   if (value.executorType === 'offline-demo') return value.modelId === 'offline-demo' && value.effort === null;
-  return value.executorType === 'codex-cli' && MODEL_IDS.includes(value.modelId) && EFFORTS.includes(value.effort);
+  if (value.executorType === 'codex-cli') return MODEL_IDS.includes(value.modelId) && EFFORTS.includes(value.effort);
+  return value.executorType === 'claude-code-cli' && CLAUDE_MODEL_IDS.includes(value.modelId) && CLAUDE_EFFORTS.includes(value.effort);
 }
 function registerSettingsIpc({ ipcMain, sender, store, manager }) {
   const assertSender = (event) => { if (event.sender !== sender) throw new Error('Invalid Settings sender'); };
@@ -28,7 +30,12 @@ function registerSettingsIpc({ ipcMain, sender, store, manager }) {
   });
   ipcMain.handle('settings:select', async (event, id) => { assertSender(event); await store.setActiveSelection(id); return snapshot(); });
   ipcMain.handle('settings:remove', async (event, id) => { assertSender(event); return store.removeConnection(id); });
-  ipcMain.handle('settings:test', async (event) => { assertSender(event); return { status: await manager.getStatus(), permission: await manager.verifyPermissionProfile() }; });
+  ipcMain.handle('settings:test', async (event) => {
+    assertSender(event);
+    const activeId = await store.getActiveSelection();
+    const active = (await store.listConnections()).find((connection) => connection.id === activeId);
+    return { executorType: active?.executorType || null, status: await manager.getStatus(), permission: await manager.verifyPermissionProfile() };
+  });
   ipcMain.handle('settings:setup', async (event) => { assertSender(event); return manager.beginSetup(); });
 }
 
@@ -38,7 +45,7 @@ function unregisterSettingsIpc(ipcMain) {
 }
 
 function createSettingsWindow({ BrowserWindow, ipcMain, store, manager }) {
-  const window = new BrowserWindow({ width: 760, height: 680, show: false, autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false } });
+  const window = new BrowserWindow({ width: 900, height: 680, show: false, autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false } });
   unregisterSettingsIpc(ipcMain);
   registerSettingsIpc({ ipcMain, sender: window.webContents, store, manager });
   window.loadFile(path.join(__dirname, 'settings', 'index.html'));
