@@ -89,7 +89,7 @@ Research refreshed 2026-07-26. Primary sources: [Electron safeStorage](https://e
 
 - Claude Pet is agent-first. Codex and Claude Code tool use is intentional; the prior no-tool/chat-only assumption is obsolete.
 - Codex `read-only` prevents writes but permits file reads, so it cannot enforce the selected-workspace privacy promise by itself.
-- The product registry accepts Codex `>=0.144.6`; the dedicated WSL install is pinned to `0.145.0`.
+- The product registry accepts Codex `>=0.144.6`; the optional dedicated WSL install is pinned to `0.145.0`.
   Named permission profiles combine filesystem and network rules and do not compose with legacy
   `--sandbox`. Native Windows evidence on this machine proves outside reads remain possible, so the
   native profile is diagnostic evidence only and is never advertised as Workspace-safe.
@@ -99,7 +99,7 @@ Research refreshed 2026-07-26. Primary sources: [Electron safeStorage](https://e
 - Codex child shell environments can be reduced with `shell_environment_policy`; the app starts from `core` and excludes key/token/secret/provider variables.
 - Codex project `.codex` layers have higher precedence than user/profile configuration when trusted. The app-owned home must mark the selected workspace untrusted, disable hooks, ignore rules, and set approval policy `never`; hostile project config/hook/rule fixtures are part of the permission probe.
 - The supported Claude Code baseline is 2.1.217. `--safe-mode` isolates customization, not the
-  operating system. Genuine Workspace therefore runs only inside the dedicated WSL2 distro with
+  operating system. Optional genuine Workspace therefore runs only inside the dedicated WSL2 distro with
   `--permission-mode dontAsk`, strict empty MCP, a root-owned managed policy, the official Linux
   Bash sandbox, and the complete hostile gate.
 - Electron 43 asynchronous `decryptStringAsync` resolves `{ result, shouldReEncrypt }`, not a string. The wrapper must unwrap `result` and let the store rotate ciphertext when requested.
@@ -147,8 +147,12 @@ Research refreshed 2026-07-26. Primary sources: [Electron safeStorage](https://e
 - Direct OpenAI, Anthropic, and custom API connections remain future agent executors. Shipping them
   now as chat-only connections would contradict the approved product direction; a future adapter
   needs an app-owned tool loop.
+- Core Tasks 16-17 add app-owned encrypted agents and sessions independently of provider-native
+  conversation state. One session may switch its next Codex/Claude connection while keeping the same
+  bounded visible history, but credentials, auth/config folders, native resume IDs, raw streams, and
+  hidden reasoning never cross providers or enter session persistence.
 
-### B7. Dedicated WSL boundary and Claude policy details
+### B7. Optional dedicated WSL boundary and Claude policy details
 
 Sources: [Microsoft WSL install](https://learn.microsoft.com/windows/wsl/install), [WSL
 configuration](https://learn.microsoft.com/windows/wsl/wsl-config), [Codex Linux/WSL sandbox](https://learn.chatgpt.com/docs/sandboxing), [Claude managed settings](https://code.claude.com/docs/en/settings), and [Claude sandbox configuration](https://code.claude.com/docs/en/sandboxing).
@@ -177,16 +181,16 @@ configuration](https://learn.microsoft.com/windows/wsl/wsl-config), [Codex Linux
   the installation/stage/policy/provider hashes, workspace identity, and recovery generation. Optional
   signed-in smokes test experience only; a private dummy-credential local protocol harness drives the
   exact CLI's effective-tool and controlling-CLI-versus-child-network checks without an account.
-- WSL setup uses the signed Ubuntu snapshot dated `20260720T000000Z`, a complete `.deb` closure lock,
-  and a bounded hash-checked stdin archive. Tasks 16-18 advance/deploy a staged manifest and refresh
+- Optional WSL setup uses the signed Ubuntu snapshot dated `20260720T000000Z`, a complete `.deb`
+  closure lock, and a bounded hash-checked stdin archive. Optional Tasks 21-23 advance/deploy a staged manifest and refresh
   both ownership records before their gates; no later broker/policy file is treated as installed merely
   because it exists in the Windows app bundle.
 - A deliberate outside-Workspace text drop is an explicit one-file disclosure. Main warns before
   reading, caps the handle read at 262144 bytes, binds acceptance to the connection revision/file, and
   never mounts or exposes the parent directory.
-- The prepared Banana Baron run still has only `base` and `idle` complete. Task 19 generates seven
+- The prepared Banana Baron run still has only `base` and `idle` complete. Task 15 generates seven
   distinct pending rows, derives or generates left-running after visual review, produces a validated
-  1536x1872 WebP/contact sheet/previews, then atomically switches the app manifest. Task 20 maps real
+  1536x1872 WebP/contact sheet/previews, then atomically switches the app manifest. Task 18 maps real
   drag/setup/run/response events to all nine states with stale-token protection.
 
 Research in this repository is broad: official docs and verified behavior anchor security and contracts; source code, open-source apps, issues, discussions, engineering articles, comparisons, demos, and community reports may inform patterns and failure cases. Conflicts and uncertainty must be labeled.

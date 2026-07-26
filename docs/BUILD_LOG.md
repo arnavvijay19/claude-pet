@@ -361,6 +361,17 @@ optional — an unlogged session is a failed session even if its code worked). F
   carrying the verified implementation at `baa73e3`. Task 15 is the only next task; no Task 15
   source, WSL installation, provider login, or model run has begun.
 
+- **2026-07-26 · Codex · core-first roadmap checkpoint** — Reconciled the plan, redesign, context,
+  research, and interactive checklist to core Tasks 15-19: complete Banana Baron atlas, encrypted
+  provider-neutral agents/sessions, Hermes-style agent/session/next-provider switching, final
+  integration, then the unsigned non-WSL package. WSL provisioning/broker/Codex/Claude Workspace are
+  physically last as optional Tasks 20-23 and require a separate post-v1 opt-in. A focused RED run
+  exposed CRLF checkout corruption of Task 14's byte-pinned fixtures; `.gitattributes` now keeps only
+  `resources/probes/*` LF-stable. Fresh verification: focused Node 19/19, full Node 214/214, pytest
+  1/1, checklist JavaScript 23 tasks, ordered unique Task 6-23 headings, balanced fences, optional WSL
+  block last, and `git diff --check`. No app behavior, WSL/system state, provider login, or provider
+  agent run changed; Task 15 atlas work is the only next implementation.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -574,3 +585,8 @@ link the note to it — this file is the inbox, not the archive.
 - 2026-07-26 `IDEA:` The user wants Hermes-style provider-neutral continuity: multiple providers
   serving one persistent agent/session, plus explicit switching among agents and sessions. Revisit
   the later roadmap after the Task 14 gate; do not fold this into Task 14 or silently start Task 15.
+
+- 2026-07-26 `FIX:` Fast-forwarding Task 14 into a Windows checkout with global
+  `core.autocrlf=true` converted five SHA-pinned `resources/probes` fixtures from LF to CRLF without
+  showing a normal source diff, causing 5/214 cascading failures. Repository `.gitattributes` now
+  forces that exact fixture directory to LF; the focused 19/19 and canonical 214/214 suites pass.

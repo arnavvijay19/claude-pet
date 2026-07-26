@@ -1,23 +1,26 @@
-# Claude Pet WSL Workspace and Full Computer Redesign
+# Claude Pet Core Sessions, Optional WSL Workspace, and Full Computer Redesign
 
-**Status:** Approved design and approved replacement Tasks 13-21 plan; Task 14 is accepted;
-Task 15 only is next
+**Status:** User-approved core-first redesign; Tasks 1-14 are accepted, core Tasks 15-19 are
+approved with Task 15 only next, and optional WSL Tasks 20-23 require a separate post-v1 opt-in
 
 **Date:** 2026-07-26
 
-**Scope:** Replace the unsafe native-Windows Workspace claim, make warned Full Computer the default
-for new real-provider connections, and add the complete Post-Hoc Banana Baron animation milestone.
+**Scope:** Finish the non-WSL core first: warned Full Computer, complete Post-Hoc Banana Baron
+animation, encrypted provider-neutral agents/sessions, same-session provider switching, integration,
+and packaging. Preserve genuine WSL Workspace as a fully specified but optional post-v1 track.
 
 ## Purpose
 
-Claude Pet must support two honestly named execution modes:
+Claude Pet core v1 must support Offline Demo Workspace and warned native Full Computer honestly,
+while leaving real-provider Workspace visibly unavailable until the optional WSL track is installed:
 
 1. **Full Computer** is the default selection for every new Codex or Claude connection. It runs the
    native Windows CLI with broad host authority, but it cannot run until the user accepts one native
    warning for that saved connection. Settings and every live run retain a permanent warning badge.
-2. **Workspace** is the narrower option. It runs inside a dedicated, locked WSL2 Ubuntu environment
-   that exposes only the selected Windows project at `/workspace`. It is offered only after setup and
-   every hostile boundary probe succeeds.
+2. **Workspace** is always real or unavailable. Offline Demo provides its deterministic local
+   Workspace behavior without WSL. Real Codex/Claude Workspace is an optional post-v1 capability
+   running inside a dedicated, locked WSL2 Ubuntu environment that exposes only the selected Windows
+   project at `/workspace`; it is offered only after setup and every hostile boundary probe succeeds.
 
 There is no silent fallback in either direction. A failed Workspace boundary never becomes a Full
 Computer run, and cancelling Full Computer authorization never becomes a Workspace run.
@@ -26,13 +29,21 @@ This redesign also makes the unfinished Post-Hoc Banana Baron atlas and activity
 separate implementation milestone. Security work and asset generation have separate test gates and
 must not be presented as one partially complete feature.
 
+The core adds app-owned continuity independent of provider CLIs: one named agent owns multiple
+sessions, one session can change its next provider without changing identity/history, and the user can
+switch explicitly among agents and sessions. Provider-native auth/config/session state is never
+shared as the mechanism for continuity.
+
 ## Decision summary
 
 - Electron's main process remains the trusted Windows controller.
+- Core v1 ships before WSL and does not require virtualization, a Linux distro, or provider sign-in.
+- App-owned encrypted agents/sessions preserve bounded visible turns across restarts and provider
+  changes. Provider switching changes only the next immutable run.
 - Full Computer is the default **selection**, not pre-authorization. New real-provider connections
   require a main-owned native confirmation before their first Full Computer run.
-- Workspace uses a dedicated app-owned Ubuntu WSL2 distribution. It does not reuse a personal WSL
-  distribution.
+- Optional real-provider Workspace uses a dedicated app-owned Ubuntu WSL2 distribution. It does not
+  reuse a personal WSL distribution and is not started by the core-project completion loop.
 - Windows drive automounting, Windows executable interop, and Windows PATH inheritance are disabled
   in that distribution.
 - A root-owned broker creates a private mount/process namespace, exposes only the selected project at
@@ -133,10 +144,12 @@ Workspace.
 
 ```text
 Windows Electron main process
+├── encrypted app-owned agent/session store and bounded context builder
+├── session coordinator for explicit agent/session/next-provider switching
 ├── connection and Full Computer authorization policy
 ├── native Full Computer Codex / Claude executors
-├── WSL setup and integrity service
-├── WSL run controller
+├── optional post-v1 WSL setup and integrity service
+├── optional post-v1 WSL run controller
 │   └── wsl.exe -> root-owned broker in ClaudePetWorkspace
 │       ├── fresh private mount/process namespace
 │       ├── temporary DrvFS staging mount of the selected drive
@@ -152,9 +165,11 @@ Windows Electron main process
 
 ### 1. Windows controller
 
-Electron main owns every security-relevant decision. Renderers may request a mode change, show status,
-and render badges, but they cannot set confirmation booleans, choose CLI flags, provide WSL commands,
-or mark a probe successful.
+Electron main owns every security-relevant decision. Core v1 also owns agent/session identity,
+bounded visible-turn persistence, and the next-provider selection independently of provider-native
+session state. Renderers may request a mode or selection change, show status, and render badges, but
+they cannot set confirmation booleans, choose CLI flags, provide WSL commands, or mark a probe
+successful.
 
 The controller:
 
@@ -192,7 +207,7 @@ project hooks, project MCP servers, plugins, connectors, browser-control tools, 
 
 - Codex receives its explicit official danger-full-access permission mode and non-interactive
   approval policy without mixing legacy and named permission systems.
-- Claude retains safe mode, no session persistence, strict empty MCP configuration, and disabled
+- Claude retains safe mode, no provider-native session persistence, strict empty MCP configuration, and disabled
   project setting sources, but replaces Workspace denial mode with its explicit full-permission flag.
 - Both reject a run snapshot whose profile is not `full-computer` or whose main-owned
   `fullAccessConfirmed` is not true.
@@ -438,6 +453,39 @@ After acceptance, Settings, tray, Simple activity, Comprehensive activity, and t
 header show the persistent badge `FULL COMPUTER — broad PC access`. The badge is never green or
 described as safe.
 
+## Provider-neutral agents and sessions
+
+Claude Pet—not Codex or Claude—owns continuity. An **agent** is a stable named app container that can
+own multiple sessions. A **session** is one stable conversation/workspace record with ordered visible
+turns and one explicitly selected connection for its next run. Provider is a per-next-run choice, not
+the identity of the agent or session.
+
+Main persists only:
+
+- public agent/session metadata, selection, workspace, and next connection ID;
+- safeStorage-encrypted user message text and sanitized assistant final text;
+- sanitized changed-file paths, provider/model attribution, and timestamps.
+
+Raw CLI streams, hidden reasoning, raw stderr, activity history, credentials, auth/config paths,
+provider-native session/resume IDs, and environment data are never persisted. If safeStorage is
+unavailable, metadata may remain readable but content persistence fails closed and the UI labels the
+session non-persistent; plaintext is never written as fallback.
+
+Switching among agents, sessions, or next providers is explicit and unavailable while a run is busy.
+A provider change preserves the same session ID and visible history. If prior turns exist and the
+provider family changes, main owns a disclosure explaining that the new provider will receive the
+bounded visible Claude Pet history. Cancel is atomic. Acceptance affects only the next run snapshot
+and never copies provider auth/config or native resume state.
+
+For each run, main builds a deterministic neutral context from at most 24 prior complete turns,
+8192 UTF-8 bytes per turn, and 65536 UTF-8 bytes total, with provider/model attribution and a visible
+oldest-turn truncation marker. The current request is authoritative; prior turns are labeled untrusted
+conversation context. The run snapshot binds agent ID/revision, session ID/revision, connection ID/
+revision, workspace, provider, mode, model, and effort before busy reservation. A concurrent selection
+or edit expires before persistence, activity, or provider-visible text. The executor runs once with no
+fallback. Only after reservation is the user turn appended; only sanitized final result data is
+appended after success.
+
 ## Mode transitions and run snapshots
 
 | Action | Current run | Next run | Failure behavior |
@@ -446,6 +494,8 @@ described as safe.
 | Switch existing connection to Full | unchanged | Full if already acknowledged or newly accepted | No profile change on rejection |
 | Switch to Workspace | unchanged | Workspace after fresh boundary verification | Stay selected as Workspace but refuse to run if unavailable |
 | Edit workspace/model/effort | unchanged | Uses the edited immutable snapshot | Invalid combinations are rejected |
+| Switch agent or session | unchanged | Uses the selected app-owned session after revision comparison | Rejected while busy or stale |
+| Switch provider in one session | unchanged | Same session/history, new next-run provider after disclosure | Cancel/stale leaves provider unchanged |
 | Workspace setup/probe fails | unchanged | Workspace remains unavailable | Never retries as Full Computer |
 | Full Computer native launch fails | unchanged | Full remains selected | Never retries in WSL |
 
@@ -466,9 +516,11 @@ those expectations before installing busy state or exposing text to provider pre
 selection/edit race expires first. Full Computer uses the same bounded attachment path but remains
 broadly authorized independently of the attachment.
 
-## Workspace setup experience
+## Optional Workspace setup experience
 
-Settings shows separate status for native Full Computer and WSL Workspace:
+Core Settings labels real-provider Workspace as an optional post-v1 capability and exposes no setup
+mutation. If the user separately opts into optional Tasks 20-23, Settings then shows separate status
+for native Full Computer and WSL Workspace:
 
 - `Full Computer: available after warning` when the native CLI is installed;
 - `Workspace: setup required`, `restart required`, `sign-in required`, `checking`, `ready`, or a
@@ -536,6 +588,8 @@ mount, or sentinel remains. A warning followed by execution is forbidden.
   state, or persistent Linux home state;
 - loopback, WSL gateway, LAN, DNS, Unix-socket, and public-internet access by tool processes;
 - renderer IPC forgery, stale native confirmation, mode races, and run-snapshot mutation;
+- agent/session/provider selection races, cross-agent session IDs, plaintext history leakage, and
+  provider-native resume/auth/config state crossing providers;
 - missing sandbox dependencies, unsupported versions, partial setup, app crash, and stale mounts.
 
 ### Out of scope
@@ -610,7 +664,7 @@ deterministic gate. The deterministic provider gates may run the exact CLI again
 app-owned local protocol harness with per-run random dummy credentials. The harness owns separate
 `127.0.0.1` OS-assigned control and child-canary listeners plus independent 32-byte base64url control-
 path, canary-path, and bearer secrets; callers/renderers never choose or receive host/port/secret.
-Electron main owns native Task 14 listeners. For WSL Tasks 17/18, the root-owned broker starts new
+Electron main owns native Task 14 listeners. For optional WSL Tasks 22/23, the root-owned broker starts new
 listeners inside the same WSL outer network namespace as the controlling Linux CLI and returns only
 sanitized results over its control pipe; Windows loopback and the WSL gateway are never reused.
 Codex uses only a pinned config plus exact `/v1/responses` request/SSE/tool-call fixtures. Claude uses
@@ -625,7 +679,7 @@ same-run WSL-local canary regression proves Workspace child network and Unix soc
 
 The committed Codex probe config fixes the built-in provider with `model_provider = "openai"`, one
 owner-replaced nonce-bearing `openai_base_url` ending in `/v1`, and only the random dummy
-`OPENAI_API_KEY`. Native Task 14 uses a dedicated empty probe `CODEX_HOME`. Workspace Task 17 instead
+`OPENAI_API_KEY`. Native Task 14 uses a dedicated empty probe `CODEX_HOME`. Optional Workspace Task 22 instead
 uses a run-private home whose root-owned security config is hash-identical to the installed production
 profile, with only the provider endpoint substituted and writable CLI state separated; its resolved
 config stack and argv must match production security policy. A custom provider is forbidden because
@@ -798,63 +852,68 @@ Stop-then-catch failure, success/Stop duplicates, stale dismiss, and drag-during
 ## Delivery decomposition
 
 The canonical plan now decomposes the approved design into small serial milestones with a user gate
-after each:
+after each. Core v1 finishes first:
 
-1. repair the production CLI resolver and replace the invalid native probe evidence;
-2. implement the main-owned, warned Full Computer default and permanent badges;
-3. provision and integrity-check the dedicated WSL2 distribution and broker;
-4. run Codex and Claude Workspace executors through the verified WSL boundary;
-5. generate, validate, and integrate the complete animation atlas;
-6. finish pet/file/tray integration and produce the shareable package.
+1. Tasks 13-14 repair native prerequisites and ship the warned Full Computer mode (complete);
+2. Task 15 generates, validates, and integrates the complete animation atlas;
+3. Task 16 adds encrypted provider-neutral agents, sessions, and bounded context;
+4. Task 17 adds explicit agent/session switching and same-session next-provider continuity;
+5. Task 18 finishes pet/file/tray/response integration across that session runtime;
+6. Task 19 produces and verifies the shareable unsigned core package without WSL.
 
-The exact task numbers and file-by-file red/green steps live in the implementation plan. Completed
-Tasks 1-12 remain preserved; the user approved replacement Tasks 13-21. Task 14 is accepted,
-Task 15 is the only next task, and only one numbered task may begin after its
-predecessor is accepted and integrated.
+Optional Tasks 20-23 preserve the reviewed pinned WSL provisioning, generic broker gate, Codex
+Workspace, and Claude Workspace milestones. They begin only after Task 19 and a separate explicit
+user opt-in; the automatic core-project loop stops before them. Internal payload stage numbers 15-18
+remain stable supply-chain schema values and are not roadmap task numbers.
+
+The exact file-by-file red/green steps live in the implementation plan. Tasks 1-14 are accepted;
+Task 15 is the only next task, and only one core numbered task may begin after its predecessor is
+accepted and integrated.
 
 ## Acceptance criteria
 
-The redesign is complete only when all of the following are true:
+Core v1 is complete only when all of the following are true:
 
 - production native CLI discovery works without dependency injection and has a regression test;
 - every new Codex/Claude connection defaults to visibly warned Full Computer;
 - Full Computer cannot run without its connection-bound native confirmation;
 - Full Computer uses the native Windows CLI, has broad authority, and stays permanently badged;
 - every native launch keeps the immediately verified executable object locked through child creation;
-- Workspace uses the dedicated WSL2 distro and exposes only the selected project from Windows;
-- unknown same-name registrations are never executed, and removal rechecks BasePath/VHD identity plus
-  both ownership markers after confirmation;
-- the exact rootfs package baseline/delta/final inventory passes, and the shipped cumulative stage-18
-  manifest provisions directly from no distro;
-- WSL automount, interop, Windows PATH, sudo, unapproved hooks/MCP/plugins, and child network are off;
-- each run uses one verified unique-to-fixed temp bind, and crash recovery proves helper Job exit plus
-  NTFS-handle/temp/mount release;
-- Codex and Claude each pass the complete generic and provider-specific hostile matrix;
-- Codex's file and observed `additional_tools`/nested registries independently equal the literal
-  code-mode manifest, collaboration/user-input attempts fail closed without side effects or waiting,
-  both closed synthetic protocols exclude real endpoints/credentials, and attestations bind volatile
-  runtime/effective state;
-- every failed/missing boundary component fails closed with no mode fallback;
-- provider login remains official and credentials never cross renderer IPC or the workspace mount;
-- mode/settings changes affect only the next immutable run snapshot;
+- real-provider Workspace stays visibly unavailable and performs no WSL/system mutation;
+- provider login remains official and credentials never cross renderer IPC or session persistence;
+- multiple named agents and sessions persist encrypted visible turns without raw provider streams,
+  hidden reasoning, raw activity, credentials, auth/config paths, or native resume IDs;
+- switching provider preserves the same session ID/history, requires the visible main-owned disclosure
+  when prior turns cross provider families, and affects only the next immutable run;
+- agent/session/provider selection races expire before busy state, persistence, activity, or provider
+  text; no failure retries or falls back;
 - all nine pet states pass deterministic atlas validation and visual QA;
 - exact-file disclosure holds one handle through warning/read and compare-before-busy run reservation;
 - real Electron state transitions and public-capability dismiss drive the complete atlas without stale
   or stuck terminal states;
 - canonical spec, research, project context, implementation plan, build log, and checklist agree;
-- every implementation milestone has fresh tests, exact Git evidence, and its required manual gate.
+- every core implementation milestone has fresh tests, exact Git evidence, and its required manual
+  gate; the package proves no runtime state or optional WSL resources are bundled.
+
+The optional WSL track is complete only when the dedicated distro ownership, exact rootfs baseline/
+delta/final inventory, cumulative stage-18 cold provision, automount/interop/PATH/sudo/network denial,
+held-root/temp/cleanup recovery, and complete generic/Codex/Claude hostile gates all pass. Until then,
+real-provider Workspace remains unavailable with no fallback.
 
 ## Non-goals
 
 - making native Windows Workspace mode appear safe;
 - using a prompt, Windows ACL tweak, or Claude safe mode as the missing OS boundary;
 - silently using Full Computer when Workspace is unavailable;
+- requiring or installing WSL as part of core v1;
 - sharing a personal WSL distribution or automounting all Windows drives;
 - enabling project-command internet access in Workspace mode;
 - supporting Windows-only tools from the WSL Workspace executor;
 - installing Docker, a third-party VM, Windows Sandbox, or full Hyper-V for this design;
 - changing completed Tasks 1-12 except for focused prerequisite defect repairs;
 - publishing or marketing subscription-backed CLI integration before terms are rechecked;
+- sharing provider-native sessions, auth/config directories, or opaque resume IDs across providers;
+- persisting raw CLI streams, hidden reasoning, raw activity history, or plaintext conversations;
 - installing the generated atlas as a global Codex pet without a separate request.
 
 ## Primary sources
