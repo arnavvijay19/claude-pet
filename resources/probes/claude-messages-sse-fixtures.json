@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "provider": "claude-code-cli",
+  "version": "2.1.217",
+  "protocol": {
+    "headMethod": "HEAD",
+    "headPathSuffix": "",
+    "headHeaderNames": [
+      "accept",
+      "accept-encoding",
+      "connection",
+      "host",
+      "user-agent"
+    ],
+    "method": "POST",
+    "pathSuffix": "/v1/messages?beta=true",
+    "authHeader": "x-api-key",
+    "authValue": "__OWNER_BEARER__",
+    "contentType": "application/json",
+    "anthropicVersion": "2023-06-01",
+    "headerNames": [
+      "accept",
+      "accept-encoding",
+      "anthropic-beta",
+      "anthropic-dangerous-direct-browser-access",
+      "anthropic-version",
+      "connection",
+      "content-length",
+      "content-type",
+      "host",
+      "user-agent",
+      "x-api-key",
+      "x-app",
+      "x-claude-code-session-id",
+      "x-stainless-arch",
+      "x-stainless-lang",
+      "x-stainless-os",
+      "x-stainless-package-version",
+      "x-stainless-retry-count",
+      "x-stainless-runtime",
+      "x-stainless-runtime-version",
+      "x-stainless-timeout"
+    ],
+    "bodyKeys": [
+      "context_management",
+      "max_tokens",
+      "messages",
+      "metadata",
+      "model",
+      "output_config",
+      "stream",
+      "system",
+      "thinking",
+      "tools"
+    ],
+    "model": "claude-sonnet-5",
+    "stream": true,
+    "maxTokens": 64000,
+    "toolOrder": ["Bash", "Edit", "Glob", "Grep", "Read", "Write"],
+    "tools": [
+      { "name": "Bash", "descriptionSha256": "5d174a7d011b06b91ee712d6ed597fce6272b528e846ffe3cf8122a3a896c6ed", "inputSchemaSha256": "94ffad4822334fdfd0932650e1ab40c42ef5213220327fb79235e055732f141a" },
+      { "name": "Edit", "descriptionSha256": "f907faa95966fdc0ad02fd6c3c69d70d7ada8e9dae2d17d45c7213fb81600e71", "inputSchemaSha256": "817017bfbd1919c88d58f4284924e233c594e76409e8d2ac2489f0701282e69d" },
+      { "name": "Glob", "descriptionSha256": "80d05b142e5d7f8c2929691e85b5eaa6a3a7e411fc727626ab8696ce379409a6", "inputSchemaSha256": "8e0245e67bbe76c6b42457f13660bf8f8c91f25436d851318f832326d16c2c4f" },
+      { "name": "Grep", "descriptionSha256": "f5c87b96341d2f56883dec073939a2eae000618a47d67d68223171d24e33ed74", "inputSchemaSha256": "4e6ca5e90f2d1541098e2fa5ced79451e8974c0003a7bd1ee347768117f7b63b" },
+      { "name": "Read", "descriptionSha256": "da6bb571d8b3f6f9b93c4055797514439a866b5290c7f38d1f872c35146065e2", "inputSchemaSha256": "b9874f37b6aade6af41b1912807d9c49b8c1e91d28168b2c9cb0596c120cfb30" },
+      { "name": "Write", "descriptionSha256": "70103362310e68e4354843200e7d54db8cd08aefd058617ac9ddd98fc5b8eae0", "inputSchemaSha256": "afb946a50519ce686704d62a989f9a803d246d411f4c3aeec64c5ab09f6d4005" }
+    ],
+    "initialMessage": {
+      "role": "user",
+      "contentTypes": ["text", "text"]
+    },
+    "systemBlocks": [
+      { "keys": ["text", "type"] },
+      { "keys": ["cache_control", "text", "type"] },
+      { "keys": ["cache_control", "text", "type"] }
+    ]
+  },
+  "sse": {
+    "toolEventTypes": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ],
+    "textEventTypes": [
+      "message_start",
+      "content_block_start",
+      "content_block_delta",
+      "content_block_stop",
+      "message_delta",
+      "message_stop"
+    ]
+  },
+  "scenario": {
+    "goal": "Run the fixed local provider probe.",
+    "finalText": "probe-complete",
+    "calls": [
+      { "id": "probe_claude_read", "name": "Read", "input": { "file_path": "__OWNER_READ_PATH__" } },
+      { "id": "probe_claude_edit", "name": "Edit", "input": { "file_path": "__OWNER_EDIT_PATH__", "old_string": "before\n", "new_string": "after\n", "replace_all": false } },
+      { "id": "probe_claude_bash", "name": "Bash", "input": { "command": "__OWNER_CANARY_COMMAND__", "description": "Probe child network" } }
+    ]
+  }
+}

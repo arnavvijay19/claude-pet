@@ -8,6 +8,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 const { AgentError } = require('../src/agent/agentErrors.js');
+const { createCliRunner } = require('../src/agent/cliRunner.js');
 
 const {
   createNativeCliInspectionHelper,
@@ -159,11 +160,14 @@ test('each native operation holds one fresh lease through successful child creat
 
     const launched = await lease.launch(launchRequest(args));
     assert.equal(launched.pid, 4242);
-    assert.equal(state.held, false);
-    assert.equal(state.releaseCalls, 1);
+    assert.equal(state.held, true);
+    assert.equal(state.releaseCalls, 0);
     assert.equal(launchSpecs[0].command, BINDING.path);
     assert.deepEqual(launchSpecs[0].args, args);
     assert.deepEqual(launchSpecs[0].options, launchRequest(args).options);
+    await lease.cleanup();
+    assert.equal(state.held, false);
+    assert.equal(state.releaseCalls, 1);
     await assert.rejects(lease.launch(launchRequest(args)), (error) => error.code === 'COMMAND_FAILED');
     assert.equal(state.releaseCalls, 1);
   }
@@ -464,6 +468,9 @@ test('a concurrent final path swap stays blocked until the verified child-create
   child.emit('spawn');
   await pending;
 
+  assert.equal(state.held, true);
+  assert.equal(tryFinalSwap(), false);
+  await lease.cleanup();
   assert.equal(state.held, false);
   assert.equal(tryFinalSwap(), true);
   assert.equal(launchedIdentity, BINDING.fileId);
@@ -486,6 +493,65 @@ test('synchronous runner installs the child-created listener before a queued spa
 
   const child = await lease.launch(launchRequest());
   assert.equal(child.pid, 4242);
+  assert.equal(state.held, true);
+  assert.equal(state.releaseCalls, 0);
+  await lease.cleanup();
+  assert.equal(state.held, false);
+  assert.equal(state.releaseCalls, 1);
+});
+
+test('a fast child cannot finish before createCliRunner attaches capture listeners', async () => {
+  const { helper: immediateHelper, state } = holdingHelper();
+  const helper = {
+    async open(candidatePath) {
+      const session = await immediateHelper.open(candidatePath);
+      return Object.freeze({
+        facts: session.facts,
+        async release() {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+          await session.release();
+        },
+      });
+    },
+  };
+  const leaseRunner = verifiedRunner(state, {
+    launch() {
+      const child = childProcess();
+      child.stdin = { end() {} };
+      child.stdout = new EventEmitter();
+      child.stderr = new EventEmitter();
+      child.exitCode = null;
+      child.signalCode = null;
+      setImmediate(() => {
+        child.emit('spawn');
+        setImmediate(() => {
+          child.stdout.emit('data', Buffer.from('codex-cli 0.145.0\r\n'));
+          child.exitCode = 0;
+          child.emit('close', 0, null);
+        });
+      });
+      return child;
+    },
+  });
+  const lease = await openVerifiedNativeCliLaunchLease(BINDING, {
+    helper,
+    runner: leaseRunner,
+  });
+  const runner = createCliRunner();
+
+  try {
+    const result = await runner.capture({
+      command: BINDING.path,
+      launchLease: lease,
+      args: ['--version'],
+      timeoutMs: 1000,
+    });
+    assert.equal(result.stdout, 'codex-cli 0.145.0\r\n');
+    assert.equal(state.held, true);
+    assert.equal(state.releaseCalls, 0);
+  } finally {
+    await lease.cleanup();
+  }
   assert.equal(state.held, false);
   assert.equal(state.releaseCalls, 1);
 });

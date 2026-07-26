@@ -1,0 +1,2 @@
+model_provider = "openai"
+openai_base_url = "__OWNER_CONTROL_ORIGIN__/__CONTROL_PATH__/v1"

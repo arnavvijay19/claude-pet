@@ -714,13 +714,16 @@ async function openVerifiedNativeCliLaunchLease(binding, {
         } catch (error) {
           launchFailure = commandFailed(error);
         }
-        state = 'closed';
-        try {
-          await release();
-        } catch (error) {
-          if (!launchFailure) launchFailure = commandFailed(error);
+        if (launchFailure) {
+          state = 'closed';
+          try {
+            await release();
+          } catch (error) {
+            if (!launchFailure) launchFailure = commandFailed(error);
+          }
+          throw launchFailure;
         }
-        if (launchFailure) throw launchFailure;
+        state = 'launched';
         return child;
       })();
       return launchPromise;
@@ -737,6 +740,7 @@ async function openVerifiedNativeCliLaunchLease(binding, {
         for (const cancel of [...cleanupRequested]) cancel();
         try { await launchPromise; } catch {}
       }
+      if (state === 'launched') state = 'closed';
       await release();
     },
   };

@@ -1,24 +1,14 @@
 'use strict';
+
 const { toPublicError } = require('./agent/agentErrors.js');
 
-async function readRunContext(store) {
-  const selectedId = await store.getActiveSelection();
-  const connection = selectedId ? await store.getConnection(selectedId) : null;
-  if (!connection) return undefined;
-  return Object.freeze({
-    executor: connection.executorType,
-    model: connection.modelId,
-    workspace: connection.workspacePath,
-    permissionProfile: connection.permissionProfile,
-  });
-}
-
-function createPromptController({ manager, response, getRunContext = async () => undefined }) {
+function createPromptController({ manager, response }) {
   return Object.freeze({
     async submitText(text) {
-      response.begin?.(await getRunContext());
       try {
-        const result = await manager.runGoal(text);
+        const result = await manager.runGoal(text, {
+          onStart: (context) => response.begin?.(context),
+        });
         response.success?.(result);
         return result;
       } catch (error) {
@@ -26,8 +16,13 @@ function createPromptController({ manager, response, getRunContext = async () =>
         throw error;
       }
     },
-    stop() { const stopped = manager.stop(); if (stopped) response.stopped?.(); return stopped; },
+    stop() {
+      const stopped = manager.stop();
+      if (stopped) response.stopped?.();
+      return stopped;
+    },
     dismiss() { response.dismiss?.(); },
   });
 }
-module.exports = { createPromptController, readRunContext };
+
+module.exports = { createPromptController };

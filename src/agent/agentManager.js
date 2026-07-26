@@ -3,6 +3,7 @@
 const { validateExecutor } = require('./agentContract.js');
 const { AgentError } = require('./agentErrors.js');
 const { deepFreeze } = require('./activityStore.js');
+const { FULL_COMPUTER, WORKSPACE, executorKey } = require('./executionModes.js');
 
 function clonePlainJson(value, errorCode, ancestors = new Set()) {
   const reject = () => { throw new AgentError(errorCode); };
@@ -30,9 +31,7 @@ function clonePlainJson(value, errorCode, ancestors = new Set()) {
     const clone = {};
     for (const key of Reflect.ownKeys(value)) {
       const descriptor = Object.getOwnPropertyDescriptor(value, key);
-      if (typeof key !== 'string' || !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-        reject();
-      }
+      if (typeof key !== 'string' || !descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) reject();
       Object.defineProperty(clone, key, {
         value: clonePlainJson(descriptor.value, errorCode, ancestors),
         enumerable: true,
@@ -50,18 +49,12 @@ function cloneFrozenJson(value, errorCode) {
   return deepFreeze(clonePlainJson(value, errorCode));
 }
 
-function modelIdOf(model) {
-  if (typeof model === 'string') return model;
-  if (model && typeof model.id === 'string') return model.id;
-  return null;
-}
-
 function effortOf(connection) {
   return connection.effort || null;
 }
 
-const PUBLIC_CONNECTION_FIELDS = Object.freeze([
-  'id', 'executorType', 'label', 'workspacePath', 'permissionProfile',
+const RUN_CONNECTION_FIELDS = Object.freeze([
+  'id', 'revision', 'executorType', 'label', 'workspacePath', 'permissionProfile',
   'fullAccessConfirmed', 'modelId', 'effort', 'keyHint', 'hasSecret',
 ]);
 
@@ -81,9 +74,10 @@ function throwIfAborted(signal) {
 
 function createAgentManager({ store, executors, activity }) {
   if (!store
-    || typeof store.getActiveSelection !== 'function'
-    || typeof store.setActiveSelection !== 'function'
-    || typeof store.getConnection !== 'function') {
+      || typeof store.getActiveSelection !== 'function'
+      || typeof store.setActiveSelection !== 'function'
+      || typeof store.getConnection !== 'function'
+      || typeof store.getRunConnection !== 'function') {
     throw new TypeError('Agent manager requires a connection store.');
   }
   if (!activity || typeof activity.begin !== 'function' || typeof activity.append !== 'function') {
@@ -95,19 +89,42 @@ function createAgentManager({ store, executors, activity }) {
 
   async function selectedExecutor(signal) {
     const activeSelection = await store.getActiveSelection();
-    const selected = activeSelection ? await store.getConnection(activeSelection) : null;
+    const selected = activeSelection ? await store.getRunConnection(activeSelection) : null;
     throwIfAborted(signal);
     if (!selected) throw new AgentError('AGENT_REQUIRED');
     const selectedSnapshot = clonePlainJson(selected, 'UNSUPPORTED_OPTION');
     const connection = {};
-    for (const field of PUBLIC_CONNECTION_FIELDS) {
+    for (const field of RUN_CONNECTION_FIELDS) {
       if (Object.hasOwn(selectedSnapshot, field)) connection[field] = selectedSnapshot[field];
+    }
+    if (typeof connection.id !== 'string' || !connection.id
+      || !Number.isSafeInteger(connection.revision) || connection.revision <= 0
+      || typeof connection.executorType !== 'string' || !connection.executorType
+      || typeof connection.workspacePath !== 'string'
+      || (connection.permissionProfile !== WORKSPACE && connection.permissionProfile !== FULL_COMPUTER)
+      || typeof connection.fullAccessConfirmed !== 'boolean'
+      || typeof connection.modelId !== 'string'
+      || (connection.effort !== null && typeof connection.effort !== 'string')) {
+      throw new AgentError('UNSUPPORTED_OPTION');
     }
     deepFreeze(connection);
     const identifier = connection.executorType;
-    if (typeof identifier !== 'string' || !identifier) throw new AgentError('AGENT_REQUIRED');
-    selectedConnectionId = connection.id || null;
-    return { connection, identifier, executor: executorFrom(executors, identifier) };
+    const key = executorKey(identifier, connection.permissionProfile);
+    if (connection.permissionProfile === FULL_COMPUTER && !connection.fullAccessConfirmed) {
+      throw new AgentError('FULL_COMPUTER_CONFIRMATION_REQUIRED');
+    }
+    const run = deepFreeze({
+      connectionId: connection.id,
+      connectionRevision: connection.revision,
+      executorType: identifier,
+      permissionProfile: connection.permissionProfile,
+      fullAccessConfirmed: connection.fullAccessConfirmed === true,
+      workspace: connection.workspacePath,
+      model: connection.modelId,
+      effort: effortOf(connection),
+    });
+    selectedConnectionId = connection.id;
+    return { connection, identifier, key, run, executor: executorFrom(executors, key) };
   }
 
   async function delegate(method) {
@@ -118,9 +135,6 @@ function createAgentManager({ store, executors, activity }) {
         'PROVIDER_OUTPUT_INVALID',
       );
     }
-    if (method === 'verifyPermissionProfile') {
-      return cloneFrozenJson(await executor[method](connection), 'PROVIDER_OUTPUT_INVALID');
-    }
     return cloneFrozenJson(await executor[method](connection), 'PROVIDER_OUTPUT_INVALID');
   }
 
@@ -128,6 +142,7 @@ function createAgentManager({ store, executors, activity }) {
     return Object.freeze({
       busy: active !== null,
       connectionId: active?.connectionId || selectedConnectionId,
+      ...(active?.permissionProfile ? { permissionProfile: active.permissionProfile } : {}),
     });
   }
 
@@ -139,25 +154,44 @@ function createAgentManager({ store, executors, activity }) {
     return selected;
   }
 
-  async function runGoal(text) {
+  async function runGoal(text, options = {}) {
+    if (!options || typeof options !== 'object' || Object.getPrototypeOf(options) !== Object.prototype
+        || Object.keys(options).some((key) => key !== 'onStart')
+        || (Object.hasOwn(options, 'onStart') && typeof options.onStart !== 'function')) {
+      throw new AgentError('UNSUPPORTED_OPTION');
+    }
     if (active) throw new AgentError('AGENT_BUSY');
     const controller = new AbortController();
     const reservation = { controller, connectionId: null };
     active = reservation;
 
     try {
-      const { connection, identifier, executor } = await selectedExecutor(controller.signal);
-      reservation.connectionId = connection.id || null;
+      const { connection, identifier, run, executor } = await selectedExecutor(controller.signal);
+      reservation.connectionId = connection.id;
+      reservation.permissionProfile = run.permissionProfile;
+      const publicRunContext = deepFreeze({
+        connectionId: run.connectionId,
+        executor: run.executorType,
+        model: run.model,
+        workspace: run.workspace,
+        permissionProfile: run.permissionProfile,
+      });
+      options.onStart?.(publicRunContext);
+      activity.begin(publicRunContext);
 
       const status = cloneFrozenJson(await executor.getStatus(connection), 'PROVIDER_OUTPUT_INVALID');
       throwIfAborted(controller.signal);
       if (status?.installed === false) throw new AgentError('CLI_NOT_INSTALLED');
       if (status?.authenticated === false) throw new AgentError('AUTH_REQUIRED');
-      if (status?.workspaceAvailable === false) throw new AgentError('WORKSPACE_UNAVAILABLE');
+      if (run.permissionProfile === WORKSPACE && status?.workspaceAvailable === false) {
+        throw new AgentError('WORKSPACE_UNAVAILABLE');
+      }
+      if (run.permissionProfile === FULL_COMPUTER && status?.fullComputerAvailable === false) {
+        throw new AgentError('NATIVE_FULL_COMPUTER_LAUNCH_FAILED');
+      }
 
-      const modelId = connection.modelId || null;
       const capabilities = cloneFrozenJson(
-        await executor.getCapabilities(connection, modelId),
+        await executor.getCapabilities(connection, run.model),
         'PROVIDER_OUTPUT_INVALID',
       );
       throwIfAborted(controller.signal);
@@ -176,50 +210,45 @@ function createAgentManager({ store, executors, activity }) {
       }
 
       const selectedModel = Array.isArray(models)
-        ? models.find((model) => (typeof model === 'string' ? model : model?.id) === modelId)
+        ? models.find((model) => (typeof model === 'string' ? model : model?.id) === run.model)
         : null;
-      if (modelId && !selectedModel) throw new AgentError('MODEL_UNAVAILABLE');
-
-      const effort = effortOf(connection);
+      if (run.model && !selectedModel) throw new AgentError('MODEL_UNAVAILABLE');
       const supportedEfforts = capabilities?.efforts
         || selectedModel?.efforts
         || selectedModel?.capabilities?.efforts;
-      if (effort && (!Array.isArray(supportedEfforts) || !supportedEfforts.includes(effort))) {
+      if (run.effort && (!Array.isArray(supportedEfforts) || !supportedEfforts.includes(run.effort))) {
         throw new AgentError('UNSUPPORTED_OPTION');
       }
 
       const request = cloneFrozenJson({
         goal: text,
-        workspace: connection.workspacePath,
-        permissionProfile: connection.permissionProfile,
-        model: modelId,
-        effort,
+        workspace: run.workspace,
+        permissionProfile: run.permissionProfile,
+        model: run.model,
+        effort: run.effort,
         options: {},
       }, 'UNSUPPORTED_OPTION');
-      activity.begin({ connectionId: connection.id || null, executor: identifier, model: modelId });
       const emitActivity = (event) => {
         if (active === reservation) activity.append(event);
       };
       const result = cloneFrozenJson(
-        await executor.runGoal(request, emitActivity, controller.signal),
+        await executor.runGoal(request, emitActivity, controller.signal, run),
         'PROVIDER_OUTPUT_INVALID',
       );
       throwIfAborted(controller.signal);
       if (!result || typeof result.text !== 'string' || !Array.isArray(result.changedFiles)
-          || result.changedFiles.some((path) => typeof path !== 'string')) {
+          || result.changedFiles.some((filePath) => typeof filePath !== 'string')) {
         throw new AgentError('PROVIDER_OUTPUT_INVALID');
       }
       return {
         text: result.text,
         changedFiles: [...result.changedFiles],
-        connectionId: connection.id || null,
+        connectionId: run.connectionId,
         executor: identifier,
-        model: modelId,
+        model: run.model,
       };
     } catch (error) {
-      if (controller.signal.aborted || error?.name === 'AbortError') {
-        throw new AgentError('RUN_STOPPED');
-      }
+      if (controller.signal.aborted || error?.name === 'AbortError') throw new AgentError('RUN_STOPPED');
       if (error instanceof AgentError) throw error;
       throw new AgentError('COMMAND_FAILED', { cause: error });
     } finally {

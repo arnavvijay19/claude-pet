@@ -16,9 +16,26 @@ test('formats every required Simple Offline Demo activity field', () => {
   assert.equal(view.executor, 'offline-demo');
   assert.equal(view.model, 'offline-demo');
   assert.equal(view.workspace, 'Z:\\work');
-  assert.equal(view.permissionBadge, 'Workspace');
+  assert.equal(view.permissionBadge, 'WORKSPACE - selected project only');
   assert.equal(view.elapsed, '12s');
   assert.equal(view.canStop, true);
+});
+
+test('keeps the permanent Full Computer warning in Simple and Comprehensive views', () => {
+  for (const activityView of ['simple', 'comprehensive']) {
+    const view = createResponseViewModel({
+      activityView,
+      busy: true,
+      run: {
+        executor: 'codex-cli', model: 'gpt-5.6-terra', workspace: 'Z:\\work',
+        permissionProfile: 'full-computer',
+      },
+      events: [{ phase: 'running', summary: 'Working', kind: 'status' }],
+    });
+    assert.equal(view.permissionBadge, 'FULL COMPUTER - broad PC access');
+    assert.equal(view.permissionWarning, true);
+    assert.equal(view.activityView, activityView);
+  }
 });
 
 test('formats timestamped Comprehensive rows from the shared activity snapshot', () => {

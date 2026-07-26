@@ -1,7 +1,7 @@
 'use strict';
 const path = require('node:path');
 const { createSettingsViewModel } = require('./settings/settingsViewModel.js');
-const { toPublicError } = require('./agent/agentErrors.js');
+const { AgentError, toPublicError } = require('./agent/agentErrors.js');
 const { EFFORTS, MODEL_IDS } = require('./agent/executors/codexModels.js');
 const { EFFORTS: CLAUDE_EFFORTS, MODEL_IDS: CLAUDE_MODEL_IDS } = require('./agent/executors/claudeModels.js');
 
@@ -11,26 +11,49 @@ const SETTINGS_CHANNELS = Object.freeze([
 
 function validDraft(value) {
   const required = ['executorType', 'label', 'workspacePath', 'permissionProfile', 'modelId', 'effort', 'keyHint'];
-  if (!value || !Object.keys(value).every((key) => required.includes(key) || key === 'id') || !required.every((key) => Object.hasOwn(value, key)) || value.permissionProfile !== 'workspace') return false;
-  if (value.executorType === 'offline-demo') return value.modelId === 'offline-demo' && value.effort === null;
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+      || Object.getPrototypeOf(value) !== Object.prototype
+      || !Object.keys(value).every((key) => required.includes(key) || key === 'id')
+      || !required.every((key) => Object.hasOwn(value, key))) return false;
+  if (value.executorType === 'offline-demo') return value.permissionProfile === 'workspace'
+    && value.modelId === 'offline-demo' && value.effort === null;
+  if (!['workspace', 'full-computer'].includes(value.permissionProfile)) return false;
   if (value.executorType === 'codex-cli') return MODEL_IDS.includes(value.modelId) && EFFORTS.includes(value.effort);
   return value.executorType === 'claude-code-cli' && CLAUDE_MODEL_IDS.includes(value.modelId) && CLAUDE_EFFORTS.includes(value.effort);
 }
-function registerSettingsIpc({ ipcMain, sender, store, manager }) {
+function registerSettingsIpc({
+  ipcMain, sender, settingsWindow, store, manager, authorization, onStateChange = () => {},
+}) {
   const assertSender = (event) => { if (event.sender !== sender) throw new Error('Invalid Settings sender'); };
+  const assertNoPendingAuthorization = () => {
+    if (authorization?.isPending?.()) throw new AgentError('FULL_COMPUTER_CONFIRMATION_REQUIRED');
+  };
   const snapshot = async () => createSettingsViewModel({ connections: await store.listConnections(), activeId: await store.getActiveSelection() });
   ipcMain.handle('settings:snapshot', async (event) => { assertSender(event); return snapshot(); });
   ipcMain.handle('settings:save', async (event, draft) => {
     assertSender(event);
-    if (!validDraft(draft) || draft.workspacePath.trim().length === 0) {
-      throw new Error('Invalid Workspace-only Offline Demo connection');
+    assertNoPendingAuthorization();
+    if (!validDraft(draft) || typeof draft.workspacePath !== 'string'
+        || draft.workspacePath.trim().length === 0) {
+      throw new AgentError('UNSUPPORTED_OPTION');
     }
-    const saved = await store.saveConnection(draft);
-    await store.setActiveSelection(saved.id);
+    if (!authorization || typeof authorization.save !== 'function') {
+      throw new AgentError('FULL_COMPUTER_CONFIRMATION_REQUIRED');
+    }
+    await authorization.save(settingsWindow, draft);
+    await onStateChange();
     return snapshot();
   });
-  ipcMain.handle('settings:select', async (event, id) => { assertSender(event); await store.setActiveSelection(id); return snapshot(); });
-  ipcMain.handle('settings:remove', async (event, id) => { assertSender(event); return store.removeConnection(id); });
+  ipcMain.handle('settings:select', async (event, id) => {
+    assertSender(event); assertNoPendingAuthorization();
+    if (id !== null && typeof id !== 'string') throw new AgentError('UNSUPPORTED_OPTION');
+    await store.setActiveSelection(id); await onStateChange(); return snapshot();
+  });
+  ipcMain.handle('settings:remove', async (event, id) => {
+    assertSender(event); assertNoPendingAuthorization();
+    if (typeof id !== 'string' || !id) throw new AgentError('UNSUPPORTED_OPTION');
+    const removed = await store.removeConnection(id); await onStateChange(); return removed;
+  });
   ipcMain.handle('settings:test', async (event) => {
     assertSender(event);
     const activeId = await store.getActiveSelection();
@@ -50,10 +73,13 @@ function unregisterSettingsIpc(ipcMain) {
   for (const channel of SETTINGS_CHANNELS) ipcMain.removeHandler(channel);
 }
 
-function createSettingsWindow({ BrowserWindow, ipcMain, store, manager }) {
+function createSettingsWindow({ BrowserWindow, ipcMain, store, manager, authorization, onStateChange }) {
   const window = new BrowserWindow({ width: 900, height: 680, show: false, autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false } });
   unregisterSettingsIpc(ipcMain);
-  registerSettingsIpc({ ipcMain, sender: window.webContents, store, manager });
+  registerSettingsIpc({
+    ipcMain, sender: window.webContents, settingsWindow: window,
+    store, manager, authorization, onStateChange,
+  });
   window.loadFile(path.join(__dirname, 'settings', 'index.html'));
   return window;
 }

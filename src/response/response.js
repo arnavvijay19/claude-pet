@@ -5,7 +5,9 @@ const phase = document.querySelector('#phase');
 const executor = document.querySelector('#executor');
 const model = document.querySelector('#model');
 const workspace = document.querySelector('#workspace');
-const permission = document.querySelector('#permission');
+const permissionHeader = document.querySelector('#permission-header');
+const permissionSimple = document.querySelector('#permission-simple');
+const permissionComprehensive = document.querySelector('#permission-comprehensive');
 const elapsed = document.querySelector('#elapsed');
 const events = document.querySelector('#events');
 const changed = document.querySelector('#changed');
@@ -18,10 +20,14 @@ function render(state) {
   executor.textContent = view.executor;
   model.textContent = view.model;
   workspace.textContent = view.workspace;
-  permission.textContent = view.permissionBadge;
+  for (const badge of [permissionHeader, permissionSimple, permissionComprehensive]) {
+    badge.textContent = view.permissionBadge;
+    badge.classList.toggle('warning', view.permissionWarning);
+  }
   elapsed.textContent = view.elapsed;
   stop.disabled = !view.canStop;
-  events.hidden = view.activityView !== 'comprehensive';
+  document.querySelector('#simple-panel').hidden = view.activityView === 'comprehensive';
+  document.querySelector('#comprehensive-panel').hidden = view.activityView !== 'comprehensive';
   changed.textContent = view.changedFiles.length ? `Changed: ${view.changedFiles.join(', ')}` : '';
   events.replaceChildren(...view.events.map((event) => {
     const item = document.createElement('li');

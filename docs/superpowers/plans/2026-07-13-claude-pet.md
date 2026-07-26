@@ -977,7 +977,7 @@ do not enable Full Computer or install WSL in this task.
   controlling-CLI protocol traffic and any model-spawned canary connection, then closes both listeners
   and deletes config/transcript/state in `finally`.
 
-- [ ] **Step 1: Write failing store migration, authorization-race, and snapshot tests**
+- [x] **Step 1: Write failing store migration, authorization-race, and snapshot tests**
 
 In `tests/connectionStore.test.js`, load a v1 file and assert v2 migration preserves every existing
 permission profile without upgrading Workspace to Full Computer. Assert public objects omit
@@ -1091,7 +1091,7 @@ environment, config, requests, transcripts, errors, or cleanup logs. No hook/plu
 appear. Requests with a wrong bearer/path never count, and the report distinguishes valid controlling-
 CLI traffic from the child-canary result.
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run:
 
@@ -1102,7 +1102,7 @@ npm.cmd test -- tests/connectionStore.test.js tests/fullComputerAuthorization.te
 Expected: v2/revision/store APIs and the authorization module are missing; the current prompt
 controller's second store read produces a snapshot-race failure.
 
-- [ ] **Step 3: Add serialized v2 storage and connection-bound native confirmation**
+- [x] **Step 3: Add serialized v2 storage and connection-bound native confirmation**
 
 Define exact renderer and disk boundaries:
 
@@ -1142,7 +1142,7 @@ Generate a 32-byte nonce with `randomBytes(32).toString('base64url')`, capture i
 main-owned pending record, and consume that record before either cancel or compare-and-commit. Disable
 the Settings save action while its one permitted dialog is pending.
 
-- [ ] **Step 4: Bind one immutable mode snapshot to one executor and response**
+- [x] **Step 4: Bind one immutable mode snapshot to one executor and response**
 
 Resolve the registry key before any async provider preflight:
 
@@ -1168,7 +1168,7 @@ with a public clone that omits revision and confirmation. Register Offline Demo 
 `offline-demo:workspace`, both native executors only at `*:full-computer`, and temporary unavailable
 Workspace executors until Tasks 17-18 register WSL implementations. There is no fallback lookup.
 
-- [ ] **Step 5: Implement exact native Full Computer CLI policies**
+- [x] **Step 5: Implement exact native Full Computer CLI policies**
 
 Codex must equal `0.145.0`. Before each run, main writes and hashes an exact app-owned config that
 marks only the selected workspace untrusted and contains no MCP/plugin/hook/rule source. Global
@@ -1220,7 +1220,7 @@ Computer authorization. Unknown enabled Codex features, an unlisted offered tool
 protocol event, a real endpoint/credential, a changed CLI binding, or any listener/config/transcript/
 sentinel residue fails availability.
 
-- [ ] **Step 6: Add permanent warning surfaces and narrow IPC**
+- [x] **Step 6: Add permanent warning surfaces and narrow IPC**
 
 Settings labels Full Computer `Default - broad access`, shows Workspace separately as unavailable
 until setup, and never receives the stored acknowledgement. Derive every badge only from the active
@@ -1237,7 +1237,7 @@ The tray template is rebuilt after selection/busy changes. Validate every IPC se
 accepts only the exact draft keys and delegates Full Computer confirmation entirely to main. Add
 fixed public errors for confirmation-required/cancelled and native-launch failure.
 
-- [ ] **Step 7: Verify the runnable warning gate, commit, and stop**
+- [x] **Step 7: Verify the runnable warning gate, commit, and stop**
 
 Run the focused tests, `npm.cmd test`, `py -m pytest -q`, syntax checks for every changed JS file,
 exact fixture/allowlist byte checks, the real account-free local-provider tool-surface probes, and

@@ -1,0 +1,22 @@
+{
+  "additionalTools": [
+    { "name": "exec", "type": "custom" },
+    { "name": "wait", "type": "function" },
+    { "name": "request_user_input", "type": "function" },
+    { "name": "collaboration", "type": "namespace" }
+  ],
+  "collaborationTools": [
+    "followup_task",
+    "interrupt_agent",
+    "list_agents",
+    "send_message",
+    "spawn_agent",
+    "wait_agent"
+  ],
+  "execRegistry": [
+    "apply_patch",
+    "shell_command",
+    "update_plan",
+    "view_image"
+  ]
+}

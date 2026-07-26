@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "provider": "codex-cli",
+  "version": "0.145.0",
+  "protocol": {
+    "method": "POST",
+    "pathSuffix": "/v1/responses",
+    "authHeader": "authorization",
+    "authValue": "Bearer __OWNER_BEARER__",
+    "contentType": "application/json",
+    "headerNames": [
+      "accept",
+      "authorization",
+      "content-length",
+      "content-type",
+      "host",
+      "originator",
+      "session-id",
+      "thread-id",
+      "user-agent",
+      "version",
+      "x-client-request-id",
+      "x-codex-beta-features",
+      "x-codex-turn-metadata",
+      "x-codex-window-id",
+      "x-openai-internal-codex-responses-lite"
+    ],
+    "bodyKeys": [
+      "client_metadata",
+      "include",
+      "input",
+      "model",
+      "parallel_tool_calls",
+      "prompt_cache_key",
+      "reasoning",
+      "store",
+      "stream",
+      "text",
+      "tool_choice"
+    ],
+    "model": "gpt-5.6-terra",
+    "stream": true,
+    "store": false,
+    "parallelToolCalls": false,
+    "toolChoice": "auto",
+    "include": ["reasoning.encrypted_content"],
+    "classicToolsForbidden": true,
+    "inputProjection": [
+      { "type": "additional_tools", "role": "developer", "keys": ["role", "tools", "type"] },
+      { "type": "message", "role": "developer", "keys": ["content", "role", "type"] },
+      { "type": "message", "role": "developer", "keys": ["content", "internal_chat_message_metadata_passthrough", "role", "type"] },
+      { "type": "message", "role": "developer", "keys": ["content", "internal_chat_message_metadata_passthrough", "role", "type"] },
+      { "type": "message", "role": "developer", "keys": ["content", "internal_chat_message_metadata_passthrough", "role", "type"] },
+      { "type": "message", "role": "user", "keys": ["content", "internal_chat_message_metadata_passthrough", "role", "type"] },
+      { "type": "message", "role": "user", "keys": ["content", "internal_chat_message_metadata_passthrough", "role", "type"] }
+    ],
+    "additionalTools": [
+      {
+        "name": "exec",
+        "type": "custom",
+        "keys": ["description", "format", "name", "type"],
+        "descriptionSha256": "4a472f0b6f09856796f567442341aebfb962cd7e8baca0dd1441e8282d2872f1"
+      },
+      {
+        "name": "wait",
+        "type": "function",
+        "keys": ["description", "name", "parameters", "strict", "type"],
+        "descriptionSha256": "582eb96e50ee4481cf30b33ad2358e7e24e7368aeb2cbe5122cef1912ad75385",
+        "parametersSha256": "0023b837375a75fccd4fb4ee28719c3b482bc994d1e980a7b2553fa8330a8cb7"
+      },
+      {
+        "name": "request_user_input",
+        "type": "function",
+        "keys": ["description", "name", "parameters", "strict", "type"],
+        "descriptionSha256": "a81ea423cf6b0c04aa5c580592edf7e2c1bd1e1585c7091c396e072bd1811d4c",
+        "parametersSha256": "6e00f64e640792bdce28afd286e698f06030863a5e761e6df1e0264b3331e891"
+      },
+      {
+        "name": "collaboration",
+        "type": "namespace",
+        "keys": ["description", "name", "tools", "type"],
+        "descriptionSha256": "c839c56b2b6f5cb73c8848275df7124cec42c27ca110192fb53cfc39b886b8ff"
+      }
+    ],
+    "execGrammar": "\nstart: pragma_source | plain_source\npragma_source: PRAGMA_LINE NEWLINE SOURCE\nplain_source: SOURCE\n\nPRAGMA_LINE: /[ \\t]*\\/\\/ @exec:[^\\r\\n]*/\nNEWLINE: /\\r?\\n/\nSOURCE: /[\\s\\S]+/\n",
+    "execRegistry": ["apply_patch", "shell_command", "update_plan", "view_image"],
+    "collaborationTools": [
+      "followup_task",
+      "interrupt_agent",
+      "list_agents",
+      "send_message",
+      "spawn_agent",
+      "wait_agent"
+    ],
+    "collaborationSchemas": [
+      { "name": "followup_task", "parametersSha256": "f5fd68bffe3c37b47df8f50fd2c92417f3677e570f8ef36720c21b91177d1141" },
+      { "name": "interrupt_agent", "parametersSha256": "74c717d922b8d53ee57b9bdf7f88aff15069529e394e26e9648788f445674f95" },
+      { "name": "list_agents", "parametersSha256": "e1c675531d067314f8d1a913eaa70ffa4b2a0771965eaff5a0663343ffdf8c2c" },
+      { "name": "send_message", "parametersSha256": "3e0183c8f4dfee2b7a8119666058cab743a2080b3fc745f3a01a4fa8382ec5c4" },
+      { "name": "spawn_agent", "parametersSha256": "237c50c8bfe2a6b71376895ae79bcc78b4e7135443a9283665f19025de394082" },
+      { "name": "wait_agent", "parametersSha256": "7765bd20160a9bc890fec1d8eeccf10aa5a978134c4841b206447a932935cc55" }
+    ]
+  },
+  "sse": {
+    "customToolEventTypes": [
+      "response.created",
+      "response.output_item.added",
+      "response.custom_tool_call_input.delta",
+      "response.custom_tool_call_input.done",
+      "response.output_item.done",
+      "response.completed"
+    ],
+    "functionEventTypes": [
+      "response.created",
+      "response.output_item.added",
+      "response.function_call_arguments.delta",
+      "response.function_call_arguments.done",
+      "response.output_item.done",
+      "response.completed"
+    ],
+    "textEventTypes": [
+      "response.created",
+      "response.output_item.added",
+      "response.content_part.added",
+      "response.output_text.delta",
+      "response.output_text.done",
+      "response.content_part.done",
+      "response.output_item.done",
+      "response.completed"
+    ]
+  },
+  "scenario": {
+    "goal": "Run the fixed local provider probe.",
+    "finalText": "probe-complete",
+    "calls": [
+      { "id": "probe_codex_exec", "name": "exec", "input": "__OWNER_CODEX_EXEC__" },
+      { "id": "probe_codex_wait", "name": "wait", "arguments": "__OWNER_WAIT_ARGUMENTS__" },
+      {
+        "id": "probe_request_user_input",
+        "name": "request_user_input",
+        "arguments": {
+          "questions": [
+            {
+              "header": "Probe",
+              "id": "fixed_probe",
+              "question": "This fixed noninteractive probe must cancel.",
+              "options": [
+                { "label": "Cancel (Recommended)", "description": "The probe must not display or await UI." },
+                { "label": "Continue", "description": "This must never be selected." }
+              ]
+            }
+          ]
+        }
+      },
+      { "id": "probe_followup", "name": "collaboration.followup_task", "arguments": { "target": "/root/probe-missing", "message": "fixed probe" } },
+      { "id": "probe_interrupt", "name": "collaboration.interrupt_agent", "arguments": { "target": "/root/probe-missing" } },
+      { "id": "probe_list", "name": "collaboration.list_agents", "arguments": {} },
+      { "id": "probe_send", "name": "collaboration.send_message", "arguments": { "target": "/root/probe-missing", "message": "fixed probe" } },
+      { "id": "probe_spawn", "name": "collaboration.spawn_agent", "arguments": { "task_name": "probe_blocked", "message": "fixed probe", "fork_turns": "none" } },
+      { "id": "probe_agent_wait", "name": "collaboration.wait_agent", "arguments": { "timeout_ms": 10000 } }
+    ]
+  }
+}

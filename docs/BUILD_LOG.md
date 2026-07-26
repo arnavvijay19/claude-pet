@@ -333,6 +333,28 @@ optional — an unlogged session is a failed session even if its code worked). F
   (header link, Working method, Order, Standard entry prompt, Document routing) and the redesign
   spec's Status/decomposition lines — to Task 14. NEXT: Task 14 via the refreshed entry prompt.
 
+- **2026-07-26 · Codex · Task 14 (warned native Full Computer mode)** — Added serialized
+  connection-store schema v2, main-owned connection-bound native confirmation, immutable mode/run
+  snapshots with no fallback, exact Codex/Claude native Full Computer executors, permanent warning
+  badges in Settings/tray/response/Simple/Comprehensive, and narrow sender-validated Settings IPC.
+  The account-free local-provider gate pins Codex 0.145.0 code-mode tools and Claude 2.1.217
+  Messages/SSE fixtures, scrubs credentials/endpoints, isolates hostile project configuration, and
+  removes every listener/config/transcript/sentinel. Final review additionally bound acknowledgement
+  reuse to the same executor, required exact fail-closed Codex control results plus Claude read/Bash
+  sentinels, and rejected changed fixture bytes before spawn. Canonical fixture SHA-256 values are
+  `def11e55005d2506beafa7535c331562f02f73a1bb654a761086a929914ff2d7` (Codex Responses),
+  `d9bf3d2be500b5c4d6d9fae43dfe0ca51467b64802ec94ca8fef8c43862ccf82` (Claude Messages/SSE),
+  `dab9fdc7c18ce3176bf7c0ae9a5c44fbf8125a52e81ff2614578205cb6524f72` (code-mode tools),
+  `5f0f07a4f88477c899aa9075cc6bb3ed31f84dfc3e5447bae62a2be8b4e1e3e6` (Codex config), and
+  `ce7c7c76689890dc85c97c4b678f91e8a1b0c44f05ca54bcac4fd74accc79169` (Claude env).
+  Fresh evidence: focused Task 14 Node 119/119, full Node 214/214, pytest 1/1; real Codex report
+  4 control requests / 7 rejected upgrades / 4 turns / 7 exact blocked controls / 1 child canary;
+  cached signed Claude report 3 control requests / 2 turns / 1 child canary; both exit 0 with clean
+  scrub/cleanup. Installed Claude 2.1.220 correctly failed the production 2.1.217 pin. The temporary-
+  profile Electron gate proved cancel/no save, acceptance, all five badges, immutable current-run mode,
+  next-run Workspace fail-closed behavior, and delete/recreate re-warning; evidence is
+  `docs/evidence/task-14-full-computer-warning.png`. No provider account/model run or WSL install occurred.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -530,3 +552,19 @@ link the note to it — this file is the inbox, not the archive.
   that versioned release. Task 13 must match both raw targets plus the canonical target, not merely
   allow any reparse component. The signed Codex PE still has empty FileVersion/ProductVersion and
   requires held-path `codex --version`; Claude 2.1.217 is non-reparse with PE version 2.1.217.0.
+
+- 2026-07-26 `FIX:` A successful launch lease waited for inspection-helper release before returning
+  the child, so a fast `--version` process could finish before capture listeners attached. Successful
+  leases now stay held until caller cleanup; failure paths still release immediately and exactly once.
+
+- 2026-07-26 `SUPERSEDE:` Codex 0.145.0 rejects run-only `--strict-config` on `codex features`, and
+  sending HTTP 426 causes only one WebSocket attempt. Feature inspection omits that one flag; a closed
+  no-response upgrade rejection reproduces the pinned seven attempts before the four-turn fallback.
+
+- 2026-07-26 `SUPERSEDE:` Claude 2.1.217's control-path HEAD preflight has no API key. The local
+  harness now accepts only that nonce-secret route with its exact five header names; both Messages
+  POSTs still require the independent dummy `x-api-key`, and the cached signed probe passes 3/3.
+
+- 2026-07-26 `IDEA:` The user wants Hermes-style provider-neutral continuity: multiple providers
+  serving one persistent agent/session, plus explicit switching among agents and sessions. Revisit
+  the later roadmap after the Task 14 gate; do not fold this into Task 14 or silently start Task 15.

@@ -4,13 +4,42 @@ const assert = require('node:assert/strict');
 const { createSettingsWindowController, registerSettingsIpc } = require('../src/settingsWindow.js');
 const { AgentError } = require('../src/agent/agentErrors.js');
 
-function harness(managerOverrides = {}) {
+function harness(managerOverrides = {}, authorizationOverrides = {}) {
   const handlers = new Map();
   const sender = {};
   const selected = [];
-  const store = { listConnections: async () => [{ id: 'offline', executorType: 'offline-demo', label: 'Offline Demo', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'offline-demo', effort: null }], getActiveSelection: async () => selected.at(-1) || 'offline', saveConnection: async (value) => ({ ...value, id: 'saved' }), setActiveSelection: async (id) => { selected.push(id); }, removeConnection: async () => true };
-  registerSettingsIpc({ ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) }, sender, store, manager: { getStatus: async () => ({ installed: true }), verifyPermissionProfile: async () => ({ available: true, allowed: true }), beginSetup: async () => ({ started: false }), ...managerOverrides } });
-  return { handlers, sender, selected };
+  const authorizationCalls = [];
+  const store = {
+    listConnections: async () => [{
+      id: 'offline', executorType: 'offline-demo', label: 'Offline Demo',
+      workspacePath: 'Z:\\work', permissionProfile: 'workspace',
+      modelId: 'offline-demo', effort: null,
+    }],
+    getActiveSelection: async () => selected.at(-1) || 'offline',
+    setActiveSelection: async (id) => { selected.push(id); },
+    removeConnection: async () => true,
+  };
+  const settingsWindow = { webContents: sender };
+  const authorization = {
+    save: async (window, value) => {
+      authorizationCalls.push({ window, value });
+      selected.push('saved');
+      return { ...value, id: 'saved' };
+    },
+    isPending: () => false,
+    ...authorizationOverrides,
+  };
+  registerSettingsIpc({
+    ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
+    sender, settingsWindow, store, authorization,
+    manager: {
+      getStatus: async () => ({ installed: true }),
+      verifyPermissionProfile: async () => ({ available: true, allowed: true }),
+      beginSetup: async () => ({ started: false }),
+      ...managerOverrides,
+    },
+  });
+  return { authorizationCalls, handlers, sender, selected, settingsWindow };
 }
 
 test('serves only public Settings snapshots to the expected sender', async () => {
@@ -21,10 +50,20 @@ test('serves only public Settings snapshots to the expected sender', async () =>
   await assert.rejects(handlers.get('settings:snapshot')({ sender: {} }));
 });
 
-test('rejects Full Computer and unknown save fields', async () => {
-  const { handlers, sender } = harness();
+test('accepts Full Computer only through main authorization and rejects unknown save fields', async () => {
+  const { authorizationCalls, handlers, sender, settingsWindow } = harness();
+  const full = { executorType: 'codex-cli', label: 'Codex', workspacePath: 'Z:\\work', permissionProfile: 'full-computer', modelId: 'gpt-5.6-terra', effort: 'medium', keyHint: null };
+  await handlers.get('settings:save')({ sender }, full);
+  assert.deepEqual(authorizationCalls, [{ window: settingsWindow, value: full }]);
   await assert.rejects(handlers.get('settings:save')({ sender }, { executorType: 'offline-demo', label: 'Demo', workspacePath: 'Z:\\work', permissionProfile: 'full-computer', modelId: 'offline-demo', effort: null, keyHint: null }));
   await assert.rejects(handlers.get('settings:save')({ sender }, { executorType: 'offline-demo', label: 'Demo', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'offline-demo', effort: null, keyHint: null, options: {} }));
+  for (const forged of [
+    { fullAccessConfirmed: true }, { revision: 1 }, { nonce: 'forged' },
+    { confirmation: { accepted: true } }, { reservedId: 'forged' },
+  ]) {
+    await assert.rejects(handlers.get('settings:save')({ sender }, { ...full, ...forged }));
+  }
+  assert.equal(authorizationCalls.length, 1);
 });
 
 test('requires a non-empty workspace and selects a newly saved Offline Demo connection', async () => {
@@ -34,6 +73,43 @@ test('requires a non-empty workspace and selects a newly saved Offline Demo conn
   await assert.rejects(save({ sender }, { ...draft, workspacePath: '   ' }));
   await save({ sender }, draft);
   assert.deepEqual(selected, ['saved']);
+});
+
+test('fails closed while a Full Computer dialog is already pending', async () => {
+  const { handlers, sender } = harness({}, { isPending: () => true });
+  await assert.rejects(
+    handlers.get('settings:save')({ sender }, {
+      executorType: 'codex-cli', label: 'Codex', workspacePath: 'Z:\\work',
+      permissionProfile: 'full-computer', modelId: 'gpt-5.6-terra', effort: 'medium', keyHint: null,
+    }),
+    (error) => error.code === 'FULL_COMPUTER_CONFIRMATION_REQUIRED',
+  );
+  await assert.rejects(
+    handlers.get('settings:select')({ sender }, 'offline'),
+    (error) => error.code === 'FULL_COMPUTER_CONFIRMATION_REQUIRED',
+  );
+  await assert.rejects(
+    handlers.get('settings:remove')({ sender }, 'offline'),
+    (error) => error.code === 'FULL_COMPUTER_CONFIRMATION_REQUIRED',
+  );
+});
+
+test('validates the sender on every Settings IPC channel', async () => {
+  const { handlers } = harness();
+  const argumentsByChannel = {
+    'settings:snapshot': [],
+    'settings:save': [{
+      executorType: 'offline-demo', label: 'Demo', workspacePath: 'Z:\\work',
+      permissionProfile: 'workspace', modelId: 'offline-demo', effort: null, keyHint: null,
+    }],
+    'settings:select': ['offline'],
+    'settings:remove': ['offline'],
+    'settings:test': [],
+    'settings:setup': [],
+  };
+  for (const [channel, args] of Object.entries(argumentsByChannel)) {
+    await assert.rejects(handlers.get(channel)({ sender: {} }, ...args), /Invalid Settings sender/);
+  }
 });
 
 test('accepts only registered Workspace Codex models and can begin official setup', async () => {

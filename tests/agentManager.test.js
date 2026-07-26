@@ -13,6 +13,7 @@ const {
 } = require('../src/agent/agentErrors.js');
 const { createActivityStore } = require('../src/agent/activityStore.js');
 const { createAgentManager } = require('../src/agent/agentManager.js');
+const { permissionBadge } = require('../src/agent/executionModes.js');
 
 function deferred() {
   let resolve;
@@ -35,18 +36,20 @@ function fakeExecutor(overrides = {}) {
 
 function harness({ connection, executor = fakeExecutor(), getActiveSelection } = {}) {
   let selected = connection === undefined ? {
-    id: 'connection-1', executorType: 'demo', modelId: 'agent-model', effort: 'high',
-    workspacePath: 'Z:\\workspace', permissionProfile: { mode: 'workspace', nested: { level: 1 } },
+    id: 'connection-1', executorType: 'offline-demo', modelId: 'agent-model', effort: 'high',
+    workspacePath: 'Z:\\workspace', permissionProfile: 'workspace',
+    fullAccessConfirmed: false, revision: 1,
   } : connection;
   const store = {
     getActiveSelection: getActiveSelection || (async () => selected?.id || null),
     getConnection: async (id) => (selected?.id === id ? selected : null),
+    getRunConnection: async (id) => (selected?.id === id ? selected : null),
     setActiveSelection: async (id) => { selected = id ? { ...selected, id } : null; },
   };
   const activity = createActivityStore({ clock: () => 123 });
   return {
     activity,
-    manager: createAgentManager({ store, executors: { demo: executor }, activity }),
+    manager: createAgentManager({ store, executors: { 'offline-demo:workspace': executor }, activity }),
   };
 }
 
@@ -99,12 +102,12 @@ test('uses the canonical Task 7 connection store and public connection fields', 
   let activeSelection = 'connection-1';
   const connections = new Map([
     ['connection-1', {
-      id: 'connection-1', executorType: 'demo', label: 'Demo', workspacePath: 'Z:\\workspace',
+      id: 'connection-1', revision: 1, executorType: 'offline-demo', label: 'Demo', workspacePath: 'Z:\\workspace',
       permissionProfile: 'workspace', fullAccessConfirmed: false, modelId: 'agent-model',
       effort: 'high', keyHint: null, hasSecret: false,
     }],
     ['connection-2', {
-      id: 'connection-2', executorType: 'demo', label: 'Other', workspacePath: 'Z:\\other',
+      id: 'connection-2', revision: 1, executorType: 'offline-demo', label: 'Other', workspacePath: 'Z:\\other',
       permissionProfile: 'workspace', fullAccessConfirmed: false, modelId: 'agent-model',
       effort: 'low', keyHint: null, hasSecret: false,
     }],
@@ -119,7 +122,8 @@ test('uses the canonical Task 7 connection store and public connection fields', 
     runGoal: async (value) => { request = value; return { text: 'done', changedFiles: [] }; },
   });
   const activity = createActivityStore({ clock: () => 1 });
-  const manager = createAgentManager({ store, executors: { demo: executor }, activity });
+  store.getRunConnection = store.getConnection;
+  const manager = createAgentManager({ store, executors: { 'offline-demo:workspace': executor }, activity });
 
   await manager.runGoal('work');
   assert.deepEqual(request, {
@@ -137,9 +141,9 @@ test('uses the canonical Task 7 connection store and public connection fields', 
 test('sends only the exact deeply immutable executor request snapshot', async () => {
   const gate = deferred();
   const connection = {
-    id: 'connection-1', executorType: 'demo', modelId: 'agent-model', effort: 'high',
-    workspacePath: 'Z:\\workspace',
-    permissionProfile: { mode: 'workspace', nested: { level: 1 } },
+    id: 'connection-1', executorType: 'offline-demo', modelId: 'agent-model', effort: 'high',
+    workspacePath: 'Z:\\workspace', permissionProfile: 'workspace',
+    fullAccessConfirmed: false, revision: 1,
     internalToken: 'must-not-leak',
   };
   let request;
@@ -155,22 +159,19 @@ test('sends only the exact deeply immutable executor request snapshot', async ()
   const { manager } = harness({ connection, executor });
   const pending = manager.runGoal('work');
   await new Promise((resolve) => setImmediate(resolve));
-  connection.permissionProfile.nested.level = 9;
   assert.equal(Object.isFrozen(seenConnection), true);
-  assert.equal(Object.isFrozen(seenConnection.permissionProfile.nested), true);
   assert.deepEqual(Object.keys(request), [
     'goal', 'workspace', 'permissionProfile', 'model', 'effort', 'options',
   ]);
   assert.deepEqual(request, {
     goal: 'work',
     workspace: 'Z:\\workspace',
-    permissionProfile: { mode: 'workspace', nested: { level: 1 } },
+    permissionProfile: 'workspace',
     model: 'agent-model',
     effort: 'high',
     options: {},
   });
   assert.equal(Object.isFrozen(request), true);
-  assert.equal(Object.isFrozen(request.permissionProfile.nested), true);
   assert.equal(Object.isFrozen(request.options), true);
   assert.equal(JSON.stringify(request).includes('must-not-leak'), false);
   gate.resolve();
@@ -200,8 +201,9 @@ test('rejects non-JSON selected connection values with UNSUPPORTED_OPTION before
   for (const options of unsupported) {
     let executions = 0;
     const connection = {
-      id: 'connection-1', executorType: 'demo', modelId: 'agent-model', effort: 'high',
-      workspacePath: 'Z:\\workspace', permissionProfile: { mode: 'workspace' }, internalNote: options,
+      id: 'connection-1', executorType: 'offline-demo', modelId: 'agent-model', effort: 'high',
+      workspacePath: 'Z:\\workspace', permissionProfile: 'workspace',
+      fullAccessConfirmed: false, revision: 1, internalNote: options,
     };
     const executor = fakeExecutor({
       runGoal: async () => { executions += 1; return { text: '', changedFiles: [] }; },
@@ -358,7 +360,7 @@ test('success and failure clear busy and unknown failures are normalized', async
   const result = await success.manager.runGoal('work');
   assert.deepEqual(result, {
     text: 'done', changedFiles: ['src/main.js'], connectionId: 'connection-1',
-    executor: 'demo', model: 'agent-model',
+    executor: 'offline-demo', model: 'agent-model',
   });
   assert.equal(success.manager.getSnapshot().busy, false);
 
@@ -375,8 +377,9 @@ test('does not retry or fall back after an executor failure', async () => {
   let primaryCalls = 0;
   let fallbackCalls = 0;
   const selected = {
-    id: 'connection-1', executorType: 'primary', modelId: 'agent-model', effort: 'high',
-    workspacePath: 'Z:\\workspace', permissionProfile: { mode: 'workspace' },
+    id: 'connection-1', executorType: 'codex-cli', modelId: 'agent-model', effort: 'high',
+    workspacePath: 'Z:\\workspace', permissionProfile: 'workspace',
+    fullAccessConfirmed: false, revision: 1,
   };
   const primary = fakeExecutor({
     runGoal: async () => { primaryCalls += 1; throw new AgentError('RATE_LIMITED'); },
@@ -390,7 +393,12 @@ test('does not retry or fall back after an executor failure', async () => {
     getConnection: async () => selected,
   };
   const activity = createActivityStore({ clock: () => 1 });
-  const manager = createAgentManager({ store, executors: { primary, fallback }, activity });
+  store.getRunConnection = store.getConnection;
+  const manager = createAgentManager({
+    store,
+    executors: { 'codex-cli:workspace': primary, 'claude-code-cli:workspace': fallback },
+    activity,
+  });
   await assert.rejects(manager.runGoal('work'), (error) => error.code === 'RATE_LIMITED');
   assert.equal(primaryCalls, 1);
   assert.equal(fallbackCalls, 0);
@@ -444,6 +452,126 @@ test('passes exact capability and permission arguments through run and delegate 
   for (const args of permissionCalls) {
     assert.equal(args.length, 1);
     assert.equal(args[0].id, 'connection-1');
-    assert.deepEqual(args[0].permissionProfile, { mode: 'workspace', nested: { level: 1 } });
+    assert.equal(args[0].permissionProfile, 'workspace');
   }
+});
+
+test('binds executor, request, response context, and activity to one immutable mode snapshot', async () => {
+  const enteredPreflight = deferred();
+  const releasePreflight = deferred();
+  const requests = [];
+  let current = {
+    id: 'connection-1', revision: 7, executorType: 'codex-cli',
+    workspacePath: 'Z:\\first', permissionProfile: 'full-computer',
+    fullAccessConfirmed: true, modelId: 'gpt-5.6-terra', effort: 'medium',
+    label: 'Codex', keyHint: null, hasSecret: false,
+  };
+  const fullExecutor = fakeExecutor({
+    getStatus: async () => {
+      enteredPreflight.resolve();
+      await releasePreflight.promise;
+      return { installed: true, authenticated: true, workspaceAvailable: true };
+    },
+    listModels: async () => [{ id: 'gpt-5.6-terra', efforts: ['medium'] }],
+    getCapabilities: async () => ({ efforts: ['medium'] }),
+    runGoal: async (request, _emit, _signal, run) => {
+      requests.push({ key: 'full', request, run });
+      return { text: 'first', changedFiles: [] };
+    },
+  });
+  const workspaceExecutor = fakeExecutor({
+    listModels: async () => [{ id: 'gpt-5.6-sol', efforts: ['high'] }],
+    getCapabilities: async () => ({ efforts: ['high'] }),
+    runGoal: async (request, _emit, _signal, run) => {
+      requests.push({ key: 'workspace', request, run });
+      return { text: 'second', changedFiles: [] };
+    },
+  });
+  const store = {
+    getActiveSelection: async () => current.id,
+    getRunConnection: async (id) => (id === current.id ? current : null),
+    getConnection: async (id) => (id === current.id ? current : null),
+    setActiveSelection: async () => {},
+  };
+  const activity = createActivityStore({ clock: () => 123 });
+  const manager = createAgentManager({
+    store,
+    executors: {
+      'codex-cli:full-computer': fullExecutor,
+      'codex-cli:workspace': workspaceExecutor,
+    },
+    activity,
+  });
+  const starts = [];
+
+  const first = manager.runGoal('first goal', { onStart: (context) => starts.push(context) });
+  await enteredPreflight.promise;
+  current = {
+    ...current,
+    revision: 8,
+    workspacePath: 'Z:\\second',
+    permissionProfile: 'workspace',
+    modelId: 'gpt-5.6-sol',
+    effort: 'high',
+  };
+  assert.deepEqual(manager.getSnapshot(), {
+    busy: true,
+    connectionId: 'connection-1',
+    permissionProfile: 'full-computer',
+  });
+  releasePreflight.resolve();
+  await first;
+
+  assert.deepEqual(requests[0], {
+    key: 'full',
+    request: {
+      goal: 'first goal', workspace: 'Z:\\first', permissionProfile: 'full-computer',
+      model: 'gpt-5.6-terra', effort: 'medium', options: {},
+    },
+    run: {
+      connectionId: 'connection-1', connectionRevision: 7, executorType: 'codex-cli',
+      permissionProfile: 'full-computer', fullAccessConfirmed: true,
+      workspace: 'Z:\\first', model: 'gpt-5.6-terra', effort: 'medium',
+    },
+  });
+  assert.deepEqual(starts[0], {
+    connectionId: 'connection-1', executor: 'codex-cli', model: 'gpt-5.6-terra',
+    workspace: 'Z:\\first', permissionProfile: 'full-computer',
+  });
+  assert.equal(permissionBadge(starts[0].permissionProfile), 'FULL COMPUTER - broad PC access');
+  assert.equal(Object.hasOwn(starts[0], 'revision'), false);
+  assert.equal(Object.hasOwn(starts[0], 'fullAccessConfirmed'), false);
+  assert.deepEqual(activity.snapshot().run, starts[0]);
+
+  await manager.runGoal('second goal', { onStart: (context) => starts.push(context) });
+  assert.deepEqual(requests[1], {
+    key: 'workspace',
+    request: {
+      goal: 'second goal', workspace: 'Z:\\second', permissionProfile: 'workspace',
+      model: 'gpt-5.6-sol', effort: 'high', options: {},
+    },
+    run: {
+      connectionId: 'connection-1', connectionRevision: 8, executorType: 'codex-cli',
+      permissionProfile: 'workspace', fullAccessConfirmed: true,
+      workspace: 'Z:\\second', model: 'gpt-5.6-sol', effort: 'high',
+    },
+  });
+  assert.equal(permissionBadge(starts[1].permissionProfile), 'WORKSPACE - selected project only');
+});
+
+test('rejects an unconfirmed Full Computer snapshot before any provider preflight', async () => {
+  let statusCalls = 0;
+  const connection = {
+    id: 'connection-1', revision: 1, executorType: 'codex-cli', modelId: 'agent-model', effort: 'high',
+    workspacePath: 'Z:\\workspace', permissionProfile: 'full-computer', fullAccessConfirmed: false,
+  };
+  const { manager } = harness({
+    connection,
+    executor: fakeExecutor({ getStatus: async () => { statusCalls += 1; return { installed: true }; } }),
+  });
+  await assert.rejects(
+    manager.runGoal('must not run'),
+    (error) => error.code === 'FULL_COMPUTER_CONFIRMATION_REQUIRED',
+  );
+  assert.equal(statusCalls, 0);
 });

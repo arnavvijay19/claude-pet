@@ -19,13 +19,19 @@
     const events = Array.isArray(state.events) ? state.events : [];
     const latest = events.at(-1) || {};
     const elapsedMs = Number.isFinite(state.elapsedMs) ? Math.max(0, state.elapsedMs) : 0;
+    const permissionBadge = run.permissionProfile === 'full-computer'
+      ? 'FULL COMPUTER - broad PC access'
+      : run.permissionProfile === 'workspace'
+        ? 'WORKSPACE - selected project only'
+        : 'No permission profile';
     return Object.freeze({
       phase: latest.phase || (state.busy ? 'preparing' : 'ready'),
       summary: run.result?.text || run.error?.message || latest.summary || 'Ready for an Offline Demo goal.',
       executor: run.executor || 'offline-demo',
       model: run.model || 'offline-demo',
       workspace: run.workspace || 'No workspace selected',
-      permissionBadge: run.permissionProfile === 'workspace' ? 'Workspace' : 'No permission profile',
+      permissionBadge,
+      permissionWarning: run.permissionProfile === 'full-computer',
       elapsed: `${Math.floor(elapsedMs / 1000)}s`,
       canStop: state.busy === true,
       events: events.map((event) => ({ ...event, detail: detailFor(event) })),

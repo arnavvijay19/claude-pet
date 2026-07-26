@@ -18,6 +18,9 @@ const ERROR_CODES = Object.freeze([
   'PROVIDER_OUTPUT_INVALID',
   'ACTIVITY_INVALID',
   'SECRET_STORE_FAILED',
+  'FULL_COMPUTER_CONFIRMATION_REQUIRED',
+  'FULL_COMPUTER_CONFIRMATION_CANCELLED',
+  'NATIVE_FULL_COMPUTER_LAUNCH_FAILED',
 ]);
 
 const PUBLIC_ERROR_BY_CODE = Object.freeze({
@@ -38,6 +41,9 @@ const PUBLIC_ERROR_BY_CODE = Object.freeze({
   PROVIDER_OUTPUT_INVALID: Object.freeze({ message: 'The agent returned an invalid response.', action: 'Try again or choose another agent.' }),
   ACTIVITY_INVALID: Object.freeze({ message: 'The agent returned invalid activity.', action: 'Stop the run and review the agent setup.' }),
   SECRET_STORE_FAILED: Object.freeze({ message: 'Secure settings could not be saved.', action: 'Check secure storage and try again.' }),
+  FULL_COMPUTER_CONFIRMATION_REQUIRED: Object.freeze({ message: 'Full Computer confirmation is required.', action: 'Review the warning and confirm this saved connection.' }),
+  FULL_COMPUTER_CONFIRMATION_CANCELLED: Object.freeze({ message: 'Full Computer was not enabled.', action: 'Choose Workspace or confirm Full Computer when ready.' }),
+  NATIVE_FULL_COMPUTER_LAUNCH_FAILED: Object.freeze({ message: 'The Full Computer agent could not start.', action: 'Check the native agent installation and try again.' }),
 });
 
 class AgentError extends Error {
