@@ -325,6 +325,14 @@ optional — an unlogged session is a failed session even if its code worked). F
   login, or image generation occurred. The user approved the written spec. NEXT: rewrite and review
   the canonical plan tail before any application code or WSL installation.
 
+- **2026-07-26 · Fable 5 (freemodel) · docs reconciliation (no task executed)** — Session launched
+  with the stale Task 13 standard entry prompt; verified Task 13 is already accepted and integrated
+  (all five plan steps `[x]`, `e02a58d` on `master`, fresh suite evidence: canonical Node 150/150,
+  pytest 1/1, clean status). Did not re-execute Task 13, start Task 14, enable Full Computer, or
+  install WSL. Reconciled the "Task 13 only next" leftovers `acb14a7` missed — project-context.md
+  (header link, Working method, Order, Standard entry prompt, Document routing) and the redesign
+  spec's Status/decomposition lines — to Task 14. NEXT: Task 14 via the refreshed entry prompt.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -499,7 +507,8 @@ link the note to it — this file is the inbox, not the archive.
   Computer is the default selection for new Codex/Claude connections, genuine Workspace requires the
   dedicated verified WSL2 boundary, and the complete nine-state Banana Baron animation remains a
   later serial milestone. Task 13 is the only next implementation task; do not start Task 14 or WSL
-  setup before its user gate.
+  setup before its user gate. *(Superseded by the Task 13 acceptance entry above: Task 13 is now
+  integrated and Task 14 is the only next task.)*
 
 - 2026-07-26 `SUPERSEDE:` A live account-free Codex 0.145.0 loopback probe invalidated the draft
   classic five-tool allowlist before implementation. GPT-5.6 Sol/Terra/Luna send a developer
