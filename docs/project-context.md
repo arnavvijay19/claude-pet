@@ -22,16 +22,15 @@ Simple or Comprehensive form.
 
 ## Current state
 
-- Tasks 1-12 are complete. Task 13's implementation and verification are complete on
-  `codex/workspace-boundary-redesign`; its evidence gate and integration are pending. The approved
-  Tasks 14-21 tail remains untouched.
+- Tasks 1-13 are complete and integrated into local `master` at `e02a58d`. Task 14 is the only
+  permitted next task; its implementation has not started.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
 - The WSL Workspace + default Full Computer redesign is committed at `759afe4`, the approved
-  replacement Tasks 13-21 plan checkpoint is committed at `b28d9bb`, and the current gate is the
-  verified Task 13 handoff. Do not begin Task 14 before acceptance and integration.
+  replacement Tasks 13-21 plan checkpoint is committed at `b28d9bb`. The user accepted Task 13's
+  evidence gate and it is integrated; the next gate is Task 14 only.
 - The redesign makes warned **Full Computer** the default selection for new Codex/Claude connections.
   Genuine **Workspace** uses a dedicated, locked WSL2 Ubuntu distribution and never falls back to
   Full Computer.

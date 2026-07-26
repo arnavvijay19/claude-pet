@@ -311,6 +311,11 @@ optional — an unlogged session is a failed session even if its code worked). F
   Node 150/150, pytest 1/1, JavaScript/PowerShell/checklist syntax, and `git diff --check`. No login,
   model run, Full Computer enablement, WSL installation, or Task 14 implementation occurred.
 
+- **2026-07-26 · user acceptance and integration · Task 13** — The user accepted the signed-provider,
+  complete native-matrix, and held-executable evidence. `codex/workspace-boundary-redesign` was
+  fast-forwarded into local `master` at `e02a58d`. Task 14 is the only next task; no Task 14 source,
+  Full Computer authorization, WSL installation, provider login, or model run has begun.
+
 - **2026-07-26 - Codex - WSL Workspace / Full Computer redesign checkpoint** - Committed the
   approved direction as written design `759afe4`: warned Full Computer is the default selection for
   new real-provider connections; genuine Workspace uses a dedicated locked WSL2 distro with no mode
