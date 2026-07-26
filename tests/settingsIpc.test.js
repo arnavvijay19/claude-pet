@@ -2,13 +2,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createSettingsWindowController, registerSettingsIpc } = require('../src/settingsWindow.js');
+const { AgentError } = require('../src/agent/agentErrors.js');
 
-function harness() {
+function harness(managerOverrides = {}) {
   const handlers = new Map();
   const sender = {};
   const selected = [];
   const store = { listConnections: async () => [{ id: 'offline', executorType: 'offline-demo', label: 'Offline Demo', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'offline-demo', effort: null }], getActiveSelection: async () => selected.at(-1) || 'offline', saveConnection: async (value) => ({ ...value, id: 'saved' }), setActiveSelection: async (id) => { selected.push(id); }, removeConnection: async () => true };
-  registerSettingsIpc({ ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) }, sender, store, manager: { getStatus: async () => ({ installed: true }), verifyPermissionProfile: async () => ({ available: true, allowed: true }), beginSetup: async () => ({ started: false }) } });
+  registerSettingsIpc({ ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) }, sender, store, manager: { getStatus: async () => ({ installed: true }), verifyPermissionProfile: async () => ({ available: true, allowed: true }), beginSetup: async () => ({ started: false }), ...managerOverrides } });
   return { handlers, sender, selected };
 }
 
@@ -53,6 +54,17 @@ test('accepts only registered Workspace Claude models and starts the selected of
   await assert.rejects(handlers.get('settings:save')({ sender }, { ...draft, modelId: 'not-listed' }));
   await assert.rejects(handlers.get('settings:save')({ sender }, { ...draft, effort: 'unsupported' }));
   assert.deepEqual(await handlers.get('settings:setup')({ sender }), { started: false });
+});
+
+test('returns a safe permission diagnostic instead of throwing for a saved Codex connection', async () => {
+  const { handlers, sender } = harness({ verifyPermissionProfile: async () => { throw new AgentError('PERMISSION_PROFILE_UNAVAILABLE'); } });
+  const result = await handlers.get('settings:test')({ sender });
+  assert.deepEqual(result.failure, {
+    code: 'PERMISSION_PROFILE_UNAVAILABLE',
+    message: 'The permission profile is unavailable.',
+    action: 'Choose an available permission profile.',
+    requestId: null,
+  });
 });
 
 test('recreates Settings after the user closes its previous window', () => {

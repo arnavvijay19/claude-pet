@@ -1,6 +1,7 @@
 'use strict';
 const path = require('node:path');
 const { createSettingsViewModel } = require('./settings/settingsViewModel.js');
+const { toPublicError } = require('./agent/agentErrors.js');
 const { EFFORTS, MODEL_IDS } = require('./agent/executors/codexModels.js');
 const { EFFORTS: CLAUDE_EFFORTS, MODEL_IDS: CLAUDE_MODEL_IDS } = require('./agent/executors/claudeModels.js');
 
@@ -34,7 +35,12 @@ function registerSettingsIpc({ ipcMain, sender, store, manager }) {
     assertSender(event);
     const activeId = await store.getActiveSelection();
     const active = (await store.listConnections()).find((connection) => connection.id === activeId);
-    return { executorType: active?.executorType || null, status: await manager.getStatus(), permission: await manager.verifyPermissionProfile() };
+    const executorType = active?.executorType || null;
+    try {
+      return { executorType, status: await manager.getStatus(), permission: await manager.verifyPermissionProfile() };
+    } catch (error) {
+      return { executorType, failure: toPublicError(error) };
+    }
   });
   ipcMain.handle('settings:setup', async (event) => { assertSender(event); return manager.beginSetup(); });
 }

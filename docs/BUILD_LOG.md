@@ -290,6 +290,13 @@ optional — an unlogged session is a failed session even if its code worked). F
   Settings diagnostic and one-row control layout in `docs/evidence/task-12-claude-agent.png`; no live
   model run occurred. Stop here for the Task 12 user test gate; do not begin Task 13.
 
+- **2026-07-26 · Codex (GPT-5) · Task 12 Settings diagnostic correction** — A saved active
+  Codex connection correctly reached the fail-closed permission probe, but Settings caught that
+  public error and incorrectly displayed “Select a saved connection first.” Settings now returns
+  the allowlisted `toPublicError()` result and displays its public message; no raw process output
+  crosses IPC. Regression test: focused Node 8/8; final Node 106/106, pytest 1/1, and diff check
+  passed. Restart the app before re-running the manual Task 12 gate.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
