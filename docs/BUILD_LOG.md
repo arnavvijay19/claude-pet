@@ -297,6 +297,15 @@ optional — an unlogged session is a failed session even if its code worked). F
   crosses IPC. Regression test: focused Node 8/8; final Node 106/106, pytest 1/1, and diff check
   passed. Restart the app before re-running the manual Task 12 gate.
 
+- **2026-07-26 - Codex - WSL Workspace / Full Computer redesign checkpoint** - Committed the
+  approved direction as written design `759afe4`: warned Full Computer is the default selection for
+  new real-provider connections; genuine Workspace uses a dedicated locked WSL2 distro with no mode
+  fallback; the complete nine-state Banana Baron atlas is a separate milestone. Security review added
+  explicit Claude/Codex non-local-tool gates, NTFS hardlink/path-race defenses, WSL host-integration
+  probes, and revision/nonce-bound native confirmation. Docs only: no app code, WSL install, provider
+  login, or image generation occurred. The user approved the written spec. NEXT: rewrite and review
+  the canonical plan tail before any application code or WSL installation.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
@@ -444,3 +453,25 @@ link the note to it — this file is the inbox, not the archive.
 - 2026-07-25 `GOTCHA:` The setup marker and sandbox users alone do not prove a usable native Windows
   sandbox. After local firewall policy was restored, the direct built-in `:workspace` probe still
   fails with `CreateProcessWithLogonW failed: 2`; retain the executable probe as the gate.
+
+- 2026-07-26 `FIX:` Production CLI discovery is currently broken: `resolveWithWhere()` references
+  undefined `spec.visible`. Codex/Claude tests inject a resolver and miss the default path; repair it
+  with a real default-resolution regression before either native executor is advertised.
+
+- 2026-07-26 `SUPERSEDE:` Task 10's production outside-read target is inside intentionally readable
+  `CODEX_HOME`, so that check is invalid, and its early throw skipped outside-write/network/hostile
+  checks. A separate sibling-path `Z:\` probe still proves native outside reads; aggregate every
+  future probe result and never use runtime/auth/temp paths as outside fixtures.
+
+- 2026-07-26 `SUPERSEDE:` The unimplemented Tasks 13-15 tail assumes Workspace-default native
+  execution and only adds Full Computer UI. The reviewed redesign at `759afe4` instead makes warned
+  Full Computer the default for new real connections and requires a dedicated WSL2 boundary for
+  genuine Workspace. Do not execute the old tail before the written-spec and plan gates.
+
+- 2026-07-26 `GOTCHA:` This Windows 10 Home machine has WSL and Virtual Machine Platform enabled, but
+  no WSL2 kernel file or distro. The dedicated Ubuntu setup, Linux CLIs, bubblewrap/socat, locked
+  policies, mount broker, and hostile probes are future implementation work, not current capability.
+
+- 2026-07-26 `IDEA:` The prepared Post-Hoc Banana Baron run has complete base/idle assets and uses
+  `canonical-base-small.png` to avoid the prior 5 MB/413 failures. Generate and validate the remaining
+  rows as a separate milestone before atomically replacing Claude Pet's idle-only atlas.

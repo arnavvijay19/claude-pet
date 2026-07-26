@@ -6,8 +6,12 @@ desktop pet.
 Details live in [superpowers/specs/claude-pet-spec.md](superpowers/specs/claude-pet-spec.md) (what
 and why),
 [superpowers/specs/2026-07-22-agent-first-provider-redesign.md](superpowers/specs/2026-07-22-agent-first-provider-redesign.md)
-(approved redesign), [superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md)
-(exact tasks), [RESEARCH.md](RESEARCH.md) (evidence), and [BUILD_LOG.md](BUILD_LOG.md) (history).
+(original approved redesign),
+[superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md](superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md)
+(approved written redesign; implementation-plan review next),
+[superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md)
+(Tasks 1-12 only until the tail is rewritten), [RESEARCH.md](RESEARCH.md) (evidence), and
+[BUILD_LOG.md](BUILD_LOG.md) (history).
 
 ## One sentence
 
@@ -17,23 +21,31 @@ Simple or Comprehensive form.
 
 ## Current state
 
-- Tasks 1-12 are complete; Task 12's Claude Code executor uses a dedicated `CLAUDE_CONFIG_DIR`,
-  strict safe-mode invocation, sanitized activity, and Settings diagnostics. Claude Workspace Agent
-  remains fail-closed because safe mode alone is not an enforceable outside-read, outside-write, and
-  child-network boundary; do not weaken the Workspace profile to make it appear available.
+- Tasks 1-12 are complete. The written redesign is approved; application implementation remains
+  paused while the contradictory old Tasks 13-15 tail is replaced and reviewed.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
-- The next incomplete work is **Task 13: Advanced Full Computer permission profile**. Do not begin
-  it until Task 12's branch is integrated and its user test gate is accepted.
+- The WSL Workspace + default Full Computer redesign is committed at `759afe4` and approved by the
+  user. The next gate is the replacement implementation-plan review.
+- The redesign makes warned **Full Computer** the default selection for new Codex/Claude connections.
+  Genuine **Workspace** uses a dedicated, locked WSL2 Ubuntu distribution and never falls back to
+  Full Computer.
+- No WSL2 kernel or Linux distribution is installed yet. WSL and Virtual Machine Platform features
+  are enabled; setup is a later approved implementation milestone, not part of this docs checkpoint.
 - No AI account is required for canonical Task 10 tests. Task 9 shipped the built-in Offline Demo
   runtime, normal Settings/response flows, and the visible pet renderer; fake processes cover CLI
-  adapters. Task 10 added the bounded CLI/process-tree/profile foundation; the local Codex 0.145.0
-  installation meets the version baseline and the app-owned profile requests an elevated sandbox. The
-  standalone helper-launch gap was repaired by installing the matching `codex-command-runner.exe`
-  beside the launcher; `:workspace` now starts commands. Workspace Agent remains fail-closed because
-  the hostile probe correctly detects the native Windows outside-read limitation.
+  adapters. The native Codex/Claude foundation is not currently runnable in production because
+  `resolveWithWhere()` references undefined `spec.visible`; tests inject a resolver and miss it.
+- The production Codex outside-read target is invalid because it lives in intentionally readable
+  `CODEX_HOME`, and its early failure skipped later hostile checks. A separate sibling-path probe still
+  proves native `Z:\` outside reads are possible. Do not advertise native Windows as Workspace-safe.
+- Claude safe mode isolates customization, not the operating system. Workspace remains unavailable
+  until the dedicated WSL boundary and complete hostile gate are implemented and pass.
+- Claude Pet still ships only the six-frame idle strip. The prepared Post-Hoc Banana Baron run has
+  complete base/idle sources; seven distinct generated rows and the derived or independently
+  generated left-running row remain pending. The full nine-state atlas is a separate milestone.
 - Real Codex or Claude Code runs are optional smoke tests when the tester is already signed in.
 
 ## Architecture
@@ -62,25 +74,34 @@ Context-isolated vanilla-JS renderers
 └─ settings/                  connection/workspace/permissions/model UI
 ~~~
 
+Planned security boundary (not implemented): Electron main selects an immutable native Full Computer
+run or launches the exact app-owned `ClaudePetWorkspace` WSL2 distro. A root-owned broker mounts only
+the selected project at `/workspace`, hides Windows/WSL integration surfaces, drops to a no-`sudo`
+user, and requires the official Codex or Claude WSL sandbox plus complete hostile probes.
+
 ## Architectural rules
 
 1. **Agent-first.** One goal may perform many tool actions; there is still only one run at a time.
-2. **Workspace is the default boundary.** Reads, writes, and child network outside the selected
-   workspace are denied except for minimal runtime/auth paths. Codex ignores hostile project config,
-   hooks, and rules; Claude uses safe mode. A prompt instruction is not a security boundary.
-3. **Full Computer is advanced opt-in.** It requires a main-owned native warning bound to the
-   connection and remains visibly badged; renderer state is never confirmation proof.
-4. **Provider login stays official.** The app launches official CLI auth and never reads tokens.
-5. **Connection changes are snapshot-safe.** Workspace, permissions, model, and effort changes affect
+2. **Full Computer is the default selection for new real-provider connections.** It remains optional:
+   one main-owned native warning per saved connection is required, and every run stays visibly badged.
+   Renderer state is never confirmation proof.
+3. **Workspace is a real WSL boundary or unavailable.** Only the selected project is exposed from
+   Windows; automount, interop, lower policy sources, unsafe tool surfaces, and child network are off.
+   A prompt, safe mode, Windows ACL tweak, or setup marker is not a security boundary.
+4. **No fallback.** Each immutable run uses exactly the selected mode or fails with a public error.
+5. **Provider login stays official.** The app launches official CLI auth and never reads tokens.
+6. **Connection changes are snapshot-safe.** Workspace, permissions, model, and effort changes affect
    only the next run.
-6. **Activity is structured.** Both live views consume recursively sanitized discriminated events;
+7. **Activity is structured.** Both live views consume recursively sanitized discriminated events;
    renderers never parse raw CLI streams.
-7. **Sensitive output stays in main.** No credentials, environment dumps, hidden reasoning, raw
+8. **Sensitive output stays in main.** No credentials, environment dumps, hidden reasoning, raw
    stderr, or unbounded command output crosses IPC.
-8. **Direct APIs wait for a real tool loop.** Do not ship chat-only OpenAI, Anthropic, or custom
+9. **Direct APIs wait for a real tool loop.** Do not ship chat-only OpenAI, Anthropic, or custom
    endpoints as substitutes.
-9. **The pet renderer stays unprivileged.** No Node, direct filesystem, provider CLI, or network.
-10. **Every milestone is runnable.** Do not stack invisible backend phases until the end.
+10. **The pet renderer stays unprivileged.** No Node, direct filesystem, provider CLI, or network.
+11. **Animations switch atomically.** Keep the idle MVP until the complete nine-state atlas passes
+    deterministic and visual QA.
+12. **Every milestone is runnable.** Do not stack invisible backend phases until the end.
 
 ## Remaining build phases
 
@@ -91,9 +112,12 @@ Context-isolated vanilla-JS renderers
 | Offline agent shell | 9 | Workspace/text Settings, response window, Simple activity | Runnable Offline Demo screenshot and checklist |
 | Codex Workspace Agent | 10-11 | Isolated Codex execution plus Comprehensive activity | Sandbox probes, fake-process tests, optional live smoke |
 | Claude Code Agent | 12 | Claude executor behind the same contract | Parity tests and fail-closed Settings diagnostic |
-| Advanced permissions | 13 | Full Computer opt-in, warnings, permission switching | Adversarial boundary tests and screenshot |
-| Pet integration | 14 | Renderer, file drop, terminal goals, tray switching, Stop | Offline end-to-end run and visual evidence |
-| Shareable test build | 15 | Unsigned Windows x64 package and first-run guide | Packaged launch with empty connection store |
+| Written redesign | approved | WSL/Full Computer/animation boundary and milestones | `759afe4` plus user approval |
+| Prerequisite repair | pending replan | Production CLI resolution and valid aggregate probes | Real default resolver and sibling-target regressions |
+| Full Computer | pending replan | Warned native mode, default for new real connections | Native cancel/accept/badge adversarial gate |
+| Genuine Workspace | pending replan | Dedicated WSL broker plus Codex/Claude sandboxes | Complete generic and provider hostile matrices |
+| Complete animations | pending replan | Validated nine-state Post-Hoc Banana Baron atlas | Contact sheet, previews, manifest tests, real Electron QA |
+| Final integration/package | pending replan | Pet/files/tray flow and unsigned Windows test build | Offline E2E, secret scan, packaged first run |
 
 Direct API agent loops, multiple agents, schedules, and persistent history remain deferred.
 
@@ -101,6 +125,8 @@ Direct API agent loops, multiple agents, schedules, and persistent history remai
 
 - One implementation session executes one numbered task, verifies it, updates BUILD_LOG.md, and
   commits it.
+- Do not start another implementation session until the writing-plans workflow replaces the
+  contradictory old Tasks 13-15 tail and the user approves that replacement plan.
 - Start each task with a concise ETA and revise it only when the estimate materially changes.
 - Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
@@ -126,14 +152,16 @@ Offline Demo exposes only `offline-demo`. Unlisted values and silent fallback ar
 
 ## Order
 
-Tasks 6-15 are serial because each consumes contracts and files from prior tasks. Do not run them
-in parallel worktrees unless the plan explicitly isolates a correction.
+Tasks 1-12 remain complete. The written redesign is approved. The existing Tasks 13-15 are paused and
+must not be executed; the writing-plans workflow now replaces only that unfinished tail with serial
+prerequisite, Full Computer, WSL Workspace, animation, integration, and packaging milestones.
 
 ## Standard entry prompt
 
-> Read Claude Pet/docs/project-context.md and Claude Pet/docs/BUILD_LOG.md, then execute the next
-> incomplete task in Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md. One task only.
-> Follow the session contract and stop at every user test gate.
+> Read Claude Pet/docs/project-context.md, Claude Pet/docs/BUILD_LOG.md, and
+> Claude Pet/docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md. Do not execute
+> old Task 13 or install WSL. Wait for the replacement implementation plan to be committed and
+> explicitly approved, then execute its next incomplete numbered task only.
 
 ## Session contract
 
@@ -153,6 +181,8 @@ Every implementation session must:
 
 - Product requirements: `superpowers/specs/claude-pet-spec.md`
 - Approved agent-first design: `superpowers/specs/2026-07-22-agent-first-provider-redesign.md`
-- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md`
+- Current boundary/animation redesign: `superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md`
+- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md` (Tasks 1-12 only until
+  the approved plan rewrite)
 - Evidence and rationale: `RESEARCH.md`
 - Session history and handoffs: `BUILD_LOG.md`

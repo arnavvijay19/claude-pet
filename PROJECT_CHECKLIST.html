@@ -264,8 +264,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Task 12 is complete. Do not begin Task 13 until this branch is integrated.</p>
-      <p><strong>What you need to do:</strong> Claude Code is available through the official CLI with strict Workspace safeguards. Keep its Workspace profile fail-closed unless a future verified OS boundary proves outside reads, writes, and child network are denied.</p>
+      <p><strong>Next:</strong> The written WSL Workspace + default Full Computer design is approved. The old Tasks 13-15 stay paused while their replacement plan is written.</p>
+      <p><strong>What you need to do:</strong> Nothing during the rewrite. Do not install WSL or run implementation yet. Review the replacement numbered plan when it is committed; native Windows is not Workspace-safe, so genuine Workspace uses a dedicated WSL2 boundary with no fallback.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -287,13 +287,14 @@
       <ul>
         <li><a href="docs/project-context.md">Current project context</a></li>
         <li><a href="docs/BUILD_LOG.md">Build history</a></li>
-        <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Tasks 1–15 plan</a></li>
+        <li><a href="docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md">WSL Workspace + Full Computer redesign</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Tasks 1-12 only until rewritten)</a></li>
       </ul>
     </section>
 
     <footer>
       <button id="reset" type="button">Reset checklist</button>
-      <p>This page saves checkmarks and notes in your browser. It does not change the app. Delete this file after Task 15 is finished and verified.</p>
+      <p>This page saves checkmarks and notes in your browser. It does not change the app. Delete this file after the final replacement plan is finished and verified.</p>
     </footer>
   </main>
 
@@ -366,45 +367,45 @@
       },
       {
         id: 'task-10',
-        title: 'Task 10 — Add the safe Codex process boundary',
+        title: 'Task 10 — Add the Codex process/profile foundation',
         done: true,
-        explanation: 'The bounded official-Codex process boundary, Windows process-tree Stop, and fail-closed Workspace probe are complete. The standalone helper launch was repaired; native Windows still rejects Workspace availability when inherited outside-read ACLs cannot be enforced.',
-        action: 'Nothing. Task 10 is complete. Do not advertise Workspace Agent on this machine; integrate this branch before starting Task 11.',
+        explanation: 'The bounded runner, process-tree Stop, and profile foundation were delivered. A later audit found the default production resolver is broken and the production outside-read fixture is invalid; the replacement plan must repair both before any real CLI run.',
+        action: 'Nothing to test now. Keep native Workspace unavailable and do not advertise this foundation as a finished OS boundary.',
       },
       {
         id: 'task-11',
         title: 'Task 11 — Add the Codex Workspace Agent',
         done: true,
-        explanation: 'The official Codex Workspace Agent, fixed model/effort registry, hermetic CLI boundary, and detailed Comprehensive activity view are verified with deterministic evidence.',
+        explanation: 'The Codex model/effort registry, executor mapping, Settings flow, and Comprehensive activity view have deterministic evidence. Real Workspace execution remains unavailable until the production repair and dedicated WSL boundary pass.',
         action: 'Nothing. This task is complete.',
       },
       {
         id: 'task-12',
         title: 'Task 12 — Add the Claude Code Agent',
         done: true,
-        explanation: 'The official Claude Code CLI executor, exact model registry, sanitized stream activity, and Settings diagnostics are verified. Saved Codex and Claude connections now report their safe permission result rather than a misleading missing-connection message. Workspace execution stays unavailable until an enforceable outside-read, outside-write, and child-network boundary exists.',
-        action: 'Nothing. Task 12 is complete. Do not start Task 13 until this branch is integrated.',
+        explanation: 'The Claude CLI executor, exact model registry, sanitized stream activity, and Settings diagnostics are verified. Safe mode is configuration isolation, not an OS boundary, so genuine Workspace remains unavailable until WSL passes.',
+        action: 'Nothing. Task 12 and the written redesign review gate are complete.',
       },
       {
         id: 'task-13',
-        title: 'Task 13 — Add the Full Computer warning',
+        title: 'Task 13 — Paused for boundary redesign',
         done: false,
-        explanation: 'This creates the advanced, risky permission option with a native warning and clear Full Computer badges.',
-        action: 'At the test gate, cancel the warning once and confirm nothing changes. Then accept it for a test connection and confirm the Full Computer badge stays visible.',
+        explanation: 'The old Task 13 is obsolete. The committed redesign makes warned Full Computer the default for new real-provider connections and requires genuine Workspace to run in a dedicated locked WSL2 distro with no fallback.',
+        action: 'The written spec is approved. Wait for the replacement implementation plan review; do not implement or install WSL yet.',
       },
       {
         id: 'task-14',
-        title: 'Task 14 — Connect the pet, files, prompts, and agents',
+        title: 'Task 14 — Await replacement WSL and animation milestones',
         done: false,
-        explanation: 'This joins the visible pet to the complete agent flow and adds deliberate text-file input.',
-        action: 'Test an Offline Demo goal, deliberately drop a small UTF-8 text file, inspect both activity views, press Stop during a delayed run, switch settings, and report anything confusing.',
+        explanation: 'The replacement plan will separate production CLI repair, Full Computer, WSL Workspace, and the complete nine-state Post-Hoc Banana Baron atlas into verified gates.',
+        action: 'Wait for the replacement plan to be written and reviewed. The current Task 14 steps are not executable.',
       },
       {
         id: 'task-15',
-        title: 'Task 15 — Make the shareable Windows package',
+        title: 'Task 15 — Await replacement integration/package plan',
         done: false,
-        explanation: 'This builds the clean Windows folder and zip, adds the permanent README, scans for private data, and verifies a fresh first run.',
-        action: 'Launch the packaged app with a clean profile, acknowledge the expected unsigned SmartScreen warning, test Offline Demo, and keep the final package path and hash. After approval, this checklist can be deleted.',
+        explanation: 'Final pet/file/tray integration and the shareable Windows build remain required, but they follow the new security and animation milestones.',
+        action: 'Do not package the old tail. Wait for the replacement plan and its user gates.',
       },
     ]);
 

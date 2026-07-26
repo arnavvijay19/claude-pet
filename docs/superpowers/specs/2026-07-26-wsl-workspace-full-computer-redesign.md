@@ -1,6 +1,6 @@
 # Claude Pet WSL Workspace and Full Computer Redesign
 
-**Status:** Approved design direction, written-spec review pending
+**Status:** Approved by the user; implementation-plan review pending
 
 **Date:** 2026-07-26
 
