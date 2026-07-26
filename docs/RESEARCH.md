@@ -117,6 +117,13 @@ Research refreshed 2026-07-26. Primary sources: [Electron safeStorage](https://e
   installs provide valid Authenticode publishers (`OpenAI OpCo, LLC` and `Anthropic, PBC`); the plan
   binds fixed official roots, canonical file identity/hash/signature, and exact tested version before
   status, login, probes, or execution.
+- The official Codex Desktop 0.145.0 install on this machine uses an exact two-junction chain:
+  installer `bin` targets `%USERPROFILE%\.codex\packages\standalone\current\bin`, then standalone
+  `current` targets `releases\0.145.0-x86_64-pc-windows-msvc`. The signed `codex.exe` has empty PE
+  FileVersion/ProductVersion fields. A blanket reparse or PE-version rule would reject the genuine
+  install. Task 13 permits only that ordered version-pinned chain, rejects every other reparse target,
+  and proves version with held canonical-path `codex --version` output plus signature/hash/file
+  identity. Claude remains an ordinary non-reparse executable with populated PE version metadata.
 - Codex 0.145.0 currently reports browser, full-CDP browser, computer-use, image-generation, apps,
   plugins, and other non-local feature surfaces enabled. Disabling only web/apps/hooks is insufficient;
   both modes use an exact-version feature policy plus exact protocol/registry equality and fail on an

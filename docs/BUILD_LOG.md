@@ -297,6 +297,20 @@ optional — an unlogged session is a failed session even if its code worked). F
   crosses IPC. Regression test: focused Node 8/8; final Node 106/106, pytest 1/1, and diff check
   passed. Restart the app before re-running the manual Task 12 gate.
 
+- **2026-07-26 · Codex · Task 13 (native CLI discovery and evidence repair)** — Replaced the broken
+  production resolver with bounded absolute `where.exe` discovery, bound Codex and Claude status,
+  setup, diagnostics, and runs to fresh single-use signed executable leases, and held the verified
+  file against overwrite/rename/delete through child creation. The only Codex reparse exception is
+  the exact ordered installer `bin` → standalone `current\\bin` → pinned `0.145.0` release chain;
+  Claude 2.1.217 remains non-reparse. Real account-free discovery verified OpenAI publisher/hash
+  `83751f15cb6a0a7b97df67752c001e3fe1c20e18ffbfec3ff63567296205eb6c` and Anthropic publisher/hash
+  `6e4a3a4679f381178a90cf741de9ce924a3274304b09277695ac3a679628ca17` without exposing paths.
+  The complete native matrix passed workspace read/write, outside-write denial, hostile-project
+  isolation, hook isolation, and cleanup; outside-read and child-network denial failed, so native
+  Windows remains fail-closed as not Workspace-safe. Fresh evidence: focused Node 67/67, canonical
+  Node 150/150, pytest 1/1, JavaScript/PowerShell/checklist syntax, and `git diff --check`. No login,
+  model run, Full Computer enablement, WSL installation, or Task 14 implementation occurred.
+
 - **2026-07-26 - Codex - WSL Workspace / Full Computer redesign checkpoint** - Committed the
   approved direction as written design `759afe4`: warned Full Computer is the default selection for
   new real-provider connections; genuine Workspace uses a dedicated locked WSL2 distro with no mode
@@ -495,3 +509,10 @@ link the note to it — this file is the inbox, not the archive.
   re-reviews with no P0/P1 findings, their targeted 16/17-assertion boundary scans, Markdown fence/
   link/task-heading checks, checklist JavaScript syntax, `git diff --check`, canonical Node 106/106,
   and pytest 1/1.
+
+- 2026-07-26 `SUPERSEDE:` Live raw-target inspection corrected the earlier one-junction note: Codex
+  Desktop 0.145.0 uses an exact two-junction chain, launcher `bin` to standalone `current\\bin`, then
+  standalone `current` to `releases\\0.145.0-x86_64-pc-windows-msvc`; the held final executable is in
+  that versioned release. Task 13 must match both raw targets plus the canonical target, not merely
+  allow any reparse component. The signed Codex PE still has empty FileVersion/ProductVersion and
+  requires held-path `codex --version`; Claude 2.1.217 is non-reparse with PE version 2.1.217.0.

@@ -687,10 +687,16 @@ Commit: `feat: add Claude Code agent executor`
 - Create: `src/agent/nativeCliLaunchLease.js`
 - Modify: `src/agent/codexPermissionProfile.js`
 - Modify: `src/agent/executors/codexCli.js`
+- Modify: `src/agent/executors/claudeCodeCli.js`
 - Test: `tests/cliRunner.test.js`
 - Create: `tests/nativeCliDiscovery.test.js`
 - Create: `tests/nativeCliLaunchLease.test.js`
 - Test: `tests/codexPermissionProfile.test.js`
+- Test: `tests/codexCli.test.js`
+- Test: `tests/claudeCodeCli.test.js`
+- Modify: `docs/RESEARCH.md`
+- Modify: `docs/project-context.md`
+- Modify: `docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md`
 - Modify: `docs/BUILD_LOG.md`
 - Modify: `PROJECT_CHECKLIST.html`
 
@@ -702,13 +708,20 @@ Commit: `feat: add Claude Code agent executor`
   `.cmd`/`.bat` launch targets are rejected rather than returned directly.
 - `discoverSignedNativeCli({ provider, workspacePath, environment, inspectCandidate })` returns a
   main-only immutable binding `{ path, sha256, volumeSerial, fileId, version, publisher }`. It accepts
-  only an absolute regular non-reparse `.exe` beneath the provider's fixed official install roots,
-  outside the workspace/repository/temp, with a valid Authenticode chain, exact publisher
-  (`OpenAI OpCo, LLC` or `Anthropic, PBC`), and exact tested version.
+  only an absolute regular `.exe` beneath the provider's fixed official install roots, outside the
+  workspace/repository/temp, with a valid Authenticode chain, exact publisher (`OpenAI OpCo, LLC` or
+  `Anthropic, PBC`), and exact tested CLI version. Claude permits no reparse component. The current
+  official Codex Desktop install is the sole pinned exception: its exact two-junction chain is
+  installer `bin` to standalone `current\\bin`, then standalone `current` to the exact versioned
+  release root declared below. The lexical launcher, both raw targets, and held canonical target must
+  all match; every other reparse component/target is rejected.
 - `openVerifiedNativeCliLaunchLease(binding, { helper, runner })` opens the candidate with
   `FILE_SHARE_READ` only (no write or delete sharing), compares final path, file identity, hash,
-  Authenticode chain/publisher, file version, and CLI version against the binding while that handle is
-  held, and returns a main-only single-use `launch(spec)` capability. `launch` creates the child by
+  Authenticode chain/publisher, optional PE file version, and required CLI version against the binding
+  while that handle is held, and returns a main-only single-use `launch(spec)` capability. The signed
+  Codex 0.145.0 executable has empty PE FileVersion/ProductVersion fields, so an absent PE version is
+  not accepted as proof or treated as failure: exact held-path `codex --version` output is mandatory.
+  `launch` creates the child by
   the held object's canonical path while the no-write/no-delete-share handle remains open. The lease
   closes only after the child reports successful creation, or deterministically on rejection,
   timeout, abort, launch failure, or caller cleanup. A check-then-close-then-spawn path is forbidden.
@@ -725,7 +738,7 @@ Commit: `feat: add Claude Code agent executor`
   `PERMISSION_PROFILE_UNAVAILABLE` unless every collected result passes. Task 14 removes native
   Windows from the Workspace execution registry.
 
-- [ ] **Step 1: Add failing production-path and aggregate-probe regressions**
+- [x] **Step 1: Add failing production-path and aggregate-probe regressions**
 
 In `tests/cliRunner.test.js`, add an injected `where.exe` child and prove the diagnostic resolver
 reads all absolute candidates without evaluating an undefined variable. Assert the exact safe cwd,
@@ -748,9 +761,11 @@ Add a Windows-only test that uses an otherwise uninjected `createCliRunner()` to
 current injected executor tests miss.
 
 In `tests/nativeCliDiscovery.test.js`, cover a workspace-local first `where.exe` match, relative PATH
-entry, symlink/reparse point, `.cmd` shim, wrong root, bad/unknown signature, wrong publisher/version,
-path/hash/file-ID replacement after discovery, and a valid signed binding for each provider. The
-workspace-local candidate must never be executed even if it prints a convincing version.
+entry, arbitrary symlink/reparse point, wrong Codex junction target, the one exact pinned Codex
+junction, `.cmd` shim, wrong root, bad/unknown signature, wrong publisher/version, empty Codex PE
+version plus valid/invalid held CLI version, path/hash/file-ID replacement after discovery, and a
+valid signed binding for each provider. The workspace-local candidate must never be executed even if
+it prints a convincing version.
 
 In `tests/nativeCliLaunchLease.test.js`, prove every status/login/probe/run launch holds a real
 no-write/no-delete-share handle while final identity/signature/hash/version checks run and until the
@@ -758,6 +773,11 @@ child-created event. Cover deterministic handle/helper release on every outcome.
 post-discovery replacement case, pause immediately after the final verification, concurrently try to
 rename/delete/overwrite/swap the executable, and require that final swap to fail until child creation;
 the launched child must be the verified file identity, never the replacement.
+
+In `tests/codexCli.test.js` and `tests/claudeCodeCli.test.js`, prove each status, visible setup, native
+diagnostic, and run child uses a fresh signed binding and fresh launch lease. Reject relative
+workspaces before discovery, fail a successful command when lease cleanup fails, and preserve the
+original public command error when cleanup also fails.
 
 In `tests/codexPermissionProfile.test.js`, make the first outside-read probe fail, later probes
 succeed/fail in a mixed order, and assert that all stable IDs ran:
@@ -774,19 +794,19 @@ Assert that the default outside-fixture factory creates a new sibling directory 
 never under `codexHome`, `TEMP`, or the selected workspace. An injected test factory may return only
 a previously validated sibling fixture. Cover profile restoration and cleanup failure.
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run:
 
 ~~~powershell
-npm.cmd test -- tests/cliRunner.test.js tests/nativeCliDiscovery.test.js tests/nativeCliLaunchLease.test.js tests/codexPermissionProfile.test.js
+npm.cmd test -- tests/cliRunner.test.js tests/nativeCliDiscovery.test.js tests/nativeCliLaunchLease.test.js tests/codexPermissionProfile.test.js tests/codexCli.test.js tests/claudeCodeCli.test.js
 ~~~
 
 Expected: the resolver test fails on `spec is not defined`; aggregate evidence and sibling-fixture
 assertions fail because the current probe throws at the first mismatch and derives its target beside
 the supplied sentinel.
 
-- [ ] **Step 3: Repair diagnostic discovery and bind production launches to signed executables**
+- [x] **Step 3: Repair diagnostic discovery and bind production launches to signed executables**
 
 `resolveCommandCandidatesWithWhere` invokes absolute `where.exe` with `cwd` fixed to System32 and a
 startup-captured PATH after rejecting relative/empty entries. It parses every bounded line, requires
@@ -804,6 +824,24 @@ derived from Windows known folders:
 const NATIVE_CLI_POLICY = Object.freeze({
   'codex-cli': Object.freeze({
     roots: [join(LOCALAPPDATA, 'Programs', 'OpenAI', 'Codex')],
+    allowedJunction: Object.freeze({
+      path: join(LOCALAPPDATA, 'Programs', 'OpenAI', 'Codex', 'bin'),
+      target: join(USERPROFILE, '.codex', 'packages', 'standalone', 'releases',
+        '0.145.0-x86_64-pc-windows-msvc', 'bin'),
+      reparseChain: Object.freeze([
+        Object.freeze({
+          path: join(LOCALAPPDATA, 'Programs', 'OpenAI', 'Codex', 'bin'),
+          rawTarget: join(USERPROFILE, '.codex', 'packages', 'standalone', 'current', 'bin'),
+          type: 'junction',
+        }),
+        Object.freeze({
+          path: join(USERPROFILE, '.codex', 'packages', 'standalone', 'current'),
+          rawTarget: join(USERPROFILE, '.codex', 'packages', 'standalone', 'releases',
+            '0.145.0-x86_64-pc-windows-msvc'),
+          type: 'junction',
+        }),
+      ]),
+    }),
     publisher: 'OpenAI OpCo, LLC', version: '0.145.0', executable: 'codex.exe',
   }),
   'claude-code-cli': Object.freeze({
@@ -814,13 +852,16 @@ const NATIVE_CLI_POLICY = Object.freeze({
 ~~~
 
 Discovery rejects a root/candidate that is inside the selected workspace, repository, app temp, or
-contains a reparse component. Status, visible official login, diagnostics, and each run acquire a
-fresh verified launch lease; verification never closes its handle before the child is created.
+contains a reparse component other than the exact pinned two-junction Codex launcher chain above. The
+lexical path, both ordered raw targets, held canonical target, and versioned package root must all
+match; it never authorizes a caller/`where.exe`-selected target. Both provider executors acquire a
+fresh verified launch lease for status, visible official login, diagnostics, and each run;
+verification never closes its handle before the child is created.
 `createCliRunner` rejects non-absolute resolved commands, always uses `shell: false`,
 passes `windowsHide: spec.visible !== true`, preserves JSONL/timeout/Stop bounds, and maps absence of
 a valid signed candidate to `CLI_NOT_INSTALLED` without exposing paths or signer details to renderers.
 
-- [ ] **Step 4: Replace the invalid outside target and aggregate every result**
+- [x] **Step 4: Replace the invalid outside target and aggregate every result**
 
 Create one unique sibling fixture root with `fs.mkdtemp(path.join(path.dirname(workspacePath),
 '.claude-pet-native-outside-'))`. Put both outside-read and outside-write sentinels there with
@@ -841,12 +882,12 @@ return Object.freeze({ available: results.every((item) => item.passed), results 
 The report may name stable probe IDs and exit codes only. Do not expose fixture paths, file contents,
 network addresses, stderr, environment values, or usernames.
 
-- [ ] **Step 5: Verify, document, commit, and stop**
+- [x] **Step 5: Verify, document, commit, and stop**
 
 Run:
 
 ~~~powershell
-npm.cmd test -- tests/cliRunner.test.js tests/nativeCliDiscovery.test.js tests/nativeCliLaunchLease.test.js tests/codexPermissionProfile.test.js
+npm.cmd test -- tests/cliRunner.test.js tests/nativeCliDiscovery.test.js tests/nativeCliLaunchLease.test.js tests/codexPermissionProfile.test.js tests/codexCli.test.js tests/claudeCodeCli.test.js
 npm.cmd test
 py -m pytest -q
 git diff --check
@@ -858,7 +899,7 @@ final-swap regression pass; and native Windows remains unavailable as Workspace-
 build log/checklist and commit:
 
 ~~~powershell
-git add resources/windows/inspect-native-cli.ps1 src/agent/cliRunner.js src/agent/nativeCliDiscovery.js src/agent/nativeCliLaunchLease.js src/agent/codexPermissionProfile.js src/agent/executors/codexCli.js tests/cliRunner.test.js tests/nativeCliDiscovery.test.js tests/nativeCliLaunchLease.test.js tests/codexPermissionProfile.test.js docs/BUILD_LOG.md PROJECT_CHECKLIST.html
+git add resources/windows/inspect-native-cli.ps1 src/agent/cliRunner.js src/agent/nativeCliDiscovery.js src/agent/nativeCliLaunchLease.js src/agent/codexPermissionProfile.js src/agent/executors/codexCli.js src/agent/executors/claudeCodeCli.js tests/cliRunner.test.js tests/nativeCliDiscovery.test.js tests/nativeCliLaunchLease.test.js tests/codexPermissionProfile.test.js tests/codexCli.test.js tests/claudeCodeCli.test.js docs/RESEARCH.md docs/project-context.md docs/superpowers/plans/2026-07-13-claude-pet.md docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md docs/BUILD_LOG.md PROJECT_CHECKLIST.html
 git commit -m "fix: repair native CLI and boundary diagnostics"
 ~~~
 

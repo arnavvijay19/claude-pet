@@ -167,7 +167,10 @@ The controller:
   rather than resolving executables from the project or a mutable run-time PATH. Final identity,
   signature, hash, and version checks occur against a no-write/no-delete-share held executable object;
   that handle remains open through successful child creation by canonical path and closes
-  deterministically on every outcome;
+  deterministically on every outcome. Arbitrary reparse components are rejected; the sole exception
+  is Codex Desktop's exact ordered two-junction chain from installer `bin` to standalone
+  `current\\bin`, then standalone `current` to the exact `0.145.0-x86_64-pc-windows-msvc` release,
+  with the launcher, both raw targets, and held canonical target validated;
 - creates one immutable run descriptor containing connection ID, executor, mode, workspace, model,
   effort, and authorization state;
 - chooses either the native Full Computer executor or the WSL Workspace executor once;
@@ -200,6 +203,11 @@ Discovery verification is not a launch authorization after its handle closes. St
 and run each acquire a fresh single-use verified launch lease. Tests cover both replacement after
 discovery and a concurrent final path swap paused between the last check and child creation; the
 verified object must be the one launched.
+
+The signed Codex 0.145.0 PE has empty FileVersion/ProductVersion metadata on the verified machine.
+Therefore PE version is optional corroboration only; the binding and every launch lease require exact
+CLI `--version` output from the canonical executable while its no-write/no-delete-share handle is held.
+Claude's populated PE version is still compared in addition to its required CLI version.
 
 ### 3. Dedicated WSL2 distribution
 

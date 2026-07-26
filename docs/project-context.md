@@ -22,15 +22,16 @@ Simple or Comprehensive form.
 
 ## Current state
 
-- Tasks 1-12 are complete. The user approved the serial replacement Tasks 13-21 plan. Application
-  implementation has not started for that tail; Task 13 is the only permitted next task and is not
-  started or complete.
+- Tasks 1-12 are complete. Task 13's implementation and verification are complete on
+  `codex/workspace-boundary-redesign`; its evidence gate and integration are pending. The approved
+  Tasks 14-21 tail remains untouched.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
-- The WSL Workspace + default Full Computer redesign is committed at `759afe4` and approved by the
-  user. The replacement Tasks 13-21 plan is also approved; the next gate is Task 13 only.
+- The WSL Workspace + default Full Computer redesign is committed at `759afe4`, the approved
+  replacement Tasks 13-21 plan checkpoint is committed at `b28d9bb`, and the current gate is the
+  verified Task 13 handoff. Do not begin Task 14 before acceptance and integration.
 - The redesign makes warned **Full Computer** the default selection for new Codex/Claude connections.
   Genuine **Workspace** uses a dedicated, locked WSL2 Ubuntu distribution and never falls back to
   Full Computer.
@@ -39,10 +40,17 @@ Simple or Comprehensive form.
 - No AI account is required for canonical Task 10 tests. Task 9 shipped the built-in Offline Demo
   runtime, normal Settings/response flows, and the visible pet renderer; fake processes cover CLI
   adapters. The native Codex/Claude foundation is not currently runnable in production because
-  `resolveWithWhere()` references undefined `spec.visible`; tests inject a resolver and miss it.
-- The production Codex outside-read target is invalid because it lives in intentionally readable
-  `CODEX_HOME`, and its early failure skipped later hostile checks. A separate sibling-path probe still
-  proves native `Z:\` outside reads are possible. Do not advertise native Windows as Workspace-safe.
+  Task 13 repairs the production resolver and binds status, login, diagnostics, and runs to freshly
+  verified signed native executable leases.
+- Task 13 replaced the invalid `CODEX_HOME` outside target with an owned sibling fixture and ran the
+  complete real matrix. Workspace read/write, hostile-project isolation, hook isolation, outside-write
+  denial, and cleanup passed; outside reads and child network still escaped. Native Windows therefore
+  remains unavailable as Workspace-safe.
+- The genuine Codex 0.145.0 install uses an exact ordered two-junction chain: installer `bin` to
+  standalone `current\\bin`, then standalone `current` to the pinned versioned release. It has no PE
+  version metadata. Task 13 allows only those two raw targets and proves the version via the signed,
+  hash/file-ID-bound canonical executable's held-path `--version`; all other reparse targets remain
+  rejected. Claude's installed executable is non-reparse and has PE version 2.1.217.0.
 - A 2026-07-26 account-free Codex 0.145.0 loopback probe corrected the approved tail before
   implementation: GPT-5.6 uses a developer `input[type=additional_tools]` code-mode envelope, not a
   classic five-tool array. The exact top-level/nested registries are now pinned, and Tasks 14/17 must
