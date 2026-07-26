@@ -1,6 +1,9 @@
 # Claude Pet — Deep Research Knowledge Base
 
-Compiled 2026-07-15 from web research + the existing spec (`docs/superpowers/specs/claude-pet-spec.md`) and plan (`docs/superpowers/plans/2026-07-13-claude-pet.md`). This is the durable "everything a session needs to know" doc. The tiny framework distilled from it lives in `docs/project-context.md` territory / the plan itself.
+Compiled 2026-07-15 and refreshed 2026-07-26 from official product/security documentation, verified
+local CLI behavior, the approved specs, and the canonical plan. This is the durable "everything a
+session needs to know" document; the compact current-state framework lives in
+`docs/project-context.md`.
 
 ---
 
@@ -82,21 +85,102 @@ Sources: [official hooks guide](https://code.claude.com/docs/en/hooks-guide), [2
 
 ### B6. Agent executors, permissions, and live activity
 
-Research refreshed 2026-07-22. Primary sources: [Electron safeStorage](https://electronjs.org/docs/latest/api/safe-storage), [OpenAI Codex authentication](https://developers.openai.com/codex/auth), [Codex non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode), [Codex permission profiles](https://learn.chatgpt.com/docs/permissions), [Codex SDK](https://learn.chatgpt.com/docs/codex-sdk), [Codex models](https://developers.openai.com/codex/models), [Claude Code CLI reference](https://docs.anthropic.com/en/docs/claude-code/cli-reference), and [Claude Agent SDK authentication guidance](https://docs.anthropic.com/en/docs/claude-code/sdk/sdk-typescript).
+Research refreshed 2026-07-26. Primary sources: [Electron safeStorage](https://electronjs.org/docs/latest/api/safe-storage), [OpenAI Codex authentication](https://developers.openai.com/codex/auth), [Codex sandboxing](https://learn.chatgpt.com/docs/sandboxing), [Codex Windows sandbox](https://learn.chatgpt.com/docs/windows/windows-sandbox), [Codex WSL](https://learn.chatgpt.com/docs/windows/wsl), [Codex permission profiles](https://learn.chatgpt.com/docs/permissions), [Codex models](https://developers.openai.com/codex/models), [Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference), [Claude settings](https://code.claude.com/docs/en/settings), and [Claude sandboxing](https://code.claude.com/docs/en/sandboxing).
 
 - Claude Pet is agent-first. Codex and Claude Code tool use is intentional; the prior no-tool/chat-only assumption is obsolete.
 - Codex `read-only` prevents writes but permits file reads, so it cannot enforce the selected-workspace privacy promise by itself.
-- The supported Codex baseline is 0.144.6. Permission profiles combine filesystem and network rules on native Windows. `:minimal = read` plus `:workspace_roots/. = write` avoids broad root reads, and deny globs can protect `.env` files. Permission profiles do not compose with legacy `--sandbox`; use one system only.
+- The product registry accepts Codex `>=0.144.6`; the dedicated WSL install is pinned to `0.145.0`.
+  Named permission profiles combine filesystem and network rules and do not compose with legacy
+  `--sandbox`. Native Windows evidence on this machine proves outside reads remain possible, so the
+  native profile is diagnostic evidence only and is never advertised as Workspace-safe.
 - `codex sandbox -P <profile> -C <workspace> -- <command>` applies a named profile to deterministic non-model probes. The plan uses it to prove workspace reads/writes and outside/network denial before advertising Workspace Agent.
 - `codex exec --json` emits JSONL events including `thread.*`, `turn.*`, `item.*`, and `error`; item types include messages, reasoning summaries, commands, file changes, MCP calls, web searches, and plan updates. This is the source for normalized live activity.
 - `codex exec` streams progress to stderr and the final agent message to stdout in formatted mode. The app uses JSONL instead so renderers never parse terminal prose.
 - Codex child shell environments can be reduced with `shell_environment_policy`; the app starts from `core` and excludes key/token/secret/provider variables.
 - Codex project `.codex` layers have higher precedence than user/profile configuration when trusted. The app-owned home must mark the selected workspace untrusted, disable hooks, ignore rules, and set approval policy `never`; hostile project config/hook/rule fixtures are part of the permission probe.
-- The supported Claude Code baseline is 2.1.217. Workspace execution uses `--safe-mode` and `--permission-mode dontAsk` with strict empty MCP configuration; hostile `.claude` settings/hooks/plugins/instructions are canonical fixtures. Workspace Agent remains fail-closed unless the installed version passes equivalent isolation probes without relying on prompt obedience.
+- The supported Claude Code baseline is 2.1.217. `--safe-mode` isolates customization, not the
+  operating system. Genuine Workspace therefore runs only inside the dedicated WSL2 distro with
+  `--permission-mode dontAsk`, strict empty MCP, a root-owned managed policy, the official Linux
+  Bash sandbox, and the complete hostile gate.
 - Electron 43 asynchronous `decryptStringAsync` resolves `{ result, shouldReEncrypt }`, not a string. The wrapper must unwrap `result` and let the store rotate ciphertext when requested.
 - Public connection metadata is a security boundary and must use an explicit allowlist that omits internal `options`. Removing only a known ciphertext field is insufficient.
 - A separate response BrowserWindow preserves the 192x208 pet geometry and has room for Simple/Comprehensive live activity, permission badges, Stop, and recovery actions.
-- Direct OpenAI, Anthropic, and custom API connections remain future agent executors. Shipping them now as chat-only connections would contradict the approved product direction; a future adapter needs an app-owned tool loop.
+- Production native CLI discovery currently has a real defect: the default `where.exe` resolver
+  references an undefined launch spec, while injected tests bypass it. The old production outside-read
+  target also lived in intentionally readable `CODEX_HOME` and an early throw skipped later probes.
+  Task 13 repairs both before any real mode is advertised.
+- Warned Full Computer is the default selection for new real-provider connections. It uses the native
+  CLI and broad authority only after one connection-bound native confirmation; the open revision is
+  compare-and-commit protection during acceptance, not a requirement to re-warn after ordinary edits.
+  It is never labeled sandboxed, Workspace-like, or safe for the whole PC.
+- Native discovery must not trust `where.exe`'s first current-directory/PATH match. The current signed
+  installs provide valid Authenticode publishers (`OpenAI OpCo, LLC` and `Anthropic, PBC`); the plan
+  binds fixed official roots, canonical file identity/hash/signature, and exact tested version before
+  status, login, probes, or execution.
+- Codex 0.145.0 currently reports browser, full-CDP browser, computer-use, image-generation, apps,
+  plugins, and other non-local feature surfaces enabled. Disabling only web/apps/hooks is insufficient;
+  both modes use an exact-version feature policy plus exact protocol/registry equality and fail on an
+  unknown surface.
+- A live account-free loopback probe of bundled GPT-5.6 Sol, Terra, and Luna found
+  `tool_mode = "code_mode_only"`, `shell_type = "shell_command"`, and freeform `apply_patch`. Codex
+  0.145.0 sends no classic top-level Responses `tools` array. Instead it adds one developer
+  `input[type=additional_tools]` item with `exec` (custom), `wait` and `request_user_input` (functions),
+  and `collaboration` (namespace). The `exec` registry declarations are exactly `apply_patch`,
+  `shell_command`, `update_plan`, and `view_image`; `exec_command` appears only in explanatory prose
+  and `write_stdin` is absent.
+- `multi_agent = false` and the code-mode namespace exclusion still leave the collaboration namespace
+  visible, including `spawn_agent`. The closed provider gate must therefore actively request
+  collaboration and user input and prove deterministic fail-closed behavior with no subagent,
+  secondary process/request/thread, UI wait, authority change, or residue. Merely checking that known
+  browser/MCP names are absent is insufficient.
+- The GPT-5.6 probe must retain the built-in OpenAI provider and replace only `openai_base_url`; a
+  custom provider did not preserve the same code-mode traffic. The private listener rejects bounded
+  WebSocket upgrade attempts and inspects the fallback `POST /v1/responses`, using only a dummy key in
+  a dedicated empty `CODEX_HOME`.
+- Direct OpenAI, Anthropic, and custom API connections remain future agent executors. Shipping them
+  now as chat-only connections would contradict the approved product direction; a future adapter
+  needs an app-owned tool loop.
+
+### B7. Dedicated WSL boundary and Claude policy details
+
+Sources: [Microsoft WSL install](https://learn.microsoft.com/windows/wsl/install), [WSL
+configuration](https://learn.microsoft.com/windows/wsl/wsl-config), [Codex Linux/WSL sandbox](https://learn.chatgpt.com/docs/sandboxing), [Claude managed settings](https://code.claude.com/docs/en/settings), and [Claude sandbox configuration](https://code.claude.com/docs/en/sandboxing).
+
+- `ClaudePetWorkspace` is an app-owned Ubuntu 24.04 WSL2 distro, never a personal distro. Automount,
+  Windows interop, Windows PATH injection, sudo, WSLg/host sockets, and global shutdown are off. The
+  Windows controller exposes only the selected project through a private mount namespace.
+- A PowerShell 5.1 helper with embedded C# holds the selected NTFS root without delete sharing,
+  checks volume/file identity, rejects reparse points and hardlinks, places a random sentinel, and
+  rescans after the WSL broker mounts it. This closes the path-swap gap that Node's ordinary path
+  APIs cannot close.
+- Codex Workspace uses the Linux named permission profile with approval `never`, command network off,
+  web/apps/hooks/rules disabled, and an untrusted project. Claude Workspace uses managed-only policy,
+  `failIfUnavailable`, no unsandboxed commands, no MCP/hooks/plugins, and no WebFetch/WebSearch.
+- Claude sandbox reads are broad by default. The plan therefore uses `denyRead: ["/"]` and reopens
+  only `/workspace`, a fixed runtime allowlist, and the per-run temp directory. In permission rules,
+  absolute paths require `//`: use `Read(//workspace/**)` and `Edit(//workspace/**)`. Claude 2.1.217
+  warns that path-qualified `Write`, `Glob`, and `Grep` rules are unmatched; `Edit(path)` and
+  `Read(path)` cover those built-in file operations.
+- `excludedCommands` has no managed-only merge lock. Workspace loads no user/project/local setting
+  sources, requires no managed drop-ins, and verifies resolved sources before use. Ubuntu 24.04 may
+  require the pinned `bwrap-userns-restrict` AppArmor profile; setup conditionally loads that exact
+  profile rather than disabling AppArmor globally.
+- Both provider gates aggregate every generic/provider result and cleanup before deciding readiness.
+  They execute the generic gate in the same operation and bind the resulting main-only attestation to
+  the installation/stage/policy/provider hashes, workspace identity, and recovery generation. Optional
+  signed-in smokes test experience only; a private dummy-credential local protocol harness drives the
+  exact CLI's effective-tool and controlling-CLI-versus-child-network checks without an account.
+- WSL setup uses the signed Ubuntu snapshot dated `20260720T000000Z`, a complete `.deb` closure lock,
+  and a bounded hash-checked stdin archive. Tasks 16-18 advance/deploy a staged manifest and refresh
+  both ownership records before their gates; no later broker/policy file is treated as installed merely
+  because it exists in the Windows app bundle.
+- A deliberate outside-Workspace text drop is an explicit one-file disclosure. Main warns before
+  reading, caps the handle read at 262144 bytes, binds acceptance to the connection revision/file, and
+  never mounts or exposes the parent directory.
+- The prepared Banana Baron run still has only `base` and `idle` complete. Task 19 generates seven
+  distinct pending rows, derives or generates left-running after visual review, produces a validated
+  1536x1872 WebP/contact sheet/previews, then atomically switches the app manifest. Task 20 maps real
+  drag/setup/run/response events to all nine states with stale-token protection.
 
 Research in this repository is broad: official docs and verified behavior anchor security and contracts; source code, open-source apps, issues, discussions, engineering articles, comparisons, demos, and community reports may inform patterns and failure cases. Conflicts and uncertainty must be labeled.
 
@@ -104,7 +188,7 @@ Research in this repository is broad: official docs and verified behavior anchor
 
 ## Part C — Architectural layouts (reference)
 
-### C1. This project (agent-first redesign, settled 2026-07-22)
+### C1. This project (agent-first architecture, boundary amended 2026-07-26)
 
 ~~~text
 Electron main process
@@ -117,28 +201,38 @@ Electron main process
 ├─ agent/activityStore.js     validated current-run events
 ├─ agent/connectionStore.js   allowlisted metadata and future encrypted secrets
 ├─ agent/cliRunner.js         bounded official-CLI process boundary
+├─ agent/executionModes.js    immutable Workspace / Full Computer mode selection
+├─ agent/wsl/                 dedicated-distro setup, held mount, broker, hostile gates
 └─ agent/executors/
    ├─ offlineDemoExecutor.js
-   ├─ codexCli.js
-   └─ claudeCodeCli.js
+   ├─ codexNativeFullComputer.js / claudeNativeFullComputer.js
+   └─ codexWslWorkspace.js / claudeWslWorkspace.js
 Renderer processes (vanilla JS, context isolated)
 ├─ renderer/                  192x208 pet canvas, drag/drop, animations
 ├─ response/                  Simple/Comprehensive activity, result, recovery
 └─ settings/                  connection/workspace/permission/model UI
 Assets
-├─ pet.json                   animation contract, unchanged
-└─ spritesheet-mvp.png        existing idle row, unchanged
+├─ pet.json                   per-state animation contract
+├─ spritesheet-mvp.png        rollback atlas until the complete visual gate
+└─ spritesheet.webp           planned validated nine-state atlas
 ~~~
 
 Invariants:
 1. The pet renderer never touches credentials, files directly, provider CLIs, or network.
-2. Workspace Agent read/write/network boundaries are enforceable and tested; prompt instructions do not count.
-3. Full Computer authority is a separately confirmed per-connection opt-in with a visible badge.
-4. Consumer authentication happens only inside installed official CLI flows; credential files stay opaque.
-5. One user request may use many tools, but agentManager runs exactly one agent run with no queue, retry, or fallback.
-6. Both live views consume the same recursively sanitized discriminated activity stream and never expose hidden reasoning or raw CLI output.
-7. pet.json remains the animation contract; agent additions do not change sprite APIs.
-8. Every major milestone is runnable and canonical tests require no provider account.
+2. Full Computer is the default selection for a new real-provider connection, but a main-owned
+   connection-bound warning must be accepted before it can be saved or run; its broad-access badge
+   never disappears.
+3. Workspace is available only through the dedicated verified `ClaudePetWorkspace` WSL2 boundary;
+   native Windows, safe mode, prompts, and ACL tweaks are never described as Workspace-safe.
+4. Native and WSL consumer authentication happen only inside their separate official CLI flows;
+   credential files stay opaque and never enter `/workspace` or renderer IPC.
+5. One user request may use many tools, but agentManager runs exactly one immutable mode/executor
+   snapshot with no queue, retry, cross-mode fallback, or silent model fallback.
+6. Both live views consume the same recursively sanitized discriminated activity stream and never
+   expose hidden reasoning or raw CLI output.
+7. `pet.json` remains the animation contract; the WebP atlas replaces the idle MVP only after all
+   nine rows pass deterministic and visual QA.
+8. Every major milestone is runnable and canonical code/security tests require no provider account.
 
 ### C2. Reference layouts from prior art (for comparison, not adoption)
 - **Clawd**: single Electron window, vanilla JS, tray menu, animation states as sprite rows — validates our exact shape.
@@ -149,9 +243,18 @@ Invariants:
 
 ## Resolved decisions / release watch items
 
-- **Agent-first direction — DECIDED 2026-07-22.** The pet is an all-purpose tool-using agent. Workspace Agent is default; Full Computer is an advanced opt-in; chat-only direct API connections are deferred until they have a real tool loop.
-- **CLI profile isolation — VERIFIED.** Dedicated CODEX_HOME and CLAUDE_CONFIG_DIR keep provider login separate. Codex additionally marks the workspace untrusted, disables hooks, ignores rules, and denies non-interactive escalation; Claude uses safe mode and `dontAsk`. Credential files remain opaque; app-owned permission/config files may be written without reading auth files.
-- **Codex workspace isolation — SUPPORTED WITH A GATE.** Current native-Windows Codex permission profiles can deny broad reads and child network while writing the selected workspace. The app must run deterministic `codex sandbox` probes and fail closed before offering Workspace Agent.
+- **Agent-first direction — AMENDED 2026-07-26.** The pet is an all-purpose tool-using agent.
+  Warned Full Computer is the default selection for new Codex/Claude connections; optional genuine
+  Workspace uses a dedicated WSL2 boundary; chat-only direct API connections remain deferred until
+  they have a real tool loop.
+- **CLI profile isolation — VERIFIED AS CUSTOMIZATION ISOLATION, NOT AN OS BOUNDARY.** Dedicated
+  native and WSL `CODEX_HOME` / `CLAUDE_CONFIG_DIR` locations keep official login state separate.
+  Codex project trust controls and Claude safe mode stop project customization, but neither makes
+  native Windows Workspace-safe. Credential files remain opaque.
+- **Native Codex workspace isolation — DISPROVED ON THIS MACHINE.** A valid sibling fixture remained
+  readable through the native Windows sandbox. Workspace is advertised only after the dedicated WSL
+  broker plus the complete generic and provider-specific hostile gates pass; Task 13 keeps the native
+  profile only as sanitized diagnostic evidence.
 
 - **Click-through vs drag-drop — DECIDED: MVP ships with no `setIgnoreMouseEvents` at all.** The conflict is fundamental, not a bug to work around: `forward: true` delivers only mouse-*move* events; clicks and drops always pass through ([Electron docs](https://www.electronjs.org/docs/latest/tutorial/custom-window-interactions), [electron#38396](https://github.com/electron/electron/issues/38396)), and forwarding silently breaks after a page reload on Windows ([electron#15376](https://github.com/electron/electron/issues/15376)). The sprite-sized window barely overlaps anything, so click-through buys nothing. If ever added: toggle ignore **off** whenever the cursor is over the sprite and never during a drag.
 - **Electron visual verification — recipe confirmed.** The installed chrome-devtools-mcp plugin's config has fixed args (launches its own Chrome; no `--browserUrl`), so to inspect the pet renderer: (1) main.js gates `app.commandLine.appendSwitch('remote-debugging-port', '9222')` + `appendSwitch('remote-allow-origins', '*')` behind `PET_DEBUG=1`; (2) a project-local `.mcp.json` registers `npx chrome-devtools-mcp@latest --browserUrl=http://127.0.0.1:9222`; (3) the agent uses `take_screenshot`/`take_snapshot` against the running window ([Electron+CDP-MCP recipe](https://carljin.com/%E4%BD%BF%E7%94%A8-chrome-devtools-mcp-%E8%B0%83%E8%AF%95-electron-%E5%BA%94%E7%94%A8/)). `--ws-endpoint` is the fallback if browserUrl misbehaves. The `stealth-browser` skill is **not applicable** here: it drives its own Chromium and cannot attach to an Electron window — it solves bot-detection on third-party sites, which this project never touches; given the account's compliance posture, don't reach for it in this repo.

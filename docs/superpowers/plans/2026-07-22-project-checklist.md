@@ -1,5 +1,11 @@
 # Interactive Project Checklist Implementation Plan
 
+> **HISTORICAL / COMPLETED — DO NOT EXECUTE.** This plan created the first Tasks 1-15 checklist and
+> now contains superseded task numbers. The current canonical sequence is Tasks 13-21 in
+> [`2026-07-13-claude-pet.md`](2026-07-13-claude-pet.md); the current `PROJECT_CHECKLIST.html` remains
+> active through Task 21. Do not run this plan, overwrite the current checklist, or delete the
+> checklist after the old Task 15.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Create a disposable, self-contained HTML to-do list that explains Claude Pet Tasks 1-15 and tells the user exactly what they need to do.

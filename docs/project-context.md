@@ -6,11 +6,12 @@ desktop pet.
 Details live in [superpowers/specs/claude-pet-spec.md](superpowers/specs/claude-pet-spec.md) (what
 and why),
 [superpowers/specs/2026-07-22-agent-first-provider-redesign.md](superpowers/specs/2026-07-22-agent-first-provider-redesign.md)
-(original approved redesign),
+(historical agent-first foundation),
 [superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md](superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md)
-(approved written redesign; implementation-plan review next),
+(approved current boundary/animation redesign),
 [superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md)
-(Tasks 1-12 only until the tail is rewritten), [RESEARCH.md](RESEARCH.md) (evidence), and
+(Tasks 1-12 complete; replacement Tasks 13-21 approved; Task 13 only next), [RESEARCH.md](RESEARCH.md)
+(evidence), and
 [BUILD_LOG.md](BUILD_LOG.md) (history).
 
 ## One sentence
@@ -21,14 +22,15 @@ Simple or Comprehensive form.
 
 ## Current state
 
-- Tasks 1-12 are complete. The written redesign is approved; application implementation remains
-  paused while the contradictory old Tasks 13-15 tail is replaced and reviewed.
+- Tasks 1-12 are complete. The user approved the serial replacement Tasks 13-21 plan. Application
+  implementation has not started for that tail; Task 13 is the only permitted next task and is not
+  started or complete.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
 - The WSL Workspace + default Full Computer redesign is committed at `759afe4` and approved by the
-  user. The next gate is the replacement implementation-plan review.
+  user. The replacement Tasks 13-21 plan is also approved; the next gate is Task 13 only.
 - The redesign makes warned **Full Computer** the default selection for new Codex/Claude connections.
   Genuine **Workspace** uses a dedicated, locked WSL2 Ubuntu distribution and never falls back to
   Full Computer.
@@ -41,6 +43,11 @@ Simple or Comprehensive form.
 - The production Codex outside-read target is invalid because it lives in intentionally readable
   `CODEX_HOME`, and its early failure skipped later hostile checks. A separate sibling-path probe still
   proves native `Z:\` outside reads are possible. Do not advertise native Windows as Workspace-safe.
+- A 2026-07-26 account-free Codex 0.145.0 loopback probe corrected the approved tail before
+  implementation: GPT-5.6 uses a developer `input[type=additional_tools]` code-mode envelope, not a
+  classic five-tool array. The exact top-level/nested registries are now pinned, and Tasks 14/17 must
+  actively prove the still-surfaced collaboration and user-input controls fail closed without a
+  subagent, process/request, UI wait, authority change, or residue.
 - Claude safe mode isolates customization, not the operating system. Workspace remains unavailable
   until the dedicated WSL boundary and complete hostile gate are implemented and pass.
 - Claude Pet still ships only the six-frame idle strip. The prepared Post-Hoc Banana Baron run has
@@ -77,7 +84,9 @@ Context-isolated vanilla-JS renderers
 Planned security boundary (not implemented): Electron main selects an immutable native Full Computer
 run or launches the exact app-owned `ClaudePetWorkspace` WSL2 distro. A root-owned broker mounts only
 the selected project at `/workspace`, hides Windows/WSL integration surfaces, drops to a no-`sudo`
-user, and requires the official Codex or Claude WSL sandbox plus complete hostile probes.
+user, and requires the official Codex or Claude WSL sandbox plus complete hostile probes. Installed
+component stages are hash-verified after each repair; provider readiness uses a fresh main-owned
+workspace/installation/recovery-bound attestation, never caller-supplied probe results.
 
 ## Architectural rules
 
@@ -102,6 +111,9 @@ user, and requires the official Codex or Claude WSL sandbox plus complete hostil
 11. **Animations switch atomically.** Keep the idle MVP until the complete nine-state atlas passes
     deterministic and visual QA.
 12. **Every milestone is runnable.** Do not stack invisible backend phases until the end.
+13. **Attachments are one-file disclosures.** Workspace files outside the selected project require a
+    native warning; only bounded UTF-8 text crosses, acceptance is snapshot-bound, and the parent is
+    never mounted or shared.
 
 ## Remaining build phases
 
@@ -113,11 +125,14 @@ user, and requires the official Codex or Claude WSL sandbox plus complete hostil
 | Codex Workspace Agent | 10-11 | Isolated Codex execution plus Comprehensive activity | Sandbox probes, fake-process tests, optional live smoke |
 | Claude Code Agent | 12 | Claude executor behind the same contract | Parity tests and fail-closed Settings diagnostic |
 | Written redesign | approved | WSL/Full Computer/animation boundary and milestones | `759afe4` plus user approval |
-| Prerequisite repair | pending replan | Production CLI resolution and valid aggregate probes | Real default resolver and sibling-target regressions |
-| Full Computer | pending replan | Warned native mode, default for new real connections | Native cancel/accept/badge adversarial gate |
-| Genuine Workspace | pending replan | Dedicated WSL broker plus Codex/Claude sandboxes | Complete generic and provider hostile matrices |
-| Complete animations | pending replan | Validated nine-state Post-Hoc Banana Baron atlas | Contact sheet, previews, manifest tests, real Electron QA |
-| Final integration/package | pending replan | Pet/files/tray flow and unsigned Windows test build | Offline E2E, secret scan, packaged first run |
+| Prerequisite repair | 13 | Production CLI resolution and complete native diagnostic evidence | Real default resolver and sibling-target regressions |
+| Full Computer | 14 | Warned native mode, default for new real connections | Native cancel/accept/badge adversarial gate |
+| WSL installation and generic boundary | 15-16 | Pinned dedicated distro, held NTFS path, private broker | Supply-chain, mount, hostile, Stop, and recovery gates |
+| Codex genuine Workspace | 17 | Linux named profile through the verified WSL boundary | Complete generic and Codex hostile matrices |
+| Claude genuine Workspace | 18 | Locked managed sandbox through the verified WSL boundary | Complete policy, dependency, and Claude hostile matrices |
+| Complete animations | 19 | Validated nine-state Post-Hoc Banana Baron atlas | Contact sheet, previews, manifest tests, real Electron QA |
+| Final integration | 20 | Token-safe pet states, deliberate file input, consistent tray | Offline text/file/Stop E2E and all-nine-state evidence |
+| Unsigned package | 21 | Bounded Windows test package and first-run/removal docs | Secret scan, packaged fresh-profile run, canonical zip hash |
 
 Direct API agent loops, multiple agents, schedules, and persistent history remain deferred.
 
@@ -125,8 +140,8 @@ Direct API agent loops, multiple agents, schedules, and persistent history remai
 
 - One implementation session executes one numbered task, verifies it, updates BUILD_LOG.md, and
   commits it.
-- Do not start another implementation session until the writing-plans workflow replaces the
-  contradictory old Tasks 13-15 tail and the user approves that replacement plan.
+- The replacement Tasks 13-21 plan is approved. Execute Task 13 only and stop at its user gate; do
+  not start Task 14 or later work until Task 13 is accepted and integrated.
 - Start each task with a concise ETA and revise it only when the estimate materially changes.
 - Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
@@ -152,16 +167,17 @@ Offline Demo exposes only `offline-demo`. Unlisted values and silent fallback ar
 
 ## Order
 
-Tasks 1-12 remain complete. The written redesign is approved. The existing Tasks 13-15 are paused and
-must not be executed; the writing-plans workflow now replaces only that unfinished tail with serial
-prerequisite, Full Computer, WSL Workspace, animation, integration, and packaging milestones.
+Tasks 1-12 remain complete. The written redesign is approved. Replacement Tasks 13-21 define serial
+prerequisite, Full Computer, WSL Workspace, animation, integration, and packaging milestones. The
+plan is approved; Task 13 is next, and no later task may begin before its predecessor is accepted and
+integrated.
 
 ## Standard entry prompt
 
-> Read Claude Pet/docs/project-context.md, Claude Pet/docs/BUILD_LOG.md, and
-> Claude Pet/docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md. Do not execute
-> old Task 13 or install WSL. Wait for the replacement implementation plan to be committed and
-> explicitly approved, then execute its next incomplete numbered task only.
+> Read Claude Pet/docs/project-context.md, Claude Pet/docs/BUILD_LOG.md,
+> Claude Pet/docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md, and Task 13 in
+> Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md. The replacement plan is explicitly
+> approved; execute Task 13 only. Do not enable Full Computer or install WSL.
 
 ## Session contract
 
@@ -179,10 +195,10 @@ Every implementation session must:
 
 ## Document routing
 
-- Product requirements: `superpowers/specs/claude-pet-spec.md`
-- Approved agent-first design: `superpowers/specs/2026-07-22-agent-first-provider-redesign.md`
+- Base product requirements: `superpowers/specs/claude-pet-spec.md` (amended by the current redesign)
+- Historical agent-first foundation: `superpowers/specs/2026-07-22-agent-first-provider-redesign.md`
 - Current boundary/animation redesign: `superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md`
-- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md` (Tasks 1-12 only until
-  the approved plan rewrite)
+- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md` (Tasks 1-12 complete;
+  replacement Tasks 13-21 approved; Task 13 only next)
 - Evidence and rationale: `RESEARCH.md`
 - Session history and handoffs: `BUILD_LOG.md`

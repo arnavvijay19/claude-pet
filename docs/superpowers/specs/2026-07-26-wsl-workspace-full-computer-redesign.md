@@ -1,6 +1,6 @@
 # Claude Pet WSL Workspace and Full Computer Redesign
 
-**Status:** Approved by the user; implementation-plan review pending
+**Status:** Approved design and approved replacement Tasks 13-21 plan; Task 13 only is next
 
 **Date:** 2026-07-26
 
@@ -162,8 +162,12 @@ The controller:
 - opens and holds a non-delete-share directory handle, records its volume/file identity, and rejects
   existing NTFS files with multiple hard links for the first release;
 - resolves the selected volume and relative path without shell interpolation;
-- launches the absolute system `wsl.exe` path and version-checked absolute provider CLI paths rather
-  than resolving executables from the project or a mutable run-time PATH;
+- launches the absolute system `wsl.exe` path and an identity/hash/version-bound native provider
+  `.exe` beneath its fixed official install root, with a valid provider Authenticode publisher,
+  rather than resolving executables from the project or a mutable run-time PATH. Final identity,
+  signature, hash, and version checks occur against a no-write/no-delete-share held executable object;
+  that handle remains open through successful child creation by canonical path and closes
+  deterministically on every outcome;
 - creates one immutable run descriptor containing connection ID, executor, mode, workspace, model,
   effort, and authorization state;
 - chooses either the native Full Computer executor or the WSL Workspace executor once;
@@ -192,15 +196,35 @@ project hooks, project MCP servers, plugins, connectors, browser-control tools, 
 The production `where.exe` regression must be fixed with a real default-resolution regression test
 before either native executor is considered available.
 
+Discovery verification is not a launch authorization after its handle closes. Status, login, probe,
+and run each acquire a fresh single-use verified launch lease. Tests cover both replacement after
+discovery and a concurrent final path swap paused between the last check and child creation; the
+verified object must be the one launched.
+
 ### 3. Dedicated WSL2 distribution
 
 The app uses the dedicated distribution name `ClaudePetWorkspace`. It must not modify, import into,
 or depend on a user's existing WSL distribution.
 
 Provisioning uses a pinned official Ubuntu WSL root filesystem and verifies its published checksum
-before import. The exact rootfs version, download URL, checksum, installed Linux packages, CLI
-versions, and policy version are recorded in an app-owned installation manifest. The implementation
-plan must pin these values; an unverified latest download is not acceptable.
+before import. The manifest commits an exact sorted baseline `dpkg` inventory bound to that rootfs
+hash plus a locked delta whose every install, upgrade, replacement, and removal is explicit. The
+accepted final inventory is exactly baseline plus that delta; an unexpected package or implicit
+version/removal/replacement fails. The exact rootfs version, download URL, checksum, immutable signed
+Ubuntu package snapshot and complete package closure, CLI versions, staged component hashes, and
+policy versions are recorded in an app-owned installation manifest. App resources/artifacts enter the
+distro only through a bounded hash-checked stdin payload; Windows automount or interop is never a
+setup shortcut. Each later component stage must be deployed and both ownership records refreshed
+before its gate. The shipped stage-18 manifest/payload is cumulative: it can provision from no distro
+directly and contains every final stage-15 through stage-18 component, rather than depending on a
+preceding-stage repair. An unverified latest download or stale installed stage is not acceptable.
+
+Before executing any command inside an already registered `ClaudePetWorkspace`, Windows main reads
+its WSL registration metadata without starting it. Canonical registration `BasePath`, regular non-
+reparse VHD final path/identity, app-owned `distroDir`, and the Windows ownership record must match.
+Only then may main enter the distro to compare its Linux marker. A same-name mismatch is unowned and
+never executed. Removal re-reads and recompares registration path/VHD identity plus both ownership
+markers after the second confirmation and immediately before exact unregister.
 
 The distribution contains:
 
@@ -225,20 +249,33 @@ root-owned file descriptor.
 
 For each run the broker:
 
-1. creates a fresh private mount and process namespace;
+1. creates a fresh private mount and PID namespace with a new procfs;
 2. mounts the selected Windows volume at a root-only staging point with DrvFS;
 3. bind-mounts only the canonical selected directory at `/workspace`;
 4. revalidates the mounted root against the held Windows volume/file identity and a main-owned random
    sentinel before allowing the CLI to start;
 5. unmounts the volume staging point inside that namespace so sibling paths are unreachable;
 6. hides WSL host-integration mounts, sockets, init bridges, GUI variables, and binfmt interop;
-7. creates a bounded ephemeral run temp directory;
+7. creates a unique mode-`0700` per-run temp, bind-mounts it directly at fixed
+   `/run/claude-pet/current/tmp` inside only that private namespace, sets `TMPDIR` to that fixed path,
+   and verifies mount source/device/identity; no mutable symlink, shared directory, or fallback temp
+   is allowed;
 8. bind-mounts the broker, runtime, and managed policy read-only, while exposing only the exact
    provider auth state that the controlling CLI requires for login refresh;
 9. drops groups and privileges to `claudepet-agent` with no-new-privileges behavior;
 10. launches one exact provider CLI and supervises its process group;
 11. kills all descendants on Stop, timeout, malformed output, broker error, or app exit;
-12. unmounts and destroys per-run state on every completion path.
+12. unmounts the fixed temp bind and destroys both its mountpoint and unique per-run directory along
+    with all other per-run state on every completion path.
+
+Before provider-specific sandboxes exist, the generic hostile probe runs through a fixed root-owned
+bubblewrap harness with only exact runtime reads, `/workspace` plus run-temp writes, empty home, fresh
+proc/dev, and unshared network. That makes generic auth/policy/home/network denials executable rather
+than aspirational; provider gates repeat them through their official sandboxes. A fsynced main-owned
+recovery journal plus broker control-pipe EOF watchdog covers controller/app death. The Windows
+PowerShell/C# path-guard worker runs inside a non-breakaway kill-on-close Job Object; parent/stdin EOF
+releases it, and recovery must prove both worker exit and NTFS-handle release before succeeding. Any
+recovery increments a generation that invalidates old boundary attestations.
 
 The boundary must reject a workspace that contains a Windows junction, reparse point, or symlink
 whose effective target escapes the selected root unless an executable probe proves the target remains
@@ -253,6 +290,11 @@ Because the distribution is dedicated, terminating the entire distro is an accep
 cleanup if the supervised process group or mount cannot be proven gone. Startup performs the same
 stale-run recovery before allowing another run.
 
+Every all-pass attestation also binds a volatile per-distro-start epoch/start identity plus effective
+kernel release, WSL version/config, and AppArmor state. Each status/run re-reads those facts. A manual,
+external, or automatic restart or effective-state change invalidates prior attestations before
+another provider run, even when the recovery journal is otherwise clean.
+
 ### 5. Codex Workspace executor
 
 Codex runs as the Linux CLI inside the broker boundary with a dedicated Linux `CODEX_HOME` and an
@@ -261,9 +303,14 @@ app-owned profile. The profile and invocation must:
 - use the official Linux/WSL sandbox with workspace-write authority only for `/workspace`;
 - use a non-interactive `never` approval policy so a blocked operation fails rather than prompts;
 - disable model-command network access, live web search, hooks, and unapproved MCP tools;
-- expose an explicit effective tool allowlist limited to the required local file/command tools;
+- pin the exact GPT-5.6 code-mode `additional_tools` envelope and nested `exec` registry, limited to
+  the required local file/command operations; the surfaced collaboration and user-input controls must
+  be actively proven fail-closed with no subagent, process, request, UI wait, or authority change;
   connectors, apps, remote browsers, computer-use tools, and every MCP server remain disabled because
   Codex permission profiles do not govern those separate tool surfaces;
+- require the exact tested CLI version, explicitly disable every enabled browser, computer-use,
+  image-generation, app/MCP/plugin, subagent, memory, and dynamic-tool feature, and fail on any
+  protocol/registry drift rather than relying on a partial denylist;
 - mark the selected project untrusted and prevent project `.codex` configuration or rules from
   replacing app policy;
 - ignore project rules/hooks at invocation where the installed CLI supports those switches;
@@ -395,6 +442,20 @@ described as safe.
 
 The response window and pet animation remain bound to the run snapshot they started with. Editing
 Settings during a run can update only future selection state.
+
+### Deliberate text attachment exception
+
+A deliberate dropped text file is an explicit one-file data disclosure, not an expansion of the
+Workspace mount. Main opens one regular file before warning, records its final identity, and holds
+that same handle across the warning and bounded read. Cancel/close/error closes without reading.
+Accept rechecks the path and held identity, reads at most 262144 bytes as strict UTF-8 through that
+same handle, then closes; a warning-time path swap/identity change fails rather than reopening. Main
+sends only safe basename and text and never exposes path, parent, handle, identity, or authorization
+object over IPC or to a provider. If outside Workspace, the native warning explains the one-file
+exception. Acceptance is single-use and bound to immutable connection ID/revision. Manager compares
+those expectations before installing busy state or exposing text to provider preflight, so a Settings
+selection/edit race expires first. Full Computer uses the same bounded attachment path but remains
+broadly authorized independently of the attachment.
 
 ## Workspace setup experience
 
@@ -535,8 +596,86 @@ or another intentionally allowed runtime path.
 - built-in Read/Edit/Write permission rules reject outside paths while allowing `/workspace`.
 
 The outer mount gate is the deterministic host boundary even when a model is not signed in. Optional
-live provider smoke tests verify event mapping and user experience; they are not substitutes for the
-deterministic gate.
+real-provider smoke tests verify event mapping and user experience; they are not substitutes for the
+deterministic gate. The deterministic provider gates may run the exact CLI against a private
+app-owned local protocol harness with per-run random dummy credentials. The harness owns separate
+`127.0.0.1` OS-assigned control and child-canary listeners plus independent 32-byte base64url control-
+path, canary-path, and bearer secrets; callers/renderers never choose or receive host/port/secret.
+Electron main owns native Task 14 listeners. For WSL Tasks 17/18, the root-owned broker starts new
+listeners inside the same WSL outer network namespace as the controlling Linux CLI and returns only
+sanitized results over its control pipe; Windows loopback and the WSL gateway are never reused.
+Codex uses only a pinned config plus exact `/v1/responses` request/SSE/tool-call fixtures. Claude uses
+only pinned environment/config plus exact `/v1/messages` Messages/SSE fixtures. Both have exact
+request-count/header/body/event/transcript/time caps, fixed harmless tool sequences, inherited real-
+credential/base-URL/proxy scrubbing, and `finally` cleanup for listener/config/transcript/sentinels.
+Captured requests are normalized only for owner-generated origin/path/bearer/canary placeholders
+before immutable fixture comparison. Wrong-path/bearer traffic cannot certify success. Tests inject
+real-looking endpoints and credentials and prove they cannot enter. Reports distinguish trusted
+controlling-CLI traffic from model-spawned child-canary traffic; the former must succeed while the
+same-run WSL-local canary regression proves Workspace child network and Unix sockets remain denied.
+
+The committed Codex probe config fixes the built-in provider with `model_provider = "openai"`, one
+owner-replaced nonce-bearing `openai_base_url` ending in `/v1`, and only the random dummy
+`OPENAI_API_KEY`. Native Task 14 uses a dedicated empty probe `CODEX_HOME`. Workspace Task 17 instead
+uses a run-private home whose root-owned security config is hash-identical to the installed production
+profile, with only the provider endpoint substituted and writable CLI state separated; its resolved
+config stack and argv must match production security policy. A custom provider is forbidden because
+it does not preserve GPT-5.6 code-mode traffic. The closed listener rejects bounded WebSocket upgrade
+attempts and accepts only the exact nonce-bearing fallback `POST .../v1/responses`. The committed
+Claude probe environment fixes only its nonce-bearing Messages base-URL, random dummy API key, and
+nonessential-traffic disable while retaining the production managed policy/config stack. Canonical
+fixture bytes/hashes pin every upgrade, request, response, SSE event, tool call, and cap; no observed
+traffic or caller input regenerates those fixtures.
+
+GPT-5.6 Sol/Terra/Luna on Codex 0.145.0 use `code_mode_only`, `shell_command`, and freeform
+`apply_patch`. A classic top-level Responses `tools` array must be absent. Exactly one developer
+`input[type=additional_tools]` item must project to the following exact JSON file contents, UTF-8 with
+one final LF; it is not derived from observed output:
+
+~~~json
+{
+  "additionalTools": [
+    { "name": "exec", "type": "custom" },
+    { "name": "wait", "type": "function" },
+    { "name": "request_user_input", "type": "function" },
+    { "name": "collaboration", "type": "namespace" }
+  ],
+  "collaborationTools": [
+    "followup_task",
+    "interrupt_agent",
+    "list_agents",
+    "send_message",
+    "spawn_agent",
+    "wait_agent"
+  ],
+  "execRegistry": [
+    "apply_patch",
+    "shell_command",
+    "update_plan",
+    "view_image"
+  ]
+}
+~~~
+
+Tests compare the committed file and each observed Codex request independently to those same
+literals, validate the custom grammar and schemas, and reject every extra classic/additional/nested
+tool. `exec_command` appearing in description prose is not a registered declaration; `write_stdin` is
+not offered. Despite `multi_agent = false`, 0.145.0 surfaces collaboration and user-input controls;
+fixed synthetic scenarios exercise all six collaboration functions and `request_user_input` and prove
+deterministic refusal/cancellation (apart from a root-or-empty read-only agent list) with no subagent,
+process, secondary request/thread, UI wait, deadline extension, authority change, or residue. They
+also exercise every nested `exec` operation plus `wait`: Workspace allows inside `apply_patch`/
+`view_image`, denies sibling/auth/policy targets, and proves `update_plan`/`wait` cannot persist,
+outlive Stop, extend the deadline, or broaden authority. A success, side effect, or block outside those
+exact outcomes fails the gate. Claude independently compares observed names to sorted
+`Bash,Edit,Glob,Grep,Read,Write`. Comparing observed tools only to a mutable file is insufficient.
+
+An all-pass result creates only a main-owned attestation bound to installation UUID, staged
+manifest/component/provider/policy/tool hashes, workspace root identity, cleanup/recovery generation,
+volatile distro runtime epoch/start identity, and effective kernel/WSL/config/AppArmor state. Each
+Workspace run verifies that binding plus a fresh held-root scan and mount sentinel; any external/
+automatic restart or mismatch reruns the complete gate or fails closed. Raw/caller-supplied or stale
+probe arrays never mark readiness.
 
 ### Full Computer tests
 
@@ -546,6 +685,8 @@ Canonical tests use fake processes plus temporary harmless sentinels. They prove
 - renderer confirmation forgery is rejected;
 - cancellation leaves no runnable authorization;
 - one accepted native confirmation is bound to one saved connection;
+- native executable identity/signature/hash/version verification holds a no-write/no-delete-share
+  handle through child creation and defeats both post-discovery and final concurrent path swaps;
 - the native executor receives explicit full-access arguments and never WSL Workspace arguments;
 - a temporary outside-workspace read/write and local network probe can succeed only after acceptance;
 - all required Full Computer badges remain visible;
@@ -634,13 +775,21 @@ frames; it cannot start a provider run or alter permission state.
 - successful completion uses `review` until dismissed;
 - otherwise the pet uses `idle`.
 
-Transitions are tested with a fake clock so a transient animation cannot get stuck, overwrite a newer
-run state, or be driven by stale activity from a prior run.
+The response renderer receives a public-safe monotonic response generation and random single-use
+dismiss capability, never the internal run token. Main maps only the exact current pair to the exact
+current review token and invalidates it when a new run starts. A delayed run-A dismissal is therefore
+a no-op after run B starts or completes. The live response includes a visible Dismiss control.
+
+Terminal lifecycle is separate from visual transients: the first success/Stop/failure outcome wins;
+late activity and duplicate or contradictory terminal callbacks are idempotent. Failure token cleanup
+has its own deadline/generation, so dragging while failed is visible cannot cancel, restart,
+overwrite, or strand cleanup. Transitions are tested with a fake clock across late activity,
+Stop-then-catch failure, success/Stop duplicates, stale dismiss, and drag-during-failure cases.
 
 ## Delivery decomposition
 
-After the user approves this written spec, the canonical plan tail is rewritten into small serial
-milestones with a user gate after each:
+The canonical plan now decomposes the approved design into small serial milestones with a user gate
+after each:
 
 1. repair the production CLI resolver and replace the invalid native probe evidence;
 2. implement the main-owned, warned Full Computer default and permanent badges;
@@ -649,9 +798,10 @@ milestones with a user gate after each:
 5. generate, validate, and integrate the complete animation atlas;
 6. finish pet/file/tray integration and produce the shareable package.
 
-The exact task numbers and file-by-file red/green steps belong in the implementation plan, not this
-design. Completed Tasks 1-12 remain preserved. The existing Tasks 13-15 tail is not executed while it
-contradicts this redesign.
+The exact task numbers and file-by-file red/green steps live in the implementation plan. Completed
+Tasks 1-12 remain preserved; the user approved replacement Tasks 13-21. They remain unexecuted, Task
+13 is the only next task, and only one numbered task may begin after its predecessor is accepted and
+integrated.
 
 ## Acceptance criteria
 
@@ -661,14 +811,27 @@ The redesign is complete only when all of the following are true:
 - every new Codex/Claude connection defaults to visibly warned Full Computer;
 - Full Computer cannot run without its connection-bound native confirmation;
 - Full Computer uses the native Windows CLI, has broad authority, and stays permanently badged;
+- every native launch keeps the immediately verified executable object locked through child creation;
 - Workspace uses the dedicated WSL2 distro and exposes only the selected project from Windows;
+- unknown same-name registrations are never executed, and removal rechecks BasePath/VHD identity plus
+  both ownership markers after confirmation;
+- the exact rootfs package baseline/delta/final inventory passes, and the shipped cumulative stage-18
+  manifest provisions directly from no distro;
 - WSL automount, interop, Windows PATH, sudo, unapproved hooks/MCP/plugins, and child network are off;
+- each run uses one verified unique-to-fixed temp bind, and crash recovery proves helper Job exit plus
+  NTFS-handle/temp/mount release;
 - Codex and Claude each pass the complete generic and provider-specific hostile matrix;
+- Codex's file and observed `additional_tools`/nested registries independently equal the literal
+  code-mode manifest, collaboration/user-input attempts fail closed without side effects or waiting,
+  both closed synthetic protocols exclude real endpoints/credentials, and attestations bind volatile
+  runtime/effective state;
 - every failed/missing boundary component fails closed with no mode fallback;
 - provider login remains official and credentials never cross renderer IPC or the workspace mount;
 - mode/settings changes affect only the next immutable run snapshot;
 - all nine pet states pass deterministic atlas validation and visual QA;
-- real Electron state transitions drive the complete atlas without stale or stuck states;
+- exact-file disclosure holds one handle through warning/read and compare-before-busy run reservation;
+- real Electron state transitions and public-capability dismiss drive the complete atlas without stale
+  or stuck terminal states;
 - canonical spec, research, project context, implementation plan, build log, and checklist agree;
 - every implementation milestone has fresh tests, exact Git evidence, and its required manual gate.
 

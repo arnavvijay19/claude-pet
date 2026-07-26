@@ -2,9 +2,15 @@
 
 **Date:** 2026-07-22
 
-**Status:** Approved design; canonical implementation plan established
+**Status:** Historical approved design; permission boundary and delivery tail superseded 2026-07-26
 
 **Supersedes:** The chat-first assumptions introduced by the 2026-07-21 provider-neutral redesign
+
+**Superseded by:**
+[2026-07-26-wsl-workspace-full-computer-redesign.md](2026-07-26-wsl-workspace-full-computer-redesign.md)
+for the default permission mode, genuine Workspace boundary, separate native/WSL authentication,
+animation milestone, and Tasks 13-21 delivery sequence. Completed Tasks 6-12 remain historical
+implementation evidence.
 
 ## Purpose
 

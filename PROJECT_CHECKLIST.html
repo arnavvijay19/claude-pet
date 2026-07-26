@@ -10,7 +10,7 @@
   4. current Git state and fresh test evidence
 
   Browser-saved checkmarks are personal notes, not proof that repository work is complete.
-  This file is safe to delete after Task 15 is finished and verified.
+  This file is safe to delete after Task 21 is finished and verified.
 -->
 <html lang="en">
 <head>
@@ -264,8 +264,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> The written WSL Workspace + default Full Computer design is approved. The old Tasks 13-15 stay paused while their replacement plan is written.</p>
-      <p><strong>What you need to do:</strong> Nothing during the rewrite. Do not install WSL or run implementation yet. Review the replacement numbered plan when it is committed; native Windows is not Workspace-safe, so genuine Workspace uses a dedicated WSL2 boundary with no fallback.</p>
+      <p><strong>Next:</strong> The replacement Tasks 13-21 plan is approved. Execute Task 13 only; it repairs production CLI discovery and native evidence without enabling Full Computer or installing WSL.</p>
+      <p><strong>What you need to do:</strong> Nothing until the Task 13 handoff. Then review its signed-executable and complete diagnostic evidence before any Task 14 work begins.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -288,13 +288,13 @@
         <li><a href="docs/project-context.md">Current project context</a></li>
         <li><a href="docs/BUILD_LOG.md">Build history</a></li>
         <li><a href="docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md">WSL Workspace + Full Computer redesign</a></li>
-        <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Tasks 1-12 only until rewritten)</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Tasks 1-12 complete; Tasks 13-21 approved; Task 13 only next)</a></li>
       </ul>
     </section>
 
     <footer>
       <button id="reset" type="button">Reset checklist</button>
-      <p>This page saves checkmarks and notes in your browser. It does not change the app. Delete this file after the final replacement plan is finished and verified.</p>
+      <p>This page saves checkmarks and notes in your browser. It does not change the app. Delete this file after Task 21 is finished and verified.</p>
     </footer>
   </main>
 
@@ -388,24 +388,66 @@
       },
       {
         id: 'task-13',
-        title: 'Task 13 — Paused for boundary redesign',
+        title: 'Task 13 — Repair CLI discovery and native evidence',
         done: false,
-        explanation: 'The old Task 13 is obsolete. The committed redesign makes warned Full Computer the default for new real-provider connections and requires genuine Workspace to run in a dedicated locked WSL2 distro with no fallback.',
-        action: 'The written spec is approved. Wait for the replacement implementation plan review; do not implement or install WSL yet.',
+        explanation: 'Fix the production where.exe resolver and make the native Codex diagnostic run every genuine sibling, hostile-project, network, and cleanup probe without calling native Windows Workspace-safe.',
+        action: 'Execute Task 13 only. The plan is approved; do not enable Full Computer, install WSL, or start Task 14.',
       },
       {
         id: 'task-14',
-        title: 'Task 14 — Await replacement WSL and animation milestones',
+        title: 'Task 14 — Add warned Full Computer mode',
         done: false,
-        explanation: 'The replacement plan will separate production CLI repair, Full Computer, WSL Workspace, and the complete nine-state Post-Hoc Banana Baron atlas into verified gates.',
-        action: 'Wait for the replacement plan to be written and reviewed. The current Task 14 steps are not executable.',
+        explanation: 'Make Full Computer the default selection for new Codex and Claude connections, bind one native warning to one saved connection, pin the real GPT-5.6 code-mode protocol, and keep broad-access badges visible everywhere.',
+        action: 'Wait until Task 13 is accepted and integrated. Task 14 never installs WSL or performs a real broad-access model run.',
       },
       {
         id: 'task-15',
-        title: 'Task 15 — Await replacement integration/package plan',
+        title: 'Task 15 — Provision the dedicated WSL distro',
         done: false,
-        explanation: 'Final pet/file/tray integration and the shareable Windows build remain required, but they follow the new security and animation milestones.',
-        action: 'Do not package the old tail. Wait for the replacement plan and its user gates.',
+        explanation: 'Download verified pinned inputs, bind the exact rootfs package baseline to its hash, reject unknown same-name registrations before execution, install the locked final inventory through a hash-checked payload, and expose idempotent setup and repair.',
+        action: 'Wait until Task 14 is accepted. This is the first task allowed to install WSL components or the app-owned distro.',
+      },
+      {
+        id: 'task-16',
+        title: 'Task 16 — Enforce the generic WSL workspace boundary',
+        done: false,
+        explanation: 'Deploy the verified broker stage, use a kill-on-close path-guard Job, mount only the selected project plus one unique fixed temp inside a private WSL namespace, and bind every hostile/recovery attestation to the current distro runtime epoch and effective security state.',
+        action: 'Wait until Task 15 setup is accepted. Neither real provider is Workspace-ready at the end of this task.',
+      },
+      {
+        id: 'task-17',
+        title: 'Task 17 — Add genuine Codex Workspace',
+        done: false,
+        explanation: 'Deploy the Codex policy stage and run the pinned Linux CLI through the verified broker and named no-network profile, with a literal code-mode manifest, fail-closed collaboration/input probes, a broker-owned WSL-local Responses harness, and fresh runtime/identity-bound gate evidence.',
+        action: 'Wait until Task 16 is accepted. A signed-in live smoke is optional; deterministic boundary evidence is mandatory.',
+      },
+      {
+        id: 'task-18',
+        title: 'Task 18 — Add genuine Claude Workspace',
+        done: false,
+        explanation: 'Prove the cumulative stage-18 manifest can provision from no distro, then run pinned Claude Code through the outer boundary, unique fixed temp, closed Messages/SSE harness, and locked managed-only policy.',
+        action: 'Wait until Task 17 is accepted. Claude safe mode alone still never counts as the Workspace boundary.',
+      },
+      {
+        id: 'task-19',
+        title: 'Task 19 — Finish the nine-state Banana Baron atlas',
+        done: false,
+        explanation: 'Resume the prepared Hatch Pet run, generate the seven distinct pending rows, safely derive or generate running-left, and switch to one validated WebP atlas only after deterministic and visual QA.',
+        action: 'Wait until Task 18 is accepted. Use only the prepared run, and keep the protected philosophy source tree read-only.',
+      },
+      {
+        id: 'task-20',
+        title: 'Task 20 — Drive animations and finish offline integration',
+        done: false,
+        explanation: 'Map real setup, drag, goal, activity, Stop, response, and public-capability Dismiss events to all nine states; bind one open file handle across warning/read and reject selection/edit races before busy/provider text.',
+        action: 'Wait until Task 19 visual evidence is accepted. Remove the rollback atlas only after all nine states pass in Electron.',
+      },
+      {
+        id: 'task-21',
+        title: 'Task 21 — Build the unsigned Windows test package',
+        done: false,
+        explanation: 'Create the deterministic icon, non-following bounded package verifier and secret scan, accurate first-run/residual-data removal docs, canonical portable folder, zip, and fresh-profile launch evidence.',
+        action: 'Wait until Task 20 is accepted. Package only the verified production path and never scan or copy sibling repositories or personal data.',
       },
     ]);
 

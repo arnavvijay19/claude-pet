@@ -1,7 +1,13 @@
 # Disposable Project Checklist Design
 
+> **HISTORICAL / COMPLETED — DO NOT EXECUTE.** This document records the original Tasks 1-15
+> checklist design only. The current canonical sequence is Tasks 13-21 in
+> [`../plans/2026-07-13-claude-pet.md`](../plans/2026-07-13-claude-pet.md), and the current
+> `PROJECT_CHECKLIST.html` remains in use through Task 21. Do not regenerate it from this file or
+> delete it after the superseded Task 15.
+
 **Date:** 2026-07-22  
-**Status:** Approved for implementation
+**Status:** Historical — implementation completed and later superseded
 
 ## Purpose
 

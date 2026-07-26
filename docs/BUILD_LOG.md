@@ -475,3 +475,23 @@ link the note to it — this file is the inbox, not the archive.
 - 2026-07-26 `IDEA:` The prepared Post-Hoc Banana Baron run has complete base/idle assets and uses
   `canonical-base-small.png` to avoid the prior 5 MB/413 failures. Generate and validate the remaining
   rows as a separate milestone before atomically replacing Claude Pet's idle-only atlas.
+
+- 2026-07-26 `PLAN CHECKPOINT:` The user approved the replacement Tasks 13-21 tail: warned Full
+  Computer is the default selection for new Codex/Claude connections, genuine Workspace requires the
+  dedicated verified WSL2 boundary, and the complete nine-state Banana Baron animation remains a
+  later serial milestone. Task 13 is the only next implementation task; do not start Task 14 or WSL
+  setup before its user gate.
+
+- 2026-07-26 `SUPERSEDE:` A live account-free Codex 0.145.0 loopback probe invalidated the draft
+  classic five-tool allowlist before implementation. GPT-5.6 Sol/Terra/Luna send a developer
+  `input[type=additional_tools]` code-mode envelope with a nested `exec` registry; collaboration and
+  user-input controls remain surfaced even when their features are disabled. The canonical plan/spec
+  now pin the exact envelope/registries, require per-run authenticated local harness paths, exercise
+  every registered behavior, and require collaboration/input to fail closed. Native probes use
+  Electron-main loopback; WSL probes use broker-owned listeners inside the Linux outer namespace and
+  retain the production security profile. Historical checklist plans are marked do-not-execute.
+
+- 2026-07-26 `VERIFY:` The approved-plan checkpoint passed three scoped consistency/protocol/security
+  re-reviews with no P0/P1 findings, their targeted 16/17-assertion boundary scans, Markdown fence/
+  link/task-heading checks, checklist JavaScript syntax, `git diff --check`, canonical Node 106/106,
+  and pytest 1/1.

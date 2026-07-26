@@ -1,5 +1,12 @@
 # Claude Pet Agent-First Spec
 
+> **Current boundary amendment (2026-07-26):**
+> [WSL Workspace and Full Computer Redesign](2026-07-26-wsl-workspace-full-computer-redesign.md)
+> supersedes this document wherever it discusses the default permission mode, native Windows
+> Workspace safety, authentication placement, animation scope, or the old Tasks 13-15 delivery tail.
+> Warned Full Computer is the default selection for new Codex/Claude connections; genuine Workspace
+> is optional and available only through the dedicated verified WSL2 boundary.
+
 ## What this is
 
 Claude Pet is a Windows Electron desktop agent built around the existing Post-Hoc Banana Baron
@@ -21,7 +28,8 @@ approved design record is
 - Accept goals through `POST /prompt` on `127.0.0.1:47611` and deliberate text-file drop.
 - Configure an official Codex CLI or Claude Code CLI agent in a normal-sized Settings window.
 - Select a workspace, permission profile, model, and supported reasoning effort per connection.
-- Default to a workspace-scoped agent and offer full-computer authority only as an advanced opt-in.
+- Default new Codex/Claude drafts to clearly warned Full Computer while offering genuine Workspace
+  only through the verified dedicated WSL2 boundary; never fall back between them.
 - Show Simple and Comprehensive live views of the same structured activity stream.
 - Make every major milestone runnable and manually testable before adding the next layer.
 - Package an unsigned Windows x64 test build containing no user credentials or development data.
@@ -29,10 +37,11 @@ approved design record is
 
 ## Initial agent connections
 
-The first release supports two agent executors:
+The first release supports three agent executors:
 
-1. Codex CLI — an installed official Codex CLI using its own ChatGPT or API-key sign-in.
-2. Claude Code CLI — an installed official Claude Code CLI using its own sign-in.
+1. Offline Demo — a deterministic account-free, network-free Workspace-only executor.
+2. Codex CLI — exact native and dedicated-WSL installs with separate official login state.
+3. Claude Code CLI — exact native and dedicated-WSL installs with separate official login state.
 
 Direct OpenAI, Anthropic, and custom compatible API connections are deferred until the app owns a
 real tool loop that satisfies the same permission, activity, cancellation, and error contracts.
@@ -55,10 +64,11 @@ The app never authenticates directly to a provider consumer account.
 
 ### Workspace Agent
 
-Workspace Agent is the default permission profile. It can read, create, edit, delete, and run
-commands inside one selected workspace. Reads and writes outside that workspace and child-command
-network access are denied except for the minimum executable, runtime, and opaque authentication
-paths required to launch the official CLI.
+Workspace Agent is optional for real providers and available only through the app-owned
+`ClaudePetWorkspace` WSL2 distribution after its complete generic/provider hostile gate passes. It
+can read, create, edit, delete, and run Linux commands inside one selected workspace. Reads and
+writes outside that workspace plus child-command network access are denied; controlling-CLI provider
+traffic and opaque authentication remain outside the model-command sandbox.
 
 This boundary must be enforced by an executor, operating-system sandbox, or verified permission
 profile. Prompt instructions are not a security boundary. An executor that cannot prove workspace
@@ -66,9 +76,10 @@ isolation cannot advertise Workspace Agent for that installation.
 
 ### Full Computer Agent
 
-Full Computer Agent is an advanced per-connection opt-in. It may receive broad filesystem, command,
-and network access supported by its executor. Enabling it requires a separate warning and explicit
-confirmation. Settings and every live run display a persistent Full Computer badge.
+Full Computer Agent is the default selection for new real-provider drafts but remains optional. It
+may receive broad filesystem, command, and network access supported by its native executor. Saving
+or running it requires a separate main-owned connection-bound warning and explicit confirmation.
+Settings, tray, activity, and every live response display a persistent broad-access badge.
 
 Permission changes affect only the next run. The active run retains its immutable snapshot.
 
@@ -197,13 +208,14 @@ of thought may not.
 
 The initial setup flow is:
 
-1. Choose Codex CLI or Claude Code CLI.
-2. Launch official login and recheck non-secret status.
-3. Choose a workspace folder.
-4. Choose Workspace Agent or advanced Full Computer Agent.
-5. Select a supported model and reasoning effort.
-6. Run permission diagnostics.
-7. Save and activate the connection.
+1. Choose Offline Demo, Codex CLI, or Claude Code CLI and a workspace/model/effort.
+2. For Codex/Claude, see Full Computer preselected or deliberately choose Workspace.
+3. Full Computer opens its exact native warning before save, then uses separate native official login.
+4. Workspace provisions/repairs only the owned WSL distro, deploys the current hashed stage, and runs
+   the complete fresh boundary/provider gate.
+5. Only after that gate, Workspace offers its separate official WSL login.
+6. Save and activate the connection; unavailable setup/auth/gate states fail closed without changing
+   modes or silently falling back.
 
 Settings always shows active executor, health, workspace, permission profile, model, effort, Test,
 Change, and Manage connections. The tray exposes quick connection and model choices plus the active
@@ -226,8 +238,8 @@ permission badge. Changes made during a run apply to the next run only.
 Stable categories include `AGENT_REQUIRED`, `CLI_NOT_INSTALLED`, `AUTH_REQUIRED`,
 `WORKSPACE_UNAVAILABLE`, `PERMISSION_PROFILE_UNAVAILABLE`, `PERMISSION_BLOCKED`, `AGENT_BUSY`,
 `COMMAND_FAILED`, `REQUEST_TIMEOUT`, `RUN_STOPPED`, `MODEL_UNAVAILABLE`, `UNSUPPORTED_OPTION`,
-`RATE_LIMITED`, `QUOTA_OR_BILLING`, `PROVIDER_OUTPUT_INVALID`, `ACTIVITY_INVALID`, and
-`SECRET_STORE_FAILED`.
+`RATE_LIMITED`, `QUOTA_OR_BILLING`, `PROVIDER_OUTPUT_INVALID`, `ACTIVITY_INVALID`,
+`SECRET_STORE_FAILED`, and the fixed bounded-attachment categories defined by Task 20.
 
 The response window shows a short explanation and one useful action. Main-to-renderer IPC returns
 only allowlisted connection metadata, normalized activity, and public errors. Logs omit goal text by
@@ -236,13 +248,14 @@ dumps, raw provider output, raw CLI stderr, and unsafe command output.
 
 ## Incremental delivery gates
 
-1. Existing pet foundation remains runnable.
-2. Offline agent shell adds Settings, permissions, response window, Simple activity, and a mock
-   executor.
-3. Codex Workspace Agent adds real optional execution and Comprehensive activity.
-4. Claude Code Agent adds executor parity behind the same contract.
-5. Advanced permissions add Full Computer opt-in, warnings, and adversarial tests.
-6. Packaged test build provides a clean Windows first run and repeatable test instructions.
+1. Completed Tasks 1-12 preserve the pet/agent/activity/Settings foundation and fail-closed native
+   diagnostics.
+2. Task 13 repairs signed CLI discovery and complete native evidence.
+3. Task 14 adds default warned native Full Computer with exact non-local-tool denial.
+4. Tasks 15-18 deploy the staged dedicated WSL boundary and fresh Codex/Claude gates.
+5. Tasks 19-20 integrate the validated nine-state atlas, token-safe activity animation, and bounded
+   deliberate file path.
+6. Task 21 provides the non-following scanned unsigned Windows test package and first-run/removal docs.
 
 Every gate ends with a runnable app, exact test instructions, focused and full automated tests,
 visual evidence, a BUILD_LOG checkpoint, a commit, and an explicit user test opportunity before the
