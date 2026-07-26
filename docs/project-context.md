@@ -10,7 +10,7 @@ and why),
 [superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md](superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md)
 (approved current boundary/animation redesign),
 [superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md)
-(Tasks 1-13 complete; replacement Tasks 14-21 approved; Task 14 only next), [RESEARCH.md](RESEARCH.md)
+(Tasks 1-14 complete; replacement Tasks 15-21 approved; Task 15 only next), [RESEARCH.md](RESEARCH.md)
 (evidence), and
 [BUILD_LOG.md](BUILD_LOG.md) (history).
 
@@ -22,15 +22,15 @@ Simple or Comprehensive form.
 
 ## Current state
 
-- Tasks 1-13 are complete and integrated into local `master` at `e02a58d`. Task 14 is the only
-  permitted next task; its implementation has not started.
+- Tasks 1-14 are complete. Task 14's warned native Full Computer flow is accepted with its verified
+  implementation at `baa73e3`; Task 15 is the only permitted next task.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
 - The WSL Workspace + default Full Computer redesign is committed at `759afe4`, the approved
-  replacement Tasks 13-21 plan checkpoint is committed at `b28d9bb`. The user accepted Task 13's
-  evidence gate and it is integrated; the next gate is Task 14 only.
+  replacement Tasks 13-21 plan checkpoint is committed at `b28d9bb`. The user accepted Task 14's
+  evidence gate; the next gate is Task 15 only.
 - The redesign makes warned **Full Computer** the default selection for new Codex/Claude connections.
   Genuine **Workspace** uses a dedicated, locked WSL2 Ubuntu distribution and never falls back to
   Full Computer.
@@ -147,9 +147,8 @@ Direct API agent loops, multiple agents, schedules, and persistent history remai
 
 - One implementation session executes one numbered task, verifies it, updates BUILD_LOG.md, and
   commits it.
-- The replacement Tasks 13-21 plan is approved and Task 13 is accepted and integrated. Execute
-  Task 14 only and stop at its user gate; do not start Task 15 or later work until Task 14 is
-  accepted and integrated.
+- The replacement Tasks 13-21 plan is approved and Task 14 is accepted. Execute Task 15 only and
+  stop at its user gate; do not start Task 16 or later work until Task 15 is accepted and integrated.
 - Start each task with a concise ETA and revise it only when the estimate materially changes.
 - Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
@@ -175,17 +174,17 @@ Offline Demo exposes only `offline-demo`. Unlisted values and silent fallback ar
 
 ## Order
 
-Tasks 1-13 remain complete. The written redesign is approved. Replacement Tasks 13-21 define serial
+Tasks 1-14 remain complete. The written redesign is approved. Replacement Tasks 13-21 define serial
 prerequisite, Full Computer, WSL Workspace, animation, integration, and packaging milestones. The
-plan is approved; Task 14 is next, and no later task may begin before its predecessor is accepted and
+plan is approved; Task 15 is next, and no later task may begin before its predecessor is accepted and
 integrated.
 
 ## Standard entry prompt
 
 > Read Claude Pet/docs/project-context.md, Claude Pet/docs/BUILD_LOG.md,
-> Claude Pet/docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md, and Task 14 in
+> Claude Pet/docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md, and Task 15 in
 > Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md. The replacement plan is explicitly
-> approved; execute Task 14 only. Do not install WSL or perform a real broad-access provider run.
+> approved; execute Task 15 only. Do not sign into a provider or run a real model.
 
 ## Session contract
 
@@ -206,7 +205,7 @@ Every implementation session must:
 - Base product requirements: `superpowers/specs/claude-pet-spec.md` (amended by the current redesign)
 - Historical agent-first foundation: `superpowers/specs/2026-07-22-agent-first-provider-redesign.md`
 - Current boundary/animation redesign: `superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md`
-- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md` (Tasks 1-13 complete;
-  replacement Tasks 14-21 approved; Task 14 only next)
+- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md` (Tasks 1-14 complete;
+  replacement Tasks 15-21 approved; Task 15 only next)
 - Evidence and rationale: `RESEARCH.md`
 - Session history and handoffs: `BUILD_LOG.md`

@@ -1,7 +1,7 @@
 # Claude Pet WSL Workspace and Full Computer Redesign
 
-**Status:** Approved design and approved replacement Tasks 13-21 plan; Task 13 is accepted and
-integrated; Task 14 only is next
+**Status:** Approved design and approved replacement Tasks 13-21 plan; Task 14 is accepted;
+Task 15 only is next
 
 **Date:** 2026-07-26
 
@@ -808,8 +808,8 @@ after each:
 6. finish pet/file/tray integration and produce the shareable package.
 
 The exact task numbers and file-by-file red/green steps live in the implementation plan. Completed
-Tasks 1-12 remain preserved; the user approved replacement Tasks 13-21. Task 13 is accepted and
-integrated, Task 14 is the only next task, and only one numbered task may begin after its
+Tasks 1-12 remain preserved; the user approved replacement Tasks 13-21. Task 14 is accepted,
+Task 15 is the only next task, and only one numbered task may begin after its
 predecessor is accepted and integrated.
 
 ## Acceptance criteria

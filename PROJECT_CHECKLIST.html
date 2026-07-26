@@ -264,8 +264,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Task 14 implementation and automated/Electron gates are complete. It remains unchecked until you accept the short user test; do not start Task 15 first.</p>
-      <p><strong>What you need to do:</strong> Cancel the native warning once and confirm no connection is saved. Then accept it, confirm the Full Computer badge, switch to Workspace and back, and delete/recreate to confirm a fresh warning.</p>
+      <p><strong>Next:</strong> Task 14 is accepted and complete. Task 15 is the only next task: provision the dedicated pinned WSL2 distro and stop at its setup user gate.</p>
+      <p><strong>What you need to do:</strong> Nothing yet. Wait for the Task 15 setup handoff; do not sign into a provider or run a real model.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -288,7 +288,7 @@
         <li><a href="docs/project-context.md">Current project context</a></li>
         <li><a href="docs/BUILD_LOG.md">Build history</a></li>
         <li><a href="docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md">WSL Workspace + Full Computer redesign</a></li>
-        <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Tasks 1-13 complete; Task 14 only next; Tasks 15-21 approved)</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Tasks 1-14 complete; Task 15 only next; Tasks 16-21 approved)</a></li>
       </ul>
     </section>
 
@@ -396,16 +396,16 @@
       {
         id: 'task-14',
         title: 'Task 14 — Add warned Full Computer mode',
-        done: false,
-        explanation: 'Make Full Computer the default selection for new Codex and Claude connections, bind one native warning to one saved connection, pin the real GPT-5.6 code-mode protocol, and keep broad-access badges visible everywhere.',
-        action: 'USER TEST GATE: cancel once (nothing saved), accept once (badge stays visible), switch Workspace and back (no fallback), then delete/recreate (fresh warning). Keep Task 14 unchecked until acceptance.',
+        done: true,
+        explanation: 'Full Computer is the default selection for new Codex and Claude connections, one native warning is bound to one saved connection, the real GPT-5.6 code-mode protocol is pinned, and broad-access badges remain visible everywhere.',
+        action: 'Nothing. Task 14 is accepted and integrated.',
       },
       {
         id: 'task-15',
         title: 'Task 15 — Provision the dedicated WSL distro',
         done: false,
         explanation: 'Download verified pinned inputs, bind the exact rootfs package baseline to its hash, reject unknown same-name registrations before execution, install the locked final inventory through a hash-checked payload, and expose idempotent setup and repair.',
-        action: 'Wait until Task 14 is accepted. This is the first task allowed to install WSL components or the app-owned distro.',
+        action: 'Execute Task 15 only, then stop at its setup user gate. Do not sign into a provider or run a real model.',
       },
       {
         id: 'task-16',

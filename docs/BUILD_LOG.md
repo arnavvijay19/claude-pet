@@ -355,6 +355,12 @@ optional — an unlogged session is a failed session even if its code worked). F
   next-run Workspace fail-closed behavior, and delete/recreate re-warning; evidence is
   `docs/evidence/task-14-full-computer-warning.png`. No provider account/model run or WSL install occurred.
 
+- **2026-07-26 · user acceptance and integration · Task 14** — The user confirmed the warned native
+  Full Computer flow works, including the manual gate recorded above. The
+  `worktree-task-14-full-computer-mode` branch is accepted for fast-forward into local `master`,
+  carrying the verified implementation at `baa73e3`. Task 15 is the only next task; no Task 15
+  source, WSL installation, provider login, or model run has begun.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
