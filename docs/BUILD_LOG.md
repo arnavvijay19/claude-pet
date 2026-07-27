@@ -610,3 +610,15 @@ link the note to it — this file is the inbox, not the archive.
   `running-left` frame by frame. This Codex surface exposes no built-in image generator to parent or
   workers; the six remaining distinct rows require either a built-in-ImageGen surface or separate
   approval for the credentialed CLI fallback. `OPENAI_API_KEY` is currently unset; no fallback ran.
+
+- 2026-07-27 `VERIFY:` Task 15 resumed the preserved run with built-in ImageGen, generated all six
+  deferred rows, repaired only the incoherent `running` work loop, and passed deterministic PNG/WebP
+  validation plus final visual QA for all nine rows. The integrated `1536x1872` WebP passes Node
+  221/221 and pytest 3/3, including zero visible chroma-key pixels; real Electron evidence is
+  `evidence/task-15-banana-baron-idle.png`.
+
+- 2026-07-27 `GOTCHA:` The bundled Computer Use bridge was missing
+  `computer_use_client_base.js`, so the real Electron gate used the documented local CDP fallback.
+  The renderer reloaded at exactly `192x208`, drew 18,224 visible canvas pixels with zero visible
+  magenta pixels, and emitted no page or console errors. No WSL install, provider sign-in, or real
+  provider run occurred.

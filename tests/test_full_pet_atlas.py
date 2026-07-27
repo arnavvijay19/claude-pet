@@ -43,3 +43,13 @@ def test_full_pet_atlas_matches_manifest_and_cell_alpha_contract():
                     assert alpha_bounds is not None, (name, column, "used cell is empty")
                 else:
                     assert alpha_bounds is None, (name, column, "unused cell is not transparent")
+
+
+def test_full_pet_atlas_has_no_visible_chroma_key_halo():
+    with Image.open(ROOT / "assets" / "spritesheet.webp") as atlas:
+        visible_magenta = sum(
+            alpha > 0 and red > 200 and blue > 200 and green < 80
+            for red, green, blue, alpha in atlas.convert("RGBA").get_flattened_data()
+        )
+
+    assert visible_magenta == 0
