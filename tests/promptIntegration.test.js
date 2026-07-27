@@ -3,7 +3,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { AgentError } = require('../src/agent/agentErrors.js');
+const { createActivityStore } = require('../src/agent/activityStore.js');
+const { createAgentManager } = require('../src/agent/agentManager.js');
+const { createSessionCoordinator } = require('../src/agent/sessionCoordinator.js');
 const { createPromptController } = require('../src/promptController.js');
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((complete) => { resolve = complete; });
+  return { promise, resolve };
+}
 
 test('begins the response from the same manager-owned immutable run snapshot', async () => {
   const published = [];
@@ -65,19 +74,51 @@ test('publishes a sanitized error before rethrowing it and exposes Stop', async 
   assert.equal(controller.stop(), true);
 });
 
-test('notifies the Settings busy bridge immediately after reserving a run', async () => {
-  let release;
-  const gate = new Promise((resolve) => { release = resolve; });
+test('publishes Settings busy only after a real manager reservation and before executor preflight', async () => {
+  const preflight = deferred();
+  const release = deferred();
+  const session = {
+    id: 'session-a', agentId: 'agent-a', title: 'Session', workspacePath: 'Z:\\workspace', nextConnectionId: 'offline',
+    createdAt: '1', updatedAt: '1', turnCount: 0, lastProvider: null,
+  };
+  const turns = [];
+  const connection = {
+    id: 'offline', revision: 1, executorType: 'offline-demo', label: 'Offline', workspacePath: 'Z:\\workspace',
+    permissionProfile: 'workspace', fullAccessConfirmed: false, modelId: 'agent-model', effort: null, keyHint: null, hasSecret: false,
+  };
+  const store = {
+    getActiveSelection: async () => 'offline', setActiveSelection: async () => {},
+    getConnection: async (id) => id === 'offline' ? connection : null,
+    getRunConnection: async (id) => id === 'offline' ? connection : null,
+    listConnections: async () => [connection],
+  };
+  const executor = {
+    async getStatus() { preflight.resolve(); await release.promise; return { installed: true, authenticated: true, workspaceAvailable: true }; },
+    beginSetup: async () => ({ started: false }), listModels: async () => [{ id: 'agent-model', efforts: [] }],
+    getCapabilities: async () => ({ efforts: [] }), verifyPermissionProfile: async () => ({ available: true, allowed: true }),
+    runGoal: async () => ({ text: 'done', changedFiles: [] }),
+  };
+  const manager = createAgentManager({ store, executors: { 'offline-demo:workspace': executor }, activity: createActivityStore({ clock: () => 1 }) });
+  const coordinator = createSessionCoordinator({
+    connectionStore: store, manager,
+    sessionStore: {
+      listAgents: async () => [{ id: 'agent-a', name: 'Agent', createdAt: '1', updatedAt: '1', sessionCount: 1 }],
+      listSessions: async () => [session], getSelection: async () => ({ agentId: 'agent-a', sessionId: 'session-a' }),
+      getSessionView: async (id) => id === 'session-a' ? session : null, getContextTurns: async () => turns,
+      appendTurn: async (_id, turn) => { turns.push(turn); }, select: async () => {}, setNextConnection: async () => {},
+      createAgent: async () => {}, renameAgent: async () => {}, removeAgent: async () => {}, createSession: async () => {}, renameSession: async () => {}, removeSession: async () => {},
+    },
+  });
   const notifications = [];
   const controller = createPromptController({
-    manager: {
-      runGoal: async () => { await gate; return { text: 'done', changedFiles: [] }; }, stop: () => false,
-    },
+    manager: coordinator,
     response: { success: () => {}, failure: () => {} },
-    onBusyChange: () => notifications.push('busy'),
+    onBusyChange: () => notifications.push(manager.getSnapshot().busy),
   });
   const pending = controller.submitText('hello');
-  assert.deepEqual(notifications, ['busy']);
-  release();
+  await preflight.promise;
+  assert.deepEqual(notifications, [true]);
+  release.resolve();
   await pending;
+  assert.deepEqual(notifications, [true, false]);
 });

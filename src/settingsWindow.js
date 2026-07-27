@@ -30,11 +30,18 @@ function registerSettingsIpc({
   const assertNoPendingAuthorization = () => {
     if (authorization?.isPending?.()) throw new AgentError('FULL_COMPUTER_CONFIRMATION_REQUIRED');
   };
-  const snapshot = async () => createSettingsViewModel({ connections: await store.listConnections(), activeId: await store.getActiveSelection() });
+  const assertNotBusy = () => {
+    if (coordinator?.busy?.() === true || manager?.getSnapshot?.().busy === true) throw new AgentError('AGENT_BUSY');
+  };
+  const snapshot = async () => createSettingsViewModel({
+    connections: await store.listConnections(), activeId: await store.getActiveSelection(),
+    busy: coordinator?.busy?.() === true || manager?.getSnapshot?.().busy === true,
+  });
   ipcMain.handle('settings:snapshot', async (event) => { assertSender(event); return snapshot(); });
   ipcMain.handle('settings:save', async (event, draft) => {
     assertSender(event);
     assertNoPendingAuthorization();
+    assertNotBusy();
     if (!validDraft(draft) || typeof draft.workspacePath !== 'string'
         || draft.workspacePath.trim().length === 0) {
       throw new AgentError('UNSUPPORTED_OPTION');
@@ -48,11 +55,13 @@ function registerSettingsIpc({
   });
   ipcMain.handle('settings:select', async (event, id) => {
     assertSender(event); assertNoPendingAuthorization();
+    assertNotBusy();
     if (id !== null && typeof id !== 'string') throw new AgentError('UNSUPPORTED_OPTION');
     await store.setActiveSelection(id); await onStateChange(); return snapshot();
   });
   ipcMain.handle('settings:remove', async (event, id) => {
     assertSender(event); assertNoPendingAuthorization();
+    assertNotBusy();
     if (typeof id !== 'string' || !id) throw new AgentError('UNSUPPORTED_OPTION');
     const removed = await store.removeConnection(id); await onStateChange(); return removed;
   });
@@ -70,6 +79,7 @@ function registerSettingsIpc({
   ipcMain.handle('settings:setup', async (event) => { assertSender(event); return manager.beginSetup(); });
   const session = (method, validate) => async (event, value) => {
     assertSender(event); assertNoPendingAuthorization();
+    assertNotBusy();
     if (!coordinator || typeof coordinator[method] !== 'function' || !validate(value)) throw new AgentError('UNSUPPORTED_OPTION');
     const result = await coordinator[method](...(Array.isArray(value) ? value : [value])); await onStateChange(); return result;
   };

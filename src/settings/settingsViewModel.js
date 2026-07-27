@@ -2,7 +2,7 @@
 
 const { FULL_COMPUTER, WORKSPACE, defaultPermissionProfile, permissionBadge } = require('../agent/executionModes.js');
 
-function createSettingsViewModel({ connections = [], activeId = null } = {}) {
+function createSettingsViewModel({ connections = [], activeId = null, busy = false } = {}) {
   const safeConnections = connections.map((connection) => {
     const badge = permissionBadge(connection.permissionProfile);
     return {
@@ -33,6 +33,7 @@ function createSettingsViewModel({ connections = [], activeId = null } = {}) {
     workspaceOnly: !realProvider,
     fullComputerAvailable: realProvider,
     fileSubmitAvailable: false,
+    mutationsDisabled: busy === true,
   });
 }
 

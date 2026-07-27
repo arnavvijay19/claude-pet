@@ -5,17 +5,22 @@ const { toPublicError } = require('./agent/agentErrors.js');
 function createPromptController({ manager, response, onBusyChange = () => {} }) {
   return Object.freeze({
     async submitText(text) {
+      let reserved = false;
       try {
-        const pending = manager.runGoal(text, {
+        const result = await manager.runGoal(text, {
           onStart: (context) => response.begin?.(context),
+          // The coordinator invokes this only once the Agent Manager has made
+          // its real reservation, before executor preflight begins.
+          onReserved: () => { reserved = true; onBusyChange(); },
         });
-        onBusyChange();
-        const result = await pending;
         response.success?.(result);
         return result;
       } catch (error) {
         response.failure?.(toPublicError(error));
         throw error;
+      } finally {
+        // Agent Manager clears its reservation before the run promise settles.
+        if (reserved) onBusyChange();
       }
     },
     stop() {

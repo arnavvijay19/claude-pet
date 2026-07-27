@@ -42,3 +42,9 @@ test('presents Full Computer as the warned default and Workspace separately as u
   assert.equal(JSON.stringify(model).includes('fullAccessConfirmed'), false);
   assert.equal(JSON.stringify(model).includes('revision'), false);
 });
+
+test('marks all Settings mutations unavailable while a run owns the reservation', () => {
+  const model = createSettingsViewModel({ busy: true });
+  assert.equal(model.mutationsDisabled, true);
+  assert.equal(createSettingsViewModel({ busy: false }).mutationsDisabled, false);
+});

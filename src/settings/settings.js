@@ -14,6 +14,9 @@ const sessionAgent = document.querySelector('#session-agent');
 const sessionSession = document.querySelector('#session-session');
 const nextProvider = document.querySelector('#next-provider');
 const sessionButtons = ['#create-agent', '#rename-agent', '#delete-agent', '#create-session', '#rename-session', '#delete-session'].map((id) => document.querySelector(id));
+const connectionMutationControls = [workspace, executor, permission, model, effort, save];
+let sessionBusy = false;
+let saving = false;
 
 const registries = {
   'codex-cli': {
@@ -87,16 +90,24 @@ function loadConnection(connection) {
   });
 }
 
+function setMutationDisabled(disabled) {
+  sessionBusy = disabled === true;
+  sessionAgent.disabled = sessionBusy;
+  sessionSession.disabled = sessionBusy;
+  nextProvider.disabled = sessionBusy;
+  sessionButtons.forEach((button) => { button.disabled = sessionBusy; });
+  connectionMutationControls.forEach((control) => { control.disabled = sessionBusy || (control === save && saving); });
+  document.querySelectorAll('[data-settings-mutation]').forEach((control) => { control.disabled = sessionBusy; });
+}
+
 function sessionOptions(node, values, selected, label) {
   node.replaceChildren(...values.map((value) => { const option = document.createElement('option'); option.value = value.id; option.textContent = value[label]; option.selected = value.id === selected; return option; }));
 }
 function renderSessionSnapshot(snapshot) {
-  const disabled = snapshot.busy === true;
   sessionOptions(sessionAgent, snapshot.agents, snapshot.selection.agentId, 'name');
   sessionOptions(sessionSession, snapshot.sessions, snapshot.selection.sessionId, 'title');
   sessionOptions(nextProvider, snapshot.connections, snapshot.session?.nextConnectionId, 'label');
-  sessionAgent.disabled = disabled; sessionSession.disabled = disabled; nextProvider.disabled = disabled;
-  sessionButtons.forEach((button) => { button.disabled = disabled; });
+  setMutationDisabled(snapshot.busy === true);
   return snapshot;
 }
 async function refreshSessions() {
@@ -105,6 +116,7 @@ async function refreshSessions() {
 
 async function refresh(provided) {
   const snapshot = provided || await window.settings.snapshot();
+  setMutationDisabled(snapshot.mutationsDisabled === true || sessionBusy);
   text(activePermission, snapshot.active?.permissionBadge || 'No connection selected');
   activePermission.classList.toggle('warning-badge', snapshot.active?.permissionWarning === true);
   list.replaceChildren(...snapshot.connections.map((connection) => {
@@ -113,6 +125,8 @@ async function refresh(provided) {
     text(summary, window.settingsPresentation.connectionSummary(connection));
     if (connection.permissionWarning) summary.classList.add('warning-text');
     const use = document.createElement('button');
+    use.dataset.settingsMutation = 'connection-select';
+    use.disabled = sessionBusy;
     text(use, connection.id === snapshot.active?.id ? 'Edit active' : 'Use / edit');
     use.addEventListener('click', async () => {
       await window.settings.select(connection.id);
@@ -120,6 +134,8 @@ async function refresh(provided) {
       await refresh();
     });
     const remove = document.createElement('button');
+    remove.dataset.settingsMutation = 'connection-remove';
+    remove.disabled = sessionBusy;
     text(remove, 'Delete');
     remove.addEventListener('click', async () => {
       await window.settings.remove(connection.id);
@@ -165,7 +181,8 @@ renderExecutor();
 window.settings.onSessionState((value) => renderSessionSnapshot(value));
 
 save.addEventListener('click', async () => {
-  save.disabled = true;
+  saving = true;
+  setMutationDisabled(sessionBusy);
   text(status, 'Saving connection...');
   try {
     const snapshot = await window.settings.save(draft());
@@ -178,7 +195,8 @@ save.addEventListener('click', async () => {
     text(status, 'Save cancelled or rejected. No permission was added.');
     await refresh();
   } finally {
-    save.disabled = false;
+    saving = false;
+    setMutationDisabled(sessionBusy);
   }
 });
 

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { createSettingsWindowController, registerSettingsIpc } = require('../src/settingsWindow.js');
 const { AgentError } = require('../src/agent/agentErrors.js');
 
-function harness(managerOverrides = {}, authorizationOverrides = {}) {
+function harness(managerOverrides = {}, authorizationOverrides = {}, coordinatorOverrides = {}) {
   const handlers = new Map();
   const sender = {};
   const selected = [];
@@ -33,10 +33,19 @@ function harness(managerOverrides = {}, authorizationOverrides = {}) {
     ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
     sender, settingsWindow, store, authorization,
     manager: {
+      getSnapshot: () => ({ busy: false }),
       getStatus: async () => ({ installed: true }),
       verifyPermissionProfile: async () => ({ available: true, allowed: true }),
       beginSetup: async () => ({ started: false }),
       ...managerOverrides,
+    },
+    coordinator: {
+      busy: () => false,
+      snapshot: async () => ({ busy: false }),
+      createAgent: async () => {}, renameAgent: async () => {}, removeAgent: async () => {},
+      createSession: async () => {}, renameSession: async () => {}, removeSession: async () => {},
+      select: async () => {}, setNextConnection: async () => {},
+      ...coordinatorOverrides,
     },
   });
   return { authorizationCalls, handlers, sender, selected, settingsWindow };
@@ -169,6 +178,22 @@ test('recreates Settings after the user closes its previous window', () => {
   assert.equal(second.shown, 1);
   assert.equal(second.focused, 1);
   assert.equal(handlers.size, 15);
+});
+
+test('rejects every legacy and Task 17 Settings mutation while a run is busy', async () => {
+  const { authorizationCalls, handlers, selected, sender } = harness({}, {}, { busy: () => true });
+  const draft = { executorType: 'offline-demo', label: 'Demo', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'offline-demo', effort: null, keyHint: null };
+  const mutations = [
+    ['settings:save', draft], ['settings:select', 'offline'], ['settings:remove', 'offline'],
+    ['settings:create-agent', { name: 'Agent' }], ['settings:rename-agent', ['agent-a', 'Agent']], ['settings:delete-agent', 'agent-a'],
+    ['settings:create-session', { agentId: 'agent-a', title: 'Session', workspacePath: 'Z:\\work' }], ['settings:rename-session', ['session-a', 'Session']], ['settings:delete-session', 'session-a'],
+    ['settings:select-session', { agentId: 'agent-a', sessionId: 'session-a' }], ['settings:set-next-connection', { sessionId: 'session-a', connectionId: 'offline' }],
+  ];
+  for (const [channel, value] of mutations) {
+    await assert.rejects(handlers.get(channel)({ sender }, value), (error) => error.code === 'AGENT_BUSY', channel);
+  }
+  assert.deepEqual(authorizationCalls, []);
+  assert.deepEqual(selected, []);
 });
 
 test('publishes coordinator snapshots to Settings when the main run state changes', async () => {

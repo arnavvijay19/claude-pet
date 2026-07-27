@@ -98,13 +98,16 @@ function createSessionCoordinator({ sessionStore, connectionStore, manager, conf
     }
   }
   async function runGoal(text, options = {}) {
-    if (typeof text !== 'string' || !text.trim() || text.includes('\0') || !options || Object.getPrototypeOf(options) !== Object.prototype || Object.keys(options).some((key) => key !== 'onStart') || (Object.hasOwn(options, 'onStart') && typeof options.onStart !== 'function')) throw unavailable();
+    if (typeof text !== 'string' || !text.trim() || text.includes('\0') || !options || Object.getPrototypeOf(options) !== Object.prototype || Object.keys(options).some((key) => !['onStart', 'onReserved'].includes(key)) || (Object.hasOwn(options, 'onStart') && typeof options.onStart !== 'function') || (Object.hasOwn(options, 'onReserved') && typeof options.onReserved !== 'function')) throw unavailable();
     assertIdle(); const current = await selected(); if (!current.session.nextConnectionId) throw new AgentError('AGENT_REQUIRED');
     const runConnection = await readRunConnection(current.session.nextConnectionId);
     if (!runConnection || !Number.isSafeInteger(runConnection.revision)) throw unavailable();
     if (runConnection.workspacePath !== current.session.workspacePath) throw new AgentError('UNSUPPORTED_OPTION');
     const turns = await sessionStore.getContextTurns(current.session.id); await assertStable(current, runConnection); let started = false;
     const result = await manager.runGoal(neutralPrompt(turns, text), { expectedConnectionId: runConnection.id, expectedRevision: runConnection.revision, onStart: async (context) => {
+      // Agent Manager calls onStart only after reserving `busy`, but before any
+      // executor preflight. Publish that real reservation before work begins.
+      options.onReserved?.();
       await assertStable(current, runConnection);
       await sessionStore.appendTurn(current.session.id, { role: 'user', text, provider: null, model: null, changedFiles: [] }); started = true;
       const agent = (await sessionStore.listAgents()).find((item) => item.id === current.selection.agentId);

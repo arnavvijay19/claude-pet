@@ -2,7 +2,21 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
 const { createSessionCoordinator, neutralPrompt } = require('../src/agent/sessionCoordinator.js');
+const { createSessionStore: createPersistentSessionStore } = require('../src/agent/sessionStore.js');
+
+function availableCrypto() {
+  return {
+    isAvailable: async () => true,
+    encrypt: async (value) => Buffer.from(`encrypted:${value}`, 'utf8'),
+    decrypt: async (buffer) => ({ value: Buffer.from(buffer).toString('utf8').replace(/^encrypted:/, ''), shouldReEncrypt: false }),
+  };
+}
+
+function sequence(prefix) { let number = 0; return () => `${prefix}-${++number}`; }
 
 const connection = (id, executorType, modelId) => Object.freeze({
   id, executorType, label: id, workspacePath: 'Z:\\workspace', permissionProfile: 'workspace',
@@ -173,6 +187,7 @@ test('rejects cross-agent session mutations and every mutation while busy', asyn
     manager: { getSnapshot: () => ({ busy: false }), runGoal: async () => {}, stop: () => false },
   });
   await assert.rejects(idle.renameSession('session-b1', 'forged'), (error) => error.code === 'SESSION_SELECTION_EXPIRED');
+  await assert.rejects(idle.removeSession('session-b1'), (error) => error.code === 'SESSION_SELECTION_EXPIRED');
   const busy = createSessionCoordinator({
     sessionStore, connectionStore: { listConnections: async () => [], getConnection: async () => null, getActiveSelection: async () => null, setActiveSelection: async () => {} },
     manager: { getSnapshot: () => ({ busy: true }), runGoal: async () => {}, stop: () => false },
@@ -215,4 +230,40 @@ test('keeps same-family switching disclosure-free and neutral context bounded', 
   });
   await coordinator.setNextConnection({ sessionId: 'session-a1', connectionId: 'offline-2' });
   assert.equal(neutralPrompt(turns, 'now').includes('[Older session turns omitted by Claude Pet.]'), true);
+});
+
+test('restores the selected agent, session history, and next provider after a real session-store restart', async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-pet-task17-restart-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, 'sessions.json');
+  const buildStore = (randomId) => createPersistentSessionStore({
+    filePath, crypto: availableCrypto(), randomId, clock: () => '2026-07-27T00:00:00.000Z',
+  });
+  const original = buildStore(sequence('id'));
+  await original.initialize();
+  const agent = await original.createAgent({ name: 'Research' });
+  const session = await original.createSession({ agentId: agent.id, title: 'Switching', workspacePath: 'Z:\\workspace' });
+  await original.select({ agentId: agent.id, sessionId: session.id });
+  await original.setNextConnection(session.id, 'offline');
+  await original.appendTurn(session.id, { role: 'user', text: 'Keep context', provider: null, model: null, changedFiles: [] });
+  await original.appendTurn(session.id, { role: 'assistant', text: 'Persisted reply', provider: 'offline-demo', model: 'agent-model', changedFiles: [] });
+
+  const restored = buildStore(sequence('unused'));
+  await restored.initialize();
+  const coordinator = createSessionCoordinator({
+    sessionStore: restored,
+    connectionStore: {
+      listConnections: async () => [connection('offline', 'offline-demo', 'agent-model')],
+      getConnection: async () => connection('offline', 'offline-demo', 'agent-model'),
+      getRunConnection: async () => runConnection('offline', 'offline-demo', 'agent-model'),
+      getActiveSelection: async () => 'offline', setActiveSelection: async () => {},
+    },
+    manager: { getSnapshot: () => ({ busy: false }), runGoal: async () => {}, stop: () => false },
+  });
+  const snapshot = await coordinator.snapshot();
+  assert.deepEqual(snapshot.selection, { agentId: agent.id, sessionId: session.id });
+  assert.equal(snapshot.session.nextConnectionId, 'offline');
+  assert.deepEqual(snapshot.turns.map((turn) => [turn.role, turn.text, turn.provider, turn.model]), [
+    ['user', 'Keep context', null, null], ['assistant', 'Persisted reply', 'offline-demo', 'agent-model'],
+  ]);
 });
