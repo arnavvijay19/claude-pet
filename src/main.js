@@ -12,6 +12,8 @@ const { createResponsePreferences } = require('./response/responsePreferences.js
 const { createFullComputerAuthorization } = require('./agent/fullComputerAuthorization.js');
 const { createTrayMenuTemplate } = require('./trayMenu.js');
 const { loadPetManifestWithDataUrl } = require('./petAssets.js');
+const { createPetAnimationController } = require('./petAnimationController.js');
+const { authorizeTextAttachment } = require('./bridge/attachmentAuthorization.js');
 
 let petWindow = null;
 let tray = null;
@@ -22,6 +24,9 @@ let promptController = null;
 let authorization = null;
 let trayRefreshGeneration = 0;
 let refreshSessionState = async () => {};
+let animation = null;
+let animationSequence = 0;
+function publishPetState(state) { const envelope = { animationSequence: ++animationSequence, state }; petWindow?.webContents.send('pet:state', envelope); return envelope; }
 
 function createPetWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
@@ -87,12 +92,19 @@ ipcMain.handle('pet:get-manifest', (event) => {
   return loadPetManifestWithDataUrl({ assetsDir: ASSETS_DIR, readFileSync: fs.readFileSync });
 });
 
-ipcMain.on('pet:move-window', (event, { dx, dy }) => {
+ipcMain.handle('pet:ready', (event) => {
   if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender');
-  if (!petWindow) return;
+  animation?.appReady(); return { animationSequence, state: animation?.snapshot().state || 'idle' };
+});
+ipcMain.on('pet:drag-start', (event) => { if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender'); animation?.dragStarted(); });
+ipcMain.on('pet:drag-move', (event, { dx, dy }) => {
+  if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender');
+  if (!petWindow || !Number.isInteger(dx) || !Number.isInteger(dy) || Math.abs(dx) > 500 || Math.abs(dy) > 500) return;
   const [x, y] = petWindow.getPosition();
   petWindow.setPosition(x + dx, y + dy);
+  animation?.dragMoved(dx);
 });
+ipcMain.on('pet:drag-end', (event) => { if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender'); animation?.dragEnded(); });
 
 app.whenReady().then(async () => {
   if (app.isPackaged && process.env.CLAUDE_PET_TEST_EXECUTOR) throw new Error('CLAUDE_PET_TEST_EXECUTOR is unavailable in packaged builds.');
@@ -104,6 +116,8 @@ app.whenReady().then(async () => {
     return result.response === 0;
   } });
   await runtime.initialize();
+  const manifest = loadPetManifestWithDataUrl({ assetsDir: ASSETS_DIR, readFileSync: fs.readFileSync });
+  animation = createPetAnimationController({ manifest, publish: publishPetState });
   authorization = createFullComputerAuthorization({
     store: runtime.store,
     showMessageBox: (window, options) => dialog.showMessageBox(window, options),
@@ -120,9 +134,9 @@ app.whenReady().then(async () => {
   const publish = () => { const state = responseState.snapshot(); responseWindow?.webContents.send('response:state', state); responseWindow?.webContents.send('response:activity', state); };
   refreshSessionState = async () => { responseState.setSessionSnapshot(await runtime.coordinator.snapshot()); publish(); };
   await refreshSessionState();
-  runtime.activity.subscribe((activity) => { responseState.setActivity(activity); publish(); });
+  runtime.activity.subscribe((activity) => { responseState.setActivity(activity); animation?.activity(animation.currentToken()); publish(); });
   const afterRunStateChange = () => { void refreshSessionState(); void refreshTray(); void settingsWindowController?.refresh(); };
-  promptController = createPromptController({ manager: runtime.coordinator, response: {
+  promptController = createPromptController({ manager: runtime.coordinator, animation, response: {
     begin: (context) => { responseState.begin(context); responseWindow?.showInactive(); afterRunStateChange(); },
     success: (value) => { responseState.success(value); afterRunStateChange(); },
     failure: (value) => { responseState.failure(value); afterRunStateChange(); },
@@ -138,6 +152,11 @@ app.whenReady().then(async () => {
   ipcMain.handle('response:open-settings', (event) => { assertResponseSender(event); return settingsWindowController?.show(); });
   ipcMain.handle('response:set-activity-view', (event, value) => { assertResponseSender(event); responseState.setActivityView(value); publish(); return responseState.snapshot(); });
   startPromptServer((text) => promptController.submitText(text).catch(() => {}));
+  ipcMain.handle('pet:submit-text-file', async (event, filePath) => {
+    if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender');
+    const authorization = await authorizeTextAttachment({ filePath });
+    try { const attachment = await authorization.consume(); return promptController.submitText(require('./bridge/fileContext.js').buildAttachmentPrompt(attachment)); } finally { await authorization.cancel(); }
+  });
   createTray();
 });
 

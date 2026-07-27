@@ -24,6 +24,11 @@ const ERROR_CODES = Object.freeze([
   'SESSION_PERSISTENCE_UNAVAILABLE',
   'SESSION_SELECTION_EXPIRED',
   'PROVIDER_SWITCH_CANCELLED',
+  'ATTACHMENT_INVALID',
+  'ATTACHMENT_TOO_LARGE',
+  'ATTACHMENT_CHANGED',
+  'ATTACHMENT_CANCELLED',
+  'ATTACHMENT_CONFIRMATION_EXPIRED',
 ]);
 
 const PUBLIC_ERROR_BY_CODE = Object.freeze({
@@ -50,6 +55,11 @@ const PUBLIC_ERROR_BY_CODE = Object.freeze({
   SESSION_PERSISTENCE_UNAVAILABLE: Object.freeze({ message: 'Session history could not be saved.', action: 'Check secure storage and try again.' }),
   SESSION_SELECTION_EXPIRED: Object.freeze({ message: 'The selected session or provider changed.', action: 'Choose the session again and retry.' }),
   PROVIDER_SWITCH_CANCELLED: Object.freeze({ message: 'Provider switch cancelled.', action: 'Keep the current provider or confirm the context disclosure.' }),
+  ATTACHMENT_INVALID: Object.freeze({ message: 'The attached file is not valid text.', action: 'Choose a regular UTF-8 text file and try again.' }),
+  ATTACHMENT_TOO_LARGE: Object.freeze({ message: 'The attached file is too large.', action: 'Choose a text file up to 256 KiB.' }),
+  ATTACHMENT_CHANGED: Object.freeze({ message: 'The attached file changed before it could be used.', action: 'Attach the file again.' }),
+  ATTACHMENT_CANCELLED: Object.freeze({ message: 'The file attachment was cancelled.', action: 'Attach the file again when ready.' }),
+  ATTACHMENT_CONFIRMATION_EXPIRED: Object.freeze({ message: 'The file attachment confirmation expired.', action: 'Attach the file again.' }),
 });
 
 class AgentError extends Error {

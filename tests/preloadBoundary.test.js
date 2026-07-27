@@ -5,9 +5,12 @@ const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-test('does not expose a file-submission bridge before Task 14', () => {
+test('exposes only the narrow pet state, drag, and dropped File bridge', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
-  assert.doesNotMatch(source, /pet:file-dropped|sendDroppedFile|webUtils\.getPathForFile/);
+  assert.match(source, /onState/);
+  assert.match(source, /webUtils\.getPathForFile/);
+  assert.match(source, /submitTextFile/);
+  assert.doesNotMatch(source, /readFile|filePath:\s*|onPrompt|onResponse/);
 });
 
 test('exposes only narrow session switch IPC from Settings and never a raw session payload', () => {

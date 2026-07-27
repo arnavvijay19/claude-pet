@@ -6,9 +6,10 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node --test"
+    "test": "node --test",
+    "verify:package": "node scripts/verify_package.js"
   },
   "devDependencies": {
-    "electron": "^43.1.1"
+    "electron": "43.1.1"
   }
 }

@@ -21,15 +21,16 @@ function installWindowDrag(canvas) {
   canvas.addEventListener('pointerdown', (event) => {
     previous = { x: event.screenX, y: event.screenY };
     canvas.setPointerCapture(event.pointerId);
+    window.claudePet.dragStart();
   });
   canvas.addEventListener('pointermove', (event) => {
     if (!previous) return;
     const current = { x: event.screenX, y: event.screenY };
-    window.claudePet.moveWindowBy(current.x - previous.x, current.y - previous.y);
+    window.claudePet.dragMove(current.x - previous.x, current.y - previous.y);
     previous = current;
   });
-  canvas.addEventListener('pointerup', () => { previous = null; });
-  canvas.addEventListener('pointercancel', () => { previous = null; });
+  canvas.addEventListener('pointerup', () => { previous = null; window.claudePet.dragEnd(); });
+  canvas.addEventListener('pointercancel', () => { previous = null; window.claudePet.dragEnd(); });
 }
 
 async function startPetRenderer() {
@@ -47,6 +48,9 @@ async function startPetRenderer() {
   }, { once: true });
   image.src = manifest.spritesheetDataUrl;
   installWindowDrag(canvas);
+  window.claudePet.onState((state) => machine.setState(state, performance.now()));
+  canvas.addEventListener('drop', (event) => { event.preventDefault(); const file = event.dataTransfer?.files?.[0]; if (file) void window.claudePet.submitTextFile(file); });
+  canvas.addEventListener('dragover', (event) => event.preventDefault());
 }
 
 if (typeof module !== 'undefined' && module.exports) module.exports = { drawFrame };
