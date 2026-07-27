@@ -34,6 +34,8 @@
       permissionWarning: run.permissionProfile === 'full-computer',
       elapsed: `${Math.floor(elapsedMs / 1000)}s`,
       canStop: state.busy === true,
+      canDismiss: state.busy !== true && !!run.result && Number.isSafeInteger(run.dismissal?.responseGeneration) && typeof run.dismissal.dismissCapability === 'string',
+      dismiss: state.busy !== true && !!run.result && Number.isSafeInteger(run.dismissal?.responseGeneration) && typeof run.dismissal.dismissCapability === 'string' ? { responseGeneration: run.dismissal.responseGeneration, dismissCapability: run.dismissal.dismissCapability } : null,
       events: events.map((event) => ({ ...event, detail: detailFor(event) })),
       changedFiles: Array.isArray(run.result?.changedFiles) ? [...run.result.changedFiles] : [],
       agent: state.agent?.name || 'No agent selected',

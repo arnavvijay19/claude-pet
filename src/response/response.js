@@ -15,6 +15,8 @@ const elapsed = document.querySelector('#elapsed');
 const events = document.querySelector('#events');
 const changed = document.querySelector('#changed');
 const stop = document.querySelector('#stop');
+const dismiss = document.querySelector('#dismiss');
+let currentDismiss = null;
 
 function render(state) {
   const view = window.responseViewModel.createResponseViewModel(state);
@@ -31,6 +33,9 @@ function render(state) {
   }
   elapsed.textContent = view.elapsed;
   stop.disabled = !view.canStop;
+  dismiss.hidden = !view.canDismiss;
+  dismiss.disabled = !view.canDismiss;
+  currentDismiss = view.dismiss;
   document.querySelector('#simple-panel').hidden = view.activityView === 'comprehensive';
   document.querySelector('#comprehensive-panel').hidden = view.activityView !== 'comprehensive';
   changed.textContent = view.changedFiles.length ? `Changed: ${view.changedFiles.join(', ')}` : '';
@@ -53,6 +58,7 @@ window.response.onActivity(render);
 void window.response.state().then(render);
 setInterval(() => { void window.response.state().then(render); }, 1000);
 stop.addEventListener('click', () => window.response.stop());
+dismiss.addEventListener('click', () => { if (currentDismiss) window.response.dismiss(currentDismiss); });
 document.querySelector('#settings').addEventListener('click', () => window.response.openSettings());
 document.querySelector('#simple').addEventListener('click', () => window.response.setActivityView('simple'));
 document.querySelector('#comprehensive').addEventListener('click', () => window.response.setActivityView('comprehensive'));

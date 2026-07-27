@@ -7,9 +7,11 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "verify:package": "node scripts/verify_package.js"
+    "verify:package": "node scripts/verify_package.js \"dist/Claude Pet-win32-x64\"",
+    "package:win": "electron-packager . \"Claude Pet\" --platform=win32 --arch=x64 --out=dist --overwrite --asar=false --icon=assets/app-icon.ico --ignore=\"^/(dist|docs|tests|scripts|\\.git|\\.claude|\\.codex|\\.agents|\\.pytest_cache|__pycache__)($|/)\" --ignore=\"PROJECT_CHECKLIST\\.html$\""
   },
   "devDependencies": {
+    "@electron/packager": "20.0.4",
     "electron": "43.1.1"
   }
 }

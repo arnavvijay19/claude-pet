@@ -15,7 +15,7 @@ function createResponseState({ now = Date.now, readPreference = () => null, writ
     snapshot,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     setActivityView(value) { if (!['simple', 'comprehensive'].includes(value)) return; view = value; writePreference(value); publish(); },
-    begin(value) { run = { ...value }; events = []; busy = true; stopped = false; startedAt = now(); publish(); },
+    begin(value, dismissal = null) { run = { ...value, dismissal: dismissal && Number.isSafeInteger(dismissal.responseGeneration) && typeof dismissal.dismissCapability === 'string' ? { responseGeneration: dismissal.responseGeneration, dismissCapability: dismissal.dismissCapability } : null }; events = []; busy = true; stopped = false; startedAt = now(); publish(); },
     setActivity(value) { events = Array.isArray(value?.events) ? value.events.map(({ sequence, ...event }) => event) : []; publish(); },
     setSessionSnapshot(value) { sessionSnapshot = { agent: value?.agent ? { ...value.agent } : null, session: value?.session ? { ...value.session } : null, turns: Array.isArray(value?.turns) ? value.turns.map((turn) => ({ ...turn, changedFiles: Array.isArray(turn.changedFiles) ? [...turn.changedFiles] : [] })) : [] }; publish(); },
     success(value) { busy = false; stopped = false; run = { ...(run || {}), result: value }; publish(); },

@@ -26,6 +26,8 @@ let trayRefreshGeneration = 0;
 let refreshSessionState = async () => {};
 let animation = null;
 let animationSequence = 0;
+let responseGeneration = 0;
+let dismissal = null;
 function publishPetState(state) { const envelope = { animationSequence: ++animationSequence, state }; petWindow?.webContents.send('pet:state', envelope); return envelope; }
 
 function createPetWindow() {
@@ -137,7 +139,7 @@ app.whenReady().then(async () => {
   runtime.activity.subscribe((activity) => { responseState.setActivity(activity); animation?.activity(animation.currentToken()); publish(); });
   const afterRunStateChange = () => { void refreshSessionState(); void refreshTray(); void settingsWindowController?.refresh(); };
   promptController = createPromptController({ manager: runtime.coordinator, animation, response: {
-    begin: (context) => { responseState.begin(context); responseWindow?.showInactive(); afterRunStateChange(); },
+    begin: (context, token) => { responseGeneration += 1; dismissal = { responseGeneration, dismissCapability: crypto.randomBytes(32).toString('base64url'), token }; responseState.begin(context, dismissal); responseWindow?.showInactive(); afterRunStateChange(); },
     success: (value) => { responseState.success(value); afterRunStateChange(); },
     failure: (value) => { responseState.failure(value); afterRunStateChange(); },
     stopped: () => { responseState.stopped(); afterRunStateChange(); },
@@ -148,7 +150,12 @@ app.whenReady().then(async () => {
   };
   ipcMain.handle('response:stop', (event) => { assertResponseSender(event); return promptController.stop(); });
   ipcMain.handle('response:state', (event) => { assertResponseSender(event); return responseState.snapshot(); });
-  ipcMain.handle('response:dismiss', (event) => { assertResponseSender(event); return promptController.dismiss(); });
+  ipcMain.handle('response:dismiss', (event, value) => {
+    assertResponseSender(event);
+    if (!value || Object.getPrototypeOf(value) !== Object.prototype || Object.keys(value).length !== 2
+      || value.responseGeneration !== dismissal?.responseGeneration || value.dismissCapability !== dismissal?.dismissCapability) return false;
+    dismissal = null; promptController.dismiss(); return true;
+  });
   ipcMain.handle('response:open-settings', (event) => { assertResponseSender(event); return settingsWindowController?.show(); });
   ipcMain.handle('response:set-activity-view', (event, value) => { assertResponseSender(event); responseState.setActivityView(value); publish(); return responseState.snapshot(); });
   startPromptServer((text) => promptController.submitText(text).catch(() => {}));

@@ -8,3 +8,8 @@ test('rejects runtime state, development trees, source maps, and secret-shaped t
     fs.writeFileSync(path.join(root, 'readme.txt'), 'Bearer abcdefghijklmnopqrstuvwxyz'); assert.throws(() => verifyPackage(root), /secret-pattern/);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+
+test('allows only the explicit account-free probe bearer sentinel', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pet-package-fixture-'));
+  try { fs.writeFileSync(path.join(root, 'fixture.json'), 'Bearer __OWNER_BEARER__'); assert.deepEqual(verifyPackage(root), { files: 1, bytes: 23 }); } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
