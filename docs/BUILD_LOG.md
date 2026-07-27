@@ -653,3 +653,8 @@ link the note to it — this file is the inbox, not the archive.
   The renderer reloaded at exactly `192x208`, drew 18,224 visible canvas pixels with zero visible
   magenta pixels, and emitted no page or console errors. No WSL install, provider sign-in, or real
   provider run occurred.
+## 2026-07-27 — Core V1 Task 18-19 implementation checkpoint
+
+- Implemented main-owned activity animation, bounded text attachment handling, response dismissal capability, and tray/package support on `codex/task-18-19-core-v1`.
+- Verified 258 Node tests and 3 Python tests. The unsigned Windows package verifier scanned 150 files / 367250041 bytes; `Claude-Pet-win32-x64.zip` SHA-256 is `E6FB587B45A6D69B54D159C16F83FD23BF0A3BF630580E864C5427AC079FBEAD`.
+- Windows Graphics Capture rejected Electron's border interface, so the actual pet canvas was captured through the local DevTools protocol at `docs/evidence/task-18-animation-e2e.png`; no provider sign-in or WSL setup occurred.

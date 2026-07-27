@@ -10,8 +10,8 @@ and why),
 [superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md](superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md)
 (approved current boundary/animation redesign),
 [superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md)
-(Tasks 1-17 complete and accepted; Task 18 is in progress; optional WSL Tasks 20-23 require a later
-opt-in), [RESEARCH.md](RESEARCH.md)
+(Tasks 1-19 implemented on the Core V1 branch; optional WSL Tasks 20-23 require a later opt-in),
+[RESEARCH.md](RESEARCH.md)
 (evidence), and
 [BUILD_LOG.md](BUILD_LOG.md) (history).
 
@@ -23,9 +23,10 @@ Simple or Comprehensive form.
 
 ## Current state
 
-- Tasks 1-17 are complete and accepted. Task 15 supplies the validated nine-state atlas; Task 16
-  supplies encrypted app-owned sessions; Task 17 supplies explicit agent/session/next-provider
-  switching. Task 18 is the active final-integration task.
+- Tasks 1-19 are implemented and verified on `codex/task-18-19-core-v1`. Task 15 supplies the
+  validated nine-state atlas; Task 16 supplies encrypted app-owned sessions; Task 17 supplies
+  explicit agent/session/next-provider switching; Tasks 18-19 complete core integration and the
+  unsigned Windows package.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
@@ -157,8 +158,8 @@ remain deferred. Multiple named agents and bounded persistent sessions are core 
 
 - One implementation session executes one numbered task, verifies it, updates BUILD_LOG.md, and
   commits it.
-- Core Tasks 15-19 are approved. Tasks 15–17 are accepted and integrated; Task 18 is active. Never
-  begin optional WSL Tasks 20-23 without a separate post-v1 opt-in.
+- Core Tasks 15-19 are implemented and verified on the Core V1 branch. Never begin optional WSL
+  Tasks 20-23 without a separate post-v1 opt-in.
 - Start each task with a concise ETA and revise it only when the estimate materially changes.
 - Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
@@ -184,16 +185,15 @@ Offline Demo exposes only `offline-demo`. Unlisted values and silent fallback ar
 
 ## Order
 
-Tasks 1-17 are complete and accepted. The core-first redesign is approved. Core Tasks 18-19 complete
-final integration and packaging. Optional WSL Tasks 20-23 are preserved after core v1 and are never
-automatic.
+Tasks 1-19 are complete on the Core V1 branch. Optional WSL Tasks 20-23 are preserved after core v1
+and are never automatic.
 
 ## Standard entry prompt
 
 > Read Claude Pet/docs/project-context.md, Claude Pet/docs/BUILD_LOG.md,
-> Claude Pet/docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md and Task 18 in
-> Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md. Tasks 1-17 are accepted; implement and
-> verify Task 18 only. Do not install WSL, sign into a provider CLI, or run a real Codex/Claude agent.
+> Claude Pet/docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md and the
+> final Core V1 evidence. Tasks 1-19 are complete on the Core V1 branch. Do not install WSL, sign
+> into a provider CLI, or run a real Codex/Claude agent unless a later task explicitly requires it.
 
 ## Session contract
 
@@ -214,8 +214,8 @@ Every implementation session must:
 - Base product requirements: `superpowers/specs/claude-pet-spec.md` (amended by the current redesign)
 - Historical agent-first foundation: `superpowers/specs/2026-07-22-agent-first-provider-redesign.md`
 - Current boundary/animation redesign: `superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md`
-- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md` (Tasks 1-14 and Task 16
-  complete; Task 15 image rows deferred by the user; Task 17 implemented pending its visual/restart
-  gate; Task 18 blocked; optional WSL Tasks 20-23 require a separate opt-in)
+- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md` (Core Tasks 1-19
+  implemented and verified on `codex/task-18-19-core-v1`; optional WSL Tasks 20-23 require a
+  separate opt-in)
 - Evidence and rationale: `RESEARCH.md`
 - Session history and handoffs: `BUILD_LOG.md`
