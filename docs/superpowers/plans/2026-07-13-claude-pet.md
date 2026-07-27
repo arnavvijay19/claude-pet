@@ -1642,7 +1642,7 @@ run exists yet.
   the current session's visible turns; it never receives ciphertext or full disk paths beyond the
   already selected public workspace.
 
-- [ ] **Step 1: Write failing coordinator, IPC, switch-race, and response-attribution tests**
+- [x] **Step 1: Write failing coordinator, IPC, switch-race, and response-attribution tests**
 
 Prove two agents can each own multiple sessions; selections survive reload; cross-agent IDs fail;
 switching agent/session/provider is rejected while busy; same-provider changes need no disclosure;
@@ -1652,7 +1652,7 @@ deterministic Codex-shaped test executor in the same session and assert the seco
 bounded provider-attributed neutral context exactly once. Assert no native resume/auth/config value,
 raw event, or activity history enters IPC, disk plaintext, or the next provider prompt.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 ~~~powershell
 npm.cmd test -- tests/sessionCoordinator.test.js tests/agentManager.test.js tests/promptIntegration.test.js tests/settingsIpc.test.js tests/preloadBoundary.test.js tests/responseState.test.js tests/responseViewModel.test.js
@@ -1660,7 +1660,7 @@ npm.cmd test -- tests/sessionCoordinator.test.js tests/agentManager.test.js test
 
 Expected: coordinator, IPC channels, UI state, and `onStart` contract are absent.
 
-- [ ] **Step 3: Implement coordinator and compare-before-busy session/provider snapshots**
+- [x] **Step 3: Implement coordinator and compare-before-busy session/provider snapshots**
 
 Use the existing connection revision and immutable manager snapshot. Capture selected agent/session,
 session revision, next connection, connection revision, workspace, executor, mode, model, and effort;
@@ -1669,7 +1669,7 @@ compare both revisions immediately before busy reservation. A selection/provider
 user turn after reservation. Store the assistant turn only after the sanitizer accepts the final
 result. A content-persistence error remains visible and does not re-run a successful provider goal.
 
-- [ ] **Step 4: Add explicit agent, session, and next-provider controls**
+- [x] **Step 4: Add explicit agent, session, and next-provider controls**
 
 Settings shows three separate controls labeled **Agent**, **Session**, and **Next run provider** plus
 Create/Rename/Delete actions. The current session remains selected when its provider changes. Show
@@ -1688,7 +1688,13 @@ again. Verify both provider-attributed turns remain in one session. Switch among
 restart the app, and verify selection/history/provider persist. Save
 `docs/evidence/task-17-session-provider-switching.png`. Do not sign in or run a real model.
 
-- [ ] **Step 6: Commit and stop**
+**2026-07-27 evidence:** The account-free deterministic coordinator/unit path is green (focused 47/47,
+full Node 231/231, pytest 1/1), but the required Windows visual/restart proof is blocked: the mandated
+Computer Use bootstrap failed because the installed helper cannot load
+`@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.js`. No screenshot
+was fabricated and no real provider was run.
+
+- [x] **Step 6: Commit and stop**
 
 ~~~powershell
 git add src/agent/sessionCoordinator.js src/agent/agentManager.js src/promptController.js src/agentRuntime.js src/settingsWindow.js src/settings-preload.js src/settings src/response src/response-preload.js tests docs/BUILD_LOG.md docs/evidence/task-17-session-provider-switching.png PROJECT_CHECKLIST.html docs/superpowers/plans/2026-07-13-claude-pet.md

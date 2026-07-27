@@ -22,6 +22,8 @@ const ERROR_CODES = Object.freeze([
   'FULL_COMPUTER_CONFIRMATION_CANCELLED',
   'NATIVE_FULL_COMPUTER_LAUNCH_FAILED',
   'SESSION_PERSISTENCE_UNAVAILABLE',
+  'SESSION_SELECTION_EXPIRED',
+  'PROVIDER_SWITCH_CANCELLED',
 ]);
 
 const PUBLIC_ERROR_BY_CODE = Object.freeze({
@@ -46,6 +48,8 @@ const PUBLIC_ERROR_BY_CODE = Object.freeze({
   FULL_COMPUTER_CONFIRMATION_CANCELLED: Object.freeze({ message: 'Full Computer was not enabled.', action: 'Choose Workspace or confirm Full Computer when ready.' }),
   NATIVE_FULL_COMPUTER_LAUNCH_FAILED: Object.freeze({ message: 'The Full Computer agent could not start.', action: 'Check the native agent installation and try again.' }),
   SESSION_PERSISTENCE_UNAVAILABLE: Object.freeze({ message: 'Session history could not be saved.', action: 'Check secure storage and try again.' }),
+  SESSION_SELECTION_EXPIRED: Object.freeze({ message: 'The selected session or provider changed.', action: 'Choose the session again and retry.' }),
+  PROVIDER_SWITCH_CANCELLED: Object.freeze({ message: 'Provider switch cancelled.', action: 'Keep the current provider or confirm the context disclosure.' }),
 });
 
 class AgentError extends Error {

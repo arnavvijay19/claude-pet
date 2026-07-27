@@ -21,6 +21,7 @@ let runtime = null;
 let promptController = null;
 let authorization = null;
 let trayRefreshGeneration = 0;
+let refreshSessionState = async () => {};
 
 function createPetWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
@@ -98,7 +99,10 @@ app.whenReady().then(async () => {
   createPetWindow();
   runtime = createAgentRuntime({ userDataPath: app.getPath('userData'), crypto: {
     isAvailable: async () => safeStorage.isEncryptionAvailable(), encrypt: async (value) => safeStorage.encryptString(value), decrypt: async (value) => ({ value: safeStorage.decryptString(value), shouldReEncrypt: false }),
-  }, randomId: () => crypto.randomUUID(), testExecutorEnabled: shouldEnableTestExecutor({ isPackaged: app.isPackaged, nodeEnv: process.env.NODE_ENV, value: process.env.CLAUDE_PET_TEST_EXECUTOR }) });
+  }, randomId: () => crypto.randomUUID(), testExecutorEnabled: shouldEnableTestExecutor({ isPackaged: app.isPackaged, nodeEnv: process.env.NODE_ENV, value: process.env.CLAUDE_PET_TEST_EXECUTOR }), confirmProviderSwitch: async () => {
+    const result = await dialog.showMessageBox(petWindow, { type: 'warning', buttons: ['Continue', 'Cancel'], defaultId: 1, cancelId: 1, title: 'Share bounded session history?', message: 'This provider will receive the bounded visible history from this Claude Pet session', detail: 'No provider sign-in state, native resume ID, hidden state, or raw activity history is shared.' });
+    return result.response === 0;
+  } });
   await runtime.initialize();
   authorization = createFullComputerAuthorization({
     store: runtime.store,
@@ -107,16 +111,18 @@ app.whenReady().then(async () => {
   });
   responseWindow = createResponseWindow({ BrowserWindow, screen });
   settingsWindowController = createSettingsWindowController({
-    BrowserWindow, ipcMain, store: runtime.store, manager: runtime.manager,
-    authorization, onStateChange: refreshTray,
+    BrowserWindow, ipcMain, store: runtime.store, manager: runtime.manager, coordinator: runtime.coordinator,
+    authorization, onStateChange: async () => { await refreshSessionState(); await refreshTray(); },
   });
   settingsWindowController.show();
   const responsePreferences = createResponsePreferences({ filePath: path.join(app.getPath('userData'), 'response-preferences.json') });
   const responseState = require('./response/responseState.js').createResponseState({ readPreference: responsePreferences.read, writePreference: responsePreferences.write });
   const publish = () => { const state = responseState.snapshot(); responseWindow?.webContents.send('response:state', state); responseWindow?.webContents.send('response:activity', state); };
+  refreshSessionState = async () => { responseState.setSessionSnapshot(await runtime.coordinator.snapshot()); publish(); };
+  await refreshSessionState();
   runtime.activity.subscribe((activity) => { responseState.setActivity(activity); publish(); });
-  const afterRunStateChange = () => { publish(); void refreshTray(); };
-  promptController = createPromptController({ manager: runtime.manager, response: {
+  const afterRunStateChange = () => { void refreshSessionState(); void refreshTray(); };
+  promptController = createPromptController({ manager: runtime.coordinator, response: {
     begin: (context) => { responseState.begin(context); responseWindow?.showInactive(); afterRunStateChange(); },
     success: (value) => { responseState.success(value); afterRunStateChange(); },
     failure: (value) => { responseState.failure(value); afterRunStateChange(); },

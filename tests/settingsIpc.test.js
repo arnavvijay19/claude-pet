@@ -168,5 +168,14 @@ test('recreates Settings after the user closes its previous window', () => {
   assert.equal(windows.length, 2);
   assert.equal(second.shown, 1);
   assert.equal(second.focused, 1);
-  assert.equal(handlers.size, 6);
+  assert.equal(handlers.size, 15);
+});
+
+test('exposes only payload-free session snapshots and name/title/id mutations', async () => {
+  const { handlers, sender } = harness();
+  assert.equal(typeof handlers.get('settings:session-snapshot'), 'function');
+  for (const channel of ['settings:create-agent', 'settings:rename-agent', 'settings:delete-agent', 'settings:create-session', 'settings:rename-session', 'settings:delete-session', 'settings:select-session', 'settings:set-next-connection']) {
+    assert.equal(typeof handlers.get(channel), 'function', channel);
+  }
+  await assert.rejects(handlers.get('settings:create-agent')({ sender }, { name: 'A', encryptedTurns: 'forged' }));
 });

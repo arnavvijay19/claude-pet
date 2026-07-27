@@ -386,6 +386,19 @@ optional — an unlogged session is a failed session even if its code worked). F
   1 session, 1 turn, and restored selection/connection/turn equality. No plaintext was recorded,
   no image was generated, no provider was run, and Task 17 has not begun. NEXT: Task 16 user gate.
 
+- **2026-07-27 · Codex · Task 17 (explicit agent/session/provider switching)** — Implemented
+  `sessionCoordinator` over the encrypted Task 16 store: selected agent/session snapshots, guarded
+  agent/session mutations, next-provider synchronization, cross-family disclosure/cancel, immutable
+  expected connection/revision checks, and provider-neutral bounded attributed context. Settings has
+  separate Agent, Session, and Next run provider controls; response renders stable agent/session labels
+  and per-turn provider/model attribution. Fresh evidence: RED focused command failed 6 intended
+  contract tests (40 pass / 6 fail); GREEN focused Node 47/47; full Node 231/231; pytest 1/1; syntax and
+  diff checks passed. Final review also repaired session-selection provider reconciliation and a failed
+  cross-store provider-switch rollback. No provider was signed into or run. The required Electron visual/restart screenshot
+  is blocked because the mandated Computer Use bootstrap cannot load
+  `@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.js`; no image
+  evidence was fabricated. STOP: do not start Task 18 until this user gate is resolved.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise

@@ -575,3 +575,12 @@ test('rejects an unconfirmed Full Computer snapshot before any provider prefligh
   );
   assert.equal(statusCalls, 0);
 });
+
+test('rejects an expired selected connection before reserving busy state or invoking onStart', async () => {
+  const connection = { id: 'connection-1', revision: 2, executorType: 'offline-demo', modelId: 'agent-model', effort: 'high', workspacePath: 'Z:\\workspace', permissionProfile: 'workspace', fullAccessConfirmed: false };
+  const { manager } = harness({ connection, executor: fakeExecutor() });
+  let starts = 0;
+  await assert.rejects(manager.runGoal('expired', { expectedConnectionId: 'connection-1', expectedRevision: 1, onStart: () => { starts += 1; } }), (error) => error.code === 'SESSION_SELECTION_EXPIRED');
+  assert.equal(starts, 0);
+  assert.equal(manager.getSnapshot().busy, false);
+});

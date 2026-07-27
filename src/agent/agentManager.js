@@ -156,7 +156,7 @@ function createAgentManager({ store, executors, activity }) {
 
   async function runGoal(text, options = {}) {
     if (!options || typeof options !== 'object' || Object.getPrototypeOf(options) !== Object.prototype
-        || Object.keys(options).some((key) => key !== 'onStart')
+        || Object.keys(options).some((key) => !['onStart', 'expectedConnectionId', 'expectedRevision'].includes(key))
         || (Object.hasOwn(options, 'onStart') && typeof options.onStart !== 'function')) {
       throw new AgentError('UNSUPPORTED_OPTION');
     }
@@ -167,6 +167,10 @@ function createAgentManager({ store, executors, activity }) {
 
     try {
       const { connection, identifier, run, executor } = await selectedExecutor(controller.signal);
+      if ((Object.hasOwn(options, 'expectedConnectionId') && options.expectedConnectionId !== connection.id)
+          || (Object.hasOwn(options, 'expectedRevision') && options.expectedRevision !== connection.revision)) {
+        throw new AgentError('SESSION_SELECTION_EXPIRED');
+      }
       reservation.connectionId = connection.id;
       reservation.permissionProfile = run.permissionProfile;
       const publicRunContext = deepFreeze({
@@ -176,7 +180,7 @@ function createAgentManager({ store, executors, activity }) {
         workspace: run.workspace,
         permissionProfile: run.permissionProfile,
       });
-      options.onStart?.(publicRunContext);
+      await options.onStart?.(publicRunContext);
       activity.begin(publicRunContext);
 
       const status = cloneFrozenJson(await executor.getStatus(connection), 'PROVIDER_OUTPUT_INVALID');

@@ -10,6 +10,10 @@ const effort = document.querySelector('#effort');
 const save = document.querySelector('#save');
 const activePermission = document.querySelector('#active-permission');
 let editingId = null;
+const sessionAgent = document.querySelector('#session-agent');
+const sessionSession = document.querySelector('#session-session');
+const nextProvider = document.querySelector('#next-provider');
+const sessionButtons = ['#create-agent', '#rename-agent', '#delete-agent', '#create-session', '#rename-session', '#delete-session'].map((id) => document.querySelector(id));
 
 const registries = {
   'codex-cli': {
@@ -83,6 +87,20 @@ function loadConnection(connection) {
   });
 }
 
+function sessionOptions(node, values, selected, label) {
+  node.replaceChildren(...values.map((value) => { const option = document.createElement('option'); option.value = value.id; option.textContent = value[label]; option.selected = value.id === selected; return option; }));
+}
+async function refreshSessions() {
+  const snapshot = await window.settings.sessionSnapshot();
+  const disabled = snapshot.busy === true;
+  sessionOptions(sessionAgent, snapshot.agents, snapshot.selection.agentId, 'name');
+  sessionOptions(sessionSession, snapshot.sessions, snapshot.selection.sessionId, 'title');
+  sessionOptions(nextProvider, snapshot.connections, snapshot.session?.nextConnectionId, 'label');
+  sessionAgent.disabled = disabled; sessionSession.disabled = disabled; nextProvider.disabled = disabled;
+  sessionButtons.forEach((button) => { button.disabled = disabled; });
+  return snapshot;
+}
+
 async function refresh(provided) {
   const snapshot = provided || await window.settings.snapshot();
   text(activePermission, snapshot.active?.permissionBadge || 'No connection selected');
@@ -109,8 +127,18 @@ async function refresh(provided) {
     item.append(summary, use, remove);
     return item;
   }));
-  return snapshot;
+  await refreshSessions(); return snapshot;
 }
+
+sessionAgent.addEventListener('change', async () => { await window.settings.selectSession({ agentId: sessionAgent.value, sessionId: null }); await refresh(); });
+sessionSession.addEventListener('change', async () => { await window.settings.selectSession({ agentId: sessionAgent.value, sessionId: sessionSession.value }); await refresh(); });
+nextProvider.addEventListener('change', async () => { await window.settings.setNextConnection({ sessionId: sessionSession.value, connectionId: nextProvider.value }); await refresh(); });
+document.querySelector('#create-agent').addEventListener('click', async () => { const name = window.prompt('Agent name', 'My Agent'); if (name) { await window.settings.createAgent({ name }); await refresh(); } });
+document.querySelector('#rename-agent').addEventListener('click', async () => { const name = window.prompt('Agent name', sessionAgent.selectedOptions[0]?.textContent || ''); if (name) { await window.settings.renameAgent(sessionAgent.value, name); await refresh(); } });
+document.querySelector('#delete-agent').addEventListener('click', async () => { await window.settings.deleteAgent(sessionAgent.value); await refresh(); });
+document.querySelector('#create-session').addEventListener('click', async () => { const title = window.prompt('Session title', 'New session'); if (title && workspace.value.trim()) { await window.settings.createSession({ agentId: sessionAgent.value, title, workspacePath: workspace.value }); await refresh(); } });
+document.querySelector('#rename-session').addEventListener('click', async () => { const title = window.prompt('Session title', sessionSession.selectedOptions[0]?.textContent || ''); if (title) { await window.settings.renameSession(sessionSession.value, title); await refresh(); } });
+document.querySelector('#delete-session').addEventListener('click', async () => { await window.settings.deleteSession(sessionSession.value); await refresh(); });
 
 executor.addEventListener('change', () => {
   editingId = null;

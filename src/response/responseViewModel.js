@@ -36,6 +36,9 @@
       canStop: state.busy === true,
       events: events.map((event) => ({ ...event, detail: detailFor(event) })),
       changedFiles: Array.isArray(run.result?.changedFiles) ? [...run.result.changedFiles] : [],
+      agent: state.agent?.name || 'No agent selected',
+      session: state.session?.title || 'No session selected',
+      turns: Array.isArray(state.turns) ? state.turns.map((turn) => ({ ...turn, changedFiles: Array.isArray(turn.changedFiles) ? [...turn.changedFiles] : [] })) : [],
       activityView: state.activityView === 'comprehensive' ? 'comprehensive' : 'simple',
     });
   }

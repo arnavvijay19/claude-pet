@@ -53,3 +53,10 @@ test('formats timestamped Comprehensive rows from the shared activity snapshot',
   ]);
   assert.deepEqual(view.events.map((event) => event.timestamp), [1234, 2345, 3456]);
 });
+
+test('shows stable agent/session labels and per-turn provider/model attribution', () => {
+  const view = createResponseViewModel({ agent: { name: 'Agent A' }, session: { title: 'Session 1' }, turns: [{ role: 'assistant', text: 'reply', provider: 'codex-cli', model: 'gpt-5.6-terra', changedFiles: [] }] });
+  assert.equal(view.agent, 'Agent A');
+  assert.equal(view.session, 'Session 1');
+  assert.deepEqual(view.turns, [{ role: 'assistant', text: 'reply', provider: 'codex-cli', model: 'gpt-5.6-terra', changedFiles: [] }]);
+});

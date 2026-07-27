@@ -5,6 +5,9 @@ const phase = document.querySelector('#phase');
 const executor = document.querySelector('#executor');
 const model = document.querySelector('#model');
 const workspace = document.querySelector('#workspace');
+const agent = document.querySelector('#agent');
+const session = document.querySelector('#session');
+const turns = document.querySelector('#turns');
 const permissionHeader = document.querySelector('#permission-header');
 const permissionSimple = document.querySelector('#permission-simple');
 const permissionComprehensive = document.querySelector('#permission-comprehensive');
@@ -20,6 +23,8 @@ function render(state) {
   executor.textContent = view.executor;
   model.textContent = view.model;
   workspace.textContent = view.workspace;
+  agent.textContent = view.agent;
+  session.textContent = view.session;
   for (const badge of [permissionHeader, permissionSimple, permissionComprehensive]) {
     badge.textContent = view.permissionBadge;
     badge.classList.toggle('warning', view.permissionWarning);
@@ -29,6 +34,7 @@ function render(state) {
   document.querySelector('#simple-panel').hidden = view.activityView === 'comprehensive';
   document.querySelector('#comprehensive-panel').hidden = view.activityView !== 'comprehensive';
   changed.textContent = view.changedFiles.length ? `Changed: ${view.changedFiles.join(', ')}` : '';
+  turns.replaceChildren(...view.turns.map((turn) => { const item = document.createElement('li'); item.textContent = turn.role === 'assistant' ? `${turn.provider} / ${turn.model}: ${turn.text}` : `You: ${turn.text}`; return item; }));
   events.replaceChildren(...view.events.map((event) => {
     const item = document.createElement('li');
     const row = document.createElement('details');

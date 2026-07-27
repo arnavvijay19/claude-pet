@@ -10,6 +10,15 @@
   <h1>Claude Pet Settings</h1>
   <p>Choose Offline Demo or a native Codex / Claude Code agent. Real providers default to warned Full Computer access.</p>
   <p id="active-permission" class="permission-badge">No connection selected</p>
+  <section id="session-controls">
+    <h2>Persistent sessions</h2>
+    <label>Agent <select id="session-agent"></select></label>
+    <button id="create-agent">Create Agent</button><button id="rename-agent">Rename Agent</button><button id="delete-agent">Delete Agent</button>
+    <label>Session <select id="session-session"></select></label>
+    <button id="create-session">Create Session</button><button id="rename-session">Rename Session</button><button id="delete-session">Delete Session</button>
+    <label>Next run provider <select id="next-provider"></select></label>
+    <p>This provider will receive the bounded visible history from this Claude Pet session</p>
+  </section>
   <label>Agent
     <select id="executor">
       <option value="offline-demo">Offline Demo</option>
