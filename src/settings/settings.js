@@ -90,8 +90,7 @@ function loadConnection(connection) {
 function sessionOptions(node, values, selected, label) {
   node.replaceChildren(...values.map((value) => { const option = document.createElement('option'); option.value = value.id; option.textContent = value[label]; option.selected = value.id === selected; return option; }));
 }
-async function refreshSessions() {
-  const snapshot = await window.settings.sessionSnapshot();
+function renderSessionSnapshot(snapshot) {
   const disabled = snapshot.busy === true;
   sessionOptions(sessionAgent, snapshot.agents, snapshot.selection.agentId, 'name');
   sessionOptions(sessionSession, snapshot.sessions, snapshot.selection.sessionId, 'title');
@@ -99,6 +98,9 @@ async function refreshSessions() {
   sessionAgent.disabled = disabled; sessionSession.disabled = disabled; nextProvider.disabled = disabled;
   sessionButtons.forEach((button) => { button.disabled = disabled; });
   return snapshot;
+}
+async function refreshSessions() {
+  return renderSessionSnapshot(await window.settings.sessionSnapshot());
 }
 
 async function refresh(provided) {
@@ -132,7 +134,17 @@ async function refresh(provided) {
 
 sessionAgent.addEventListener('change', async () => { await window.settings.selectSession({ agentId: sessionAgent.value, sessionId: null }); await refresh(); });
 sessionSession.addEventListener('change', async () => { await window.settings.selectSession({ agentId: sessionAgent.value, sessionId: sessionSession.value }); await refresh(); });
-nextProvider.addEventListener('change', async () => { await window.settings.setNextConnection({ sessionId: sessionSession.value, connectionId: nextProvider.value }); await refresh(); });
+nextProvider.addEventListener('change', async () => {
+  try {
+    text(status, 'Changing next run provider...');
+    await window.settings.setNextConnection({ sessionId: sessionSession.value, connectionId: nextProvider.value });
+    text(status, 'Next run provider updated.');
+  } catch (error) {
+    text(status, error?.message || 'Provider switch cancelled. No provider was changed.');
+  } finally {
+    await refresh();
+  }
+});
 document.querySelector('#create-agent').addEventListener('click', async () => { const name = window.prompt('Agent name', 'My Agent'); if (name) { await window.settings.createAgent({ name }); await refresh(); } });
 document.querySelector('#rename-agent').addEventListener('click', async () => { const name = window.prompt('Agent name', sessionAgent.selectedOptions[0]?.textContent || ''); if (name) { await window.settings.renameAgent(sessionAgent.value, name); await refresh(); } });
 document.querySelector('#delete-agent').addEventListener('click', async () => { await window.settings.deleteAgent(sessionAgent.value); await refresh(); });
@@ -150,6 +162,7 @@ permission.addEventListener('change', () => renderExecutor({
   selectedEffort: effort.value,
 }));
 renderExecutor();
+window.settings.onSessionState((value) => renderSessionSnapshot(value));
 
 save.addEventListener('click', async () => {
   save.disabled = true;

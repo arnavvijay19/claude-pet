@@ -399,6 +399,15 @@ optional — an unlogged session is a failed session even if its code worked). F
   `@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.js`; no image
   evidence was fabricated. STOP: do not start Task 18 until this user gate is resolved.
 
+- **2026-07-27 · Codex · Task 17 fix round 1** — Hardened the coordinator against deleted/edited
+  provider metadata, unknown provenance, cross-agent session mutation, workspace drift, stale agent/session
+  selection, and pre-run active-connection writes. Settings now receives main-owned busy snapshots and
+  restores a canceled provider selection. TDD evidence: coordinator RED 3/8 pass (five intended contract
+  failures), Settings RED 12/14, coordinator/Settings GREEN 22/22, focused Task 17 55/55, canonical Node
+  239/239, pytest 1/1, syntax and diff checks. A final prompt-controller RED 3/4 / GREEN 26/26 regression
+  confirms Settings receives busy state immediately after reservation. The known Computer Use visual/restart blocker remains
+  pending; no screenshot or real-provider execution was attempted.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise

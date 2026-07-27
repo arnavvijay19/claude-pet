@@ -2,13 +2,15 @@
 
 const { toPublicError } = require('./agent/agentErrors.js');
 
-function createPromptController({ manager, response }) {
+function createPromptController({ manager, response, onBusyChange = () => {} }) {
   return Object.freeze({
     async submitText(text) {
       try {
-        const result = await manager.runGoal(text, {
+        const pending = manager.runGoal(text, {
           onStart: (context) => response.begin?.(context),
         });
+        onBusyChange();
+        const result = await pending;
         response.success?.(result);
         return result;
       } catch (error) {

@@ -171,6 +171,22 @@ test('recreates Settings after the user closes its previous window', () => {
   assert.equal(handlers.size, 15);
 });
 
+test('publishes coordinator snapshots to Settings when the main run state changes', async () => {
+  const windows = [];
+  class FakeBrowserWindow {
+    constructor() { this.destroyed = false; this.webContents = { send: (...args) => this.sent.push(args) }; this.sent = []; windows.push(this); }
+    loadFile() {} isDestroyed() { return this.destroyed; } show() {} focus() {}
+  }
+  const handlers = new Map();
+  const controller = createSettingsWindowController({
+    BrowserWindow: FakeBrowserWindow, ipcMain: { handle: (channel, handler) => handlers.set(channel, handler), removeHandler: () => {} },
+    store: {}, manager: {}, coordinator: { snapshot: async () => ({ busy: true, turns: [] }) },
+  });
+  controller.show();
+  await controller.refresh();
+  assert.deepEqual(windows[0].sent, [['settings:session-state', { busy: true, turns: [] }]]);
+});
+
 test('exposes only payload-free session snapshots and name/title/id mutations', async () => {
   const { handlers, sender } = harness();
   assert.equal(typeof handlers.get('settings:session-snapshot'), 'function');

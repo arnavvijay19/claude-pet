@@ -16,3 +16,11 @@ test('exposes only narrow session switch IPC from Settings and never a raw sessi
   assert.match(source, /createAgent/);
   assert.doesNotMatch(source, /encryptedTurns|decrypt|resumeId|auth/);
 });
+
+test('subscribes Settings to main-owned session busy state and restores a rejected provider selection', () => {
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'settings-preload.js'), 'utf8');
+  const view = fs.readFileSync(path.join(__dirname, '..', 'src', 'settings', 'settings.js'), 'utf8');
+  assert.match(preload, /onSessionState/);
+  assert.match(view, /window\.settings\.onSessionState/);
+  assert.match(view, /nextProvider\.addEventListener\('change'[\s\S]*finally[\s\S]*refresh\(\)/);
+});

@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createSessionCoordinator } = require('../src/agent/sessionCoordinator.js');
+const { createSessionCoordinator, neutralPrompt } = require('../src/agent/sessionCoordinator.js');
 
 const connection = (id, executorType, modelId) => Object.freeze({
   id, executorType, label: id, workspacePath: 'Z:\\workspace', permissionProfile: 'workspace',
@@ -127,4 +127,92 @@ test('synchronizes the selected session provider and rolls it back when the sess
   selectedConnection = 'offline';
   await assert.rejects(coordinator.setNextConnection({ sessionId: 'session-a1', connectionId: 'codex' }));
   assert.deepEqual(active.slice(-2), ['codex', 'offline']);
+});
+
+test('uses persisted assistant provenance when the former connection is deleted or edited', async () => {
+  for (const former of [null, connection('offline', 'codex-cli', 'gpt-5.6-terra')]) {
+    const sessionStore = createSessionStore();
+    const confirmations = [];
+    const coordinator = createSessionCoordinator({
+      sessionStore,
+      connectionStore: {
+        listConnections: async () => [connection('codex', 'codex-cli', 'gpt-5.6-terra')],
+        getConnection: async (id) => id === 'offline' ? former : id === 'codex' ? connection('codex', 'codex-cli', 'gpt-5.6-terra') : null,
+        getActiveSelection: async () => 'offline', setActiveSelection: async () => {},
+      },
+      manager: { getSnapshot: () => ({ busy: false }), runGoal: async () => {}, stop: () => false },
+      confirmProviderSwitch: async (value) => { confirmations.push(value); return true; },
+    });
+    await coordinator.setNextConnection({ sessionId: 'session-a1', connectionId: 'codex' });
+    assert.deepEqual(confirmations, [{ sessionId: 'session-a1', fromProvider: 'offline-demo', toProvider: 'codex-cli' }]);
+  }
+});
+
+test('rejects a provider with a different workspace before disclosure or persistence', async () => {
+  const sessionStore = createSessionStore();
+  let confirmations = 0;
+  let writes = 0;
+  const coordinator = createSessionCoordinator({
+    sessionStore: { ...sessionStore, setNextConnection: async () => { writes += 1; } },
+    connectionStore: {
+      listConnections: async () => [], getConnection: async () => ({ ...connection('other', 'codex-cli', 'gpt-5.6-terra'), workspacePath: 'Z:\\other' }),
+      getActiveSelection: async () => 'offline', setActiveSelection: async () => { writes += 1; },
+    },
+    manager: { getSnapshot: () => ({ busy: false }), runGoal: async () => {}, stop: () => false },
+    confirmProviderSwitch: async () => { confirmations += 1; return true; },
+  });
+  await assert.rejects(coordinator.setNextConnection({ sessionId: 'session-a1', connectionId: 'other' }), (error) => error.code === 'UNSUPPORTED_OPTION');
+  assert.equal(confirmations, 0);
+  assert.equal(writes, 0);
+});
+
+test('rejects cross-agent session mutations and every mutation while busy', async () => {
+  const sessionStore = createSessionStore();
+  const idle = createSessionCoordinator({
+    sessionStore, connectionStore: { listConnections: async () => [], getConnection: async () => null, getActiveSelection: async () => null, setActiveSelection: async () => {} },
+    manager: { getSnapshot: () => ({ busy: false }), runGoal: async () => {}, stop: () => false },
+  });
+  await assert.rejects(idle.renameSession('session-b1', 'forged'), (error) => error.code === 'SESSION_SELECTION_EXPIRED');
+  const busy = createSessionCoordinator({
+    sessionStore, connectionStore: { listConnections: async () => [], getConnection: async () => null, getActiveSelection: async () => null, setActiveSelection: async () => {} },
+    manager: { getSnapshot: () => ({ busy: true }), runGoal: async () => {}, stop: () => false },
+  });
+  for (const operation of [
+    () => busy.createAgent({ name: 'Nope' }), () => busy.renameAgent('agent-a', 'Nope'), () => busy.createSession({ agentId: 'agent-a', title: 'Nope', workspacePath: 'Z:\\workspace' }),
+    () => busy.renameSession('session-a1', 'Nope'), () => busy.removeSession('session-a1'), () => busy.select({ agentId: 'agent-a', sessionId: 'session-a1' }),
+    () => busy.setNextConnection({ sessionId: 'session-a1', connectionId: 'offline' }),
+  ]) await assert.rejects(operation(), (error) => error.code === 'AGENT_BUSY');
+});
+
+test('expires a selection race before selection persistence, activity, or provider text', async () => {
+  const sessionStore = createSessionStore();
+  let activeWrites = 0;
+  let providerRuns = 0;
+  const coordinator = createSessionCoordinator({
+    sessionStore,
+    connectionStore: {
+      listConnections: async () => [], getConnection: async () => connection('offline', 'offline-demo', 'offline-demo'),
+      getRunConnection: async () => { await sessionStore.select({ agentId: 'agent-a', sessionId: 'session-a2' }); return runConnection('offline', 'offline-demo', 'offline-demo'); },
+      getActiveSelection: async () => 'offline', setActiveSelection: async () => { activeWrites += 1; },
+    },
+    manager: { getSnapshot: () => ({ busy: false }), runGoal: async () => { providerRuns += 1; return { text: 'must not run', changedFiles: [], executor: 'offline-demo', model: 'offline-demo' }; }, stop: () => false },
+  });
+  await assert.rejects(coordinator.runGoal('race'), (error) => error.code === 'SESSION_SELECTION_EXPIRED');
+  assert.equal(activeWrites, 0);
+  assert.equal(providerRuns, 0);
+  assert.equal((await sessionStore.getContextTurns('session-a1')).length, 2);
+});
+
+test('keeps same-family switching disclosure-free and neutral context bounded', async () => {
+  const sessionStore = createSessionStore();
+  const turns = [...await sessionStore.getContextTurns('session-a1')];
+  for (let index = 0; index < 30; index += 1) turns.push({ role: 'assistant', text: `old-${index}`, provider: 'offline-demo', model: 'offline-demo', changedFiles: [], createdAt: String(index + 3) });
+  const coordinator = createSessionCoordinator({
+    sessionStore: { ...sessionStore, getContextTurns: async () => Object.freeze(turns.map((turn) => Object.freeze({ ...turn }))) },
+    connectionStore: { listConnections: async () => [], getConnection: async () => connection('offline-2', 'offline-demo', 'offline-demo'), getActiveSelection: async () => 'offline', setActiveSelection: async () => {} },
+    manager: { getSnapshot: () => ({ busy: false }), runGoal: async () => {}, stop: () => false },
+    confirmProviderSwitch: async () => { throw new Error('same family must not disclose'); },
+  });
+  await coordinator.setNextConnection({ sessionId: 'session-a1', connectionId: 'offline-2' });
+  assert.equal(neutralPrompt(turns, 'now').includes('[Older session turns omitted by Claude Pet.]'), true);
 });

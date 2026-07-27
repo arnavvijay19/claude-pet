@@ -109,6 +109,10 @@ function createSettingsWindowController(options) {
       window.focus();
       return window;
     },
+    async refresh() {
+      if (!window || window.isDestroyed() || !options.coordinator) return;
+      window.webContents.send('settings:session-state', await options.coordinator.snapshot());
+    },
   });
 }
 

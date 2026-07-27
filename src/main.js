@@ -121,14 +121,14 @@ app.whenReady().then(async () => {
   refreshSessionState = async () => { responseState.setSessionSnapshot(await runtime.coordinator.snapshot()); publish(); };
   await refreshSessionState();
   runtime.activity.subscribe((activity) => { responseState.setActivity(activity); publish(); });
-  const afterRunStateChange = () => { void refreshSessionState(); void refreshTray(); };
+  const afterRunStateChange = () => { void refreshSessionState(); void refreshTray(); void settingsWindowController?.refresh(); };
   promptController = createPromptController({ manager: runtime.coordinator, response: {
     begin: (context) => { responseState.begin(context); responseWindow?.showInactive(); afterRunStateChange(); },
     success: (value) => { responseState.success(value); afterRunStateChange(); },
     failure: (value) => { responseState.failure(value); afterRunStateChange(); },
     stopped: () => { responseState.stopped(); afterRunStateChange(); },
     dismiss: () => { responseState.dismiss(); afterRunStateChange(); },
-  } });
+  }, onBusyChange: () => { void settingsWindowController?.refresh(); } });
   const assertResponseSender = (event) => {
     if (event.sender !== responseWindow?.webContents) throw new Error('Invalid response sender');
   };

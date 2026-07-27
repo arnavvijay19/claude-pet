@@ -64,3 +64,20 @@ test('publishes a sanitized error before rethrowing it and exposes Stop', async 
   assert.equal(order[0].message.includes('hello'), false);
   assert.equal(controller.stop(), true);
 });
+
+test('notifies the Settings busy bridge immediately after reserving a run', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const notifications = [];
+  const controller = createPromptController({
+    manager: {
+      runGoal: async () => { await gate; return { text: 'done', changedFiles: [] }; }, stop: () => false,
+    },
+    response: { success: () => {}, failure: () => {} },
+    onBusyChange: () => notifications.push('busy'),
+  });
+  const pending = controller.submitText('hello');
+  assert.deepEqual(notifications, ['busy']);
+  release();
+  await pending;
+});

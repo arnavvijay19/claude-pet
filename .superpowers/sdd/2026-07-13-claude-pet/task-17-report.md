@@ -61,3 +61,52 @@ run or signed into.
 
 The desktop visual/restart gate remains outstanding. Restore the Computer Use helper and run the precise
 account-free Electron flow before accepting the task or beginning Task 18.
+
+## Fix Round 1
+
+### Findings fixed
+
+- Provider-switch disclosure now derives prior family from the persisted assistant turn attribution or
+  `session.lastProvider`, not a mutable/deleted connection record. Unknown provenance also discloses.
+- Session/agent selection, updated-at revisions, next connection, connection revision, executor, and
+  workspace are rechecked before selection persistence, activity, or provider text. Run preparation no
+  longer writes the active connection.
+- A provider whose workspace differs from the selected session is rejected before disclosure or writes.
+- Session create/rename/delete verifies the selected-agent owner; every coordinator mutation rejects
+  while busy.
+- Settings receives main-owned busy snapshots immediately, disables session mutations, and always
+  restores the provider dropdown after accept, cancel, or error.
+
+### TDD evidence
+
+Coordinator RED command: `npm.cmd test -- tests/sessionCoordinator.test.js`
+
+Initial RED result: exit 1; 3 pass / 5 fail. The failures covered deleted/edited-provider provenance,
+workspace mismatch, cross-agent session mutation, stale selection run preparation, and bounded/same-family
+coverage. One test helper initially attempted to mutate a frozen turn list; it was corrected before any
+production change, preserving the intended contract failures.
+
+Settings RED command: `npm.cmd test -- tests/preloadBoundary.test.js tests/settingsIpc.test.js`
+
+RED result: exit 1; 12 pass / 2 fail for missing Settings busy-state subscription and missing main-owned
+snapshot publish.
+
+GREEN commands: `npm.cmd test -- tests/sessionCoordinator.test.js tests\preloadBoundary.test.js tests\settingsIpc.test.js`
+and the canonical focused Task 17 command.
+
+GREEN results: coordinator/Settings 22/22; focused Task 17 56/56.
+
+Final verification: `node --check src\agent\sessionCoordinator.js`; `node --check src\settingsWindow.js`;
+`node --check src\settings\settings.js`; `node --check src\main.js`; `npm.cmd test`; `py -m pytest -q`;
+`git diff --check`.
+
+Final results: Node 239/239 pass; pytest 1/1 pass; syntax and diff checks pass.
+
+An additional immediate-busy regression ran RED at 3/4 in `tests/promptIntegration.test.js`, then GREEN
+at 26/26 with the coordinator/Settings set. It proves the Settings bridge is notified immediately after
+the manager reserves a goal, before provider preflight or `onStart`.
+
+### Visual gate
+
+Still pending with the same documented Computer Use module failure. This fix round did not attempt an
+alternative UI-control path, create a screenshot, sign into a provider, or run a real provider.

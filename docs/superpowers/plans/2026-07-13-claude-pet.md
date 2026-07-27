@@ -1688,8 +1688,9 @@ again. Verify both provider-attributed turns remain in one session. Switch among
 restart the app, and verify selection/history/provider persist. Save
 `docs/evidence/task-17-session-provider-switching.png`. Do not sign in or run a real model.
 
-**2026-07-27 evidence:** The account-free deterministic coordinator/unit path is green (focused 47/47,
-full Node 231/231, pytest 1/1), but the required Windows visual/restart proof is blocked: the mandated
+**2026-07-27 evidence:** The account-free deterministic coordinator/unit path is green (focused 56/56,
+full Node 239/239, pytest 1/1), including deleted-provider provenance, workspace, ownership, race, and
+Settings busy/cancel regressions. The required Windows visual/restart proof is blocked: the mandated
 Computer Use bootstrap failed because the installed helper cannot load
 `@oai/sky/dist/project/cua/sky_js/src/targets/windows/internal/computer_use_client_base.js`. No screenshot
 was fabricated and no real provider was run.
