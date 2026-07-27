@@ -604,3 +604,9 @@ link the note to it — this file is the inbox, not the archive.
   `core.autocrlf=true` converted five SHA-pinned `resources/probes` fixtures from LF to CRLF without
   showing a normal source diff, causing 5/214 cascading failures. Repository `.gitattributes` now
   forces that exact fixture directory to LF; the focused 19/19 and canonical 214/214 suites pass.
+
+- 2026-07-26 `GOTCHA:` Task 15 recovered the interrupted compact-reference `running-right` output
+  from its exact saved generation directory, verified its eight-frame identity/gait, and derived
+  `running-left` frame by frame. This Codex surface exposes no built-in image generator to parent or
+  workers; the six remaining distinct rows require either a built-in-ImageGen surface or separate
+  approval for the credentialed CLI fallback. `OPENAI_API_KEY` is currently unset; no fallback ran.
