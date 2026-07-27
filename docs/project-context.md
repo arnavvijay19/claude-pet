@@ -10,8 +10,9 @@ and why),
 [superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md](superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md)
 (approved current boundary/animation redesign),
 [superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md)
-(Tasks 1-14 complete; core Tasks 15-19 approved; optional WSL Tasks 20-23 require a later opt-in;
-Task 15 only next), [RESEARCH.md](RESEARCH.md)
+(Tasks 1-14 and the storage-only Task 16 complete; Task 15's six remaining image rows are explicitly
+deferred; Task 17 is blocked at the Task 16 user gate; optional WSL Tasks 20-23 require a later opt-in),
+[RESEARCH.md](RESEARCH.md)
 (evidence), and
 [BUILD_LOG.md](BUILD_LOG.md) (history).
 
@@ -24,7 +25,10 @@ Simple or Comprehensive form.
 ## Current state
 
 - Tasks 1-14 are complete. Task 14's warned native Full Computer flow is accepted with its verified
-  implementation at `baa73e3`; Task 15 is the only permitted next task.
+  implementation at `baa73e3`. On 2026-07-27 the user explicitly deferred Task 15 image generation
+  until ImageGen is available and authorized the already-started storage-only Task 16 as the sole
+  ordering exception. Task 16 is complete on `codex/task-16-encrypted-sessions`; stop at its user
+  gate and do not begin Task 17.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
@@ -62,8 +66,9 @@ Simple or Comprehensive form.
   unavailable in core v1; it becomes available only if the optional dedicated WSL boundary and
   complete hostile gates are implemented and pass.
 - Claude Pet still ships only the six-frame idle strip. The prepared Post-Hoc Banana Baron run has
-  complete base/idle sources; seven distinct generated rows and the derived or independently
-  generated left-running row remain pending. The full nine-state atlas is a separate milestone.
+  complete base, idle, running-right, and derived running-left sources. Its six remaining rows
+  (`waving`, `jumping`, `failed`, `waiting`, `running`, and `review`) are deferred until the user
+  explicitly requests image generation. The full nine-state atlas remains a separate milestone.
 - Real Codex or Claude Code runs are optional smoke tests when the tester is already signed in.
 
 ## Architecture
@@ -79,7 +84,7 @@ Electron main process
 ├─ agent/activitySanitizer.js recursive redaction before validation/storage/IPC
 ├─ agent/activityStore.js     discriminated current-run activity
 ├─ agent/connectionStore.js   public agent metadata and future encrypted secrets
-├─ agent/sessionStore.js      planned encrypted app-owned agents/sessions (Task 16)
+├─ agent/sessionStore.js      encrypted app-owned agents/sessions (Task 16)
 ├─ agent/sessionCoordinator.js planned explicit agent/session/provider switching (Task 17)
 ├─ agent/cliRunner.js         bounded official-CLI process boundary
 ├─ agent/windowsProcessTree.js verified Windows child/grandchild termination
@@ -156,9 +161,10 @@ remain deferred. Multiple named agents and bounded persistent sessions are core 
 
 - One implementation session executes one numbered task, verifies it, updates BUILD_LOG.md, and
   commits it.
-- Core Tasks 15-19 are approved and Task 14 is accepted. Execute Task 15 only and stop at its user
-  gate; do not start Task 16 until Task 15 is accepted and integrated. Never start optional WSL
-  Tasks 20-23 without a separate post-v1 opt-in.
+- Core Tasks 15-19 are approved. The user temporarily deferred Task 15's image-only work and
+  authorized Task 16 as the one ordering exception; Task 16 is now verified for its user gate.
+  Do not start Task 17, resume image generation, or begin optional WSL Tasks 20-23 without the
+  user's explicit next request.
 - Start each task with a concise ETA and revise it only when the estimate materially changes.
 - Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
@@ -184,18 +190,19 @@ Offline Demo exposes only `offline-demo`. Unlisted values and silent fallback ar
 
 ## Order
 
-Tasks 1-14 remain complete. The core-first redesign is approved. Core Tasks 15-19 define serial
-animation, encrypted continuity, switching, integration, and packaging milestones. Optional WSL
-Tasks 20-23 are preserved after core v1 but are never automatic. Task 15 is next, and no later core
-task may begin before its predecessor is accepted and integrated.
+Tasks 1-14 and the storage-only Task 16 remain complete. The core-first redesign is approved. Core
+Tasks 15-19 define animation, encrypted continuity, switching, integration, and packaging milestones.
+The user deferred Task 15's six remaining image rows until ImageGen is available, then authorized
+only Task 16 as an ordering exception. Task 17 remains blocked at the Task 16 user gate; optional
+WSL Tasks 20-23 are preserved after core v1 and are never automatic.
 
 ## Standard entry prompt
 
 > Read Claude Pet/docs/project-context.md, Claude Pet/docs/BUILD_LOG.md,
-> Claude Pet/docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md, and Task 15 in
-> Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md. The core-first plan is explicitly
-> approved; execute Task 15 only. Do not install WSL, sign into a provider CLI, or run a real
-> Codex/Claude agent.
+> Claude Pet/docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md, the Task 15
+> deferral, and Task 16 in Claude Pet/docs/superpowers/plans/2026-07-13-claude-pet.md. Task 16 is
+> complete but awaits its user gate; do not start Task 17, generate Task 15 images, install WSL,
+> sign into a provider CLI, or run a real Codex/Claude agent.
 
 ## Session contract
 
@@ -216,7 +223,8 @@ Every implementation session must:
 - Base product requirements: `superpowers/specs/claude-pet-spec.md` (amended by the current redesign)
 - Historical agent-first foundation: `superpowers/specs/2026-07-22-agent-first-provider-redesign.md`
 - Current boundary/animation redesign: `superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md`
-- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md` (Tasks 1-14 complete;
-  core Tasks 15-19 approved; optional WSL Tasks 20-23 require a separate opt-in; Task 15 only next)
+- Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md` (Tasks 1-14 and Task 16
+  complete; Task 15 image rows deferred by the user; Task 17 waits for the Task 16 gate; optional
+  WSL Tasks 20-23 require a separate opt-in)
 - Evidence and rationale: `RESEARCH.md`
 - Session history and handoffs: `BUILD_LOG.md`

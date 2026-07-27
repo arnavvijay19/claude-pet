@@ -1,6 +1,7 @@
 'use strict';
 const path = require('node:path');
 const { createConnectionStore } = require('./agent/connectionStore.js');
+const { createSessionStore } = require('./agent/sessionStore.js');
 const { createActivityStore } = require('./agent/activityStore.js');
 const { createAgentManager } = require('./agent/agentManager.js');
 const { createOfflineDemoExecutor } = require('./agent/executors/offlineDemoExecutor.js');
@@ -69,6 +70,7 @@ function createAbortableDelayGate({ delayMs = 3000, setTimeoutFn = setTimeout, c
 
 function createAgentRuntime({ userDataPath, crypto, randomId, testExecutorEnabled = false }) {
   const store = createConnectionStore({ filePath: path.join(userDataPath, 'connections.json'), crypto, randomId });
+  const sessions = createSessionStore({ filePath: path.join(userDataPath, 'sessions.json'), crypto, randomId, clock: () => new Date().toISOString() });
   const activity = createActivityStore();
   const codexExecutor = testExecutorEnabled
     ? createDeterministicCodexExecutor()
@@ -94,7 +96,9 @@ function createAgentRuntime({ userDataPath, crypto, randomId, testExecutorEnable
       'claude-code-cli:full-computer': nativeClaudeExecutor,
     },
   });
-  return Object.freeze({ store, activity, manager, initialize: () => store.initialize() });
+  return Object.freeze({ store, sessions, activity, manager, initialize: async () => {
+    await Promise.all([store.initialize(), sessions.initialize()]);
+  } });
 }
 module.exports = {
   createAbortableDelayGate,

@@ -372,6 +372,20 @@ optional — an unlogged session is a failed session even if its code worked). F
   block last, and `git diff --check`. No app behavior, WSL/system state, provider login, or provider
   agent run changed; Task 15 atlas work is the only next implementation.
 
+- **2026-07-27 · user-directed scope change + Codex · Task 16 (encrypted provider-neutral sessions)** —
+  The user deferred Task 15's image generation until ImageGen is available and explicitly authorized
+  the already-started storage-only Task 16 as the one ordering exception. Task 15 remains incomplete:
+  its unmerged asset worktree is preserved and its external run has exactly six pending rows
+  (`waving`, `jumping`, `failed`, `waiting`, `running`, `review`). Task 16 adds an atomic serialized
+  `sessions.json` schema v1 with strict public metadata, whole-turn safeStorage ciphertext, no
+  plaintext fallback, caps, safe-storage-unavailable errors, and stale-ciphertext rotation; it also
+  adds XML-escaped, provider-attributed bounded neutral context and initializes the service beside
+  connection storage. Fresh verification: focused Node 11/11; canonical Node 223/223; pytest 1/1;
+  three changed-source syntax checks; `git diff --check`; and a temporary restart probe with
+  ciphertext SHA-256 `e357bea20a7c604b7dccf8bd92342b7cad010d07b60ecd650b402cd80e26e951`, 1 agent,
+  1 session, 1 turn, and restored selection/connection/turn equality. No plaintext was recorded,
+  no image was generated, no provider was run, and Task 17 has not begun. NEXT: Task 16 user gate.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise

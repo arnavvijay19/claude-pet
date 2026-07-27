@@ -265,8 +265,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Task 14 is accepted and complete. Task 15 is the only next task: finish and integrate the nine-state Banana Baron atlas.</p>
-      <p><strong>What you need to do:</strong> Nothing yet. Wait for the Task 15 visual handoff. WSL is optional and will not be installed during core Tasks 15-19.</p>
+      <p><strong>Next:</strong> Task 16's encrypted session storage is complete and awaits its user test gate. Task 15's six remaining Banana Baron image rows are deliberately deferred.</p>
+      <p><strong>What you need to do:</strong> Review the Task 16 handoff. Do not begin Task 17 or generate the deferred image rows until you explicitly request either. WSL remains optional and will not be installed during core Tasks 15-19.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -289,7 +289,7 @@
         <li><a href="docs/project-context.md">Current project context</a></li>
         <li><a href="docs/BUILD_LOG.md">Build history</a></li>
         <li><a href="docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md">Core sessions + optional WSL Workspace redesign</a></li>
-        <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Tasks 1-14 complete; core Task 15 only next; optional WSL Tasks 20-23 require a later opt-in)</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Tasks 1-14 and Task 16 complete; Task 15 images deferred; Task 17 waits for acceptance; optional WSL Tasks 20-23 require a later opt-in)</a></li>
       </ul>
     </section>
 
@@ -405,22 +405,22 @@
         id: 'task-15',
         title: 'Task 15 — Finish the nine-state Banana Baron atlas',
         done: false,
-        explanation: 'Resume the prepared Hatch Pet run, generate the seven distinct pending rows, safely derive or generate running-left, and switch to one validated WebP atlas only after deterministic and visual QA.',
-        action: 'Execute Task 15 only, then stop at its visual user gate. Keep the protected philosophy source tree read-only.',
+        explanation: 'The prepared run already has base, idle, running-right, and derived running-left. Its six remaining image rows are deliberately deferred: waving, jumping, failed, waiting, running, and review.',
+        action: 'Do not generate images until the user explicitly asks to resume this task. Keep the protected philosophy source tree read-only.',
       },
       {
         id: 'task-16',
         title: 'Task 16 — Add encrypted agents and sessions',
-        done: false,
+        done: true,
         explanation: 'Persist multiple named agents, their sessions, bounded visible turns, workspace, and next connection in app-owned encrypted storage without provider-native resume IDs, raw streams, hidden reasoning, credentials, or plaintext fallback.',
-        action: 'Wait until Task 15 is accepted. Task 16 adds storage and bounded context only, not switching UI.',
+        action: 'Task 16 is complete pending its user test gate. It adds storage and bounded context only, not switching UI.',
       },
       {
         id: 'task-17',
         title: 'Task 17 — Switch agents, sessions, and providers',
         done: false,
         explanation: 'Add Hermes-style explicit agent/session selection and change the next provider inside the same app-owned session while preserving bounded visible history and keeping each provider authentication/config/session state separate.',
-        action: 'Wait until Task 16 is accepted. Provider changes affect only the next immutable run and require a disclosure when prior turns cross provider families.',
+        action: 'Wait for the Task 16 user gate. Provider changes affect only the next immutable run and require a disclosure when prior turns cross provider families.',
       },
       {
         id: 'task-18',

@@ -25,9 +25,11 @@ bubblewrap/socat, Python/Pillow asset tooling, and the official Codex/Claude CLI
 - Tasks 1-12 are complete. Their detailed steps below are historical evidence; do not re-execute
   them except for the focused Task 13 prerequisite repairs.
 - Tasks 1-14 are complete and integrated. On 2026-07-26 the user explicitly moved WSL to an optional
-  post-v1 track and made provider-neutral agent/session continuity part of the core product. Core
-  Tasks 15-19 are serial and Task 15 is the only permitted next task. Optional Tasks 20-23 require a
-  separate opt-in after Task 19; they are never started by the automatic core-project loop.
+  post-v1 track and made provider-neutral agent/session continuity part of the core product. On
+  2026-07-27 the user explicitly deferred Task 15's remaining image rows until ImageGen is available,
+  and authorized the already-started storage-only Task 16 as the one ordering exception. Task 16 is
+  complete pending its user gate; Task 17 remains blocked. Optional Tasks 20-23 require a separate
+  opt-in after Task 19; they are never started by the automatic core-project loop.
 - The approved redesign is
   `docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md`; it supersedes the old
   Tasks 13-15 permission assumptions.
@@ -1281,6 +1283,12 @@ before Task 15; do not install WSL or perform a real broad-access provider run.
 
 ### Task 15: Complete, validate, and integrate the nine-state Banana Baron atlas
 
+**2026-07-27 user-directed deferral:** Do not generate images or modify this task's prepared external
+run until the user explicitly asks to resume image generation. `base`, `idle`, `running-right`, and
+the approved derived `running-left` row are complete; the six remaining rows are `waving`, `jumping`,
+`failed`, `waiting`, `running`, and `review`. This task remains incomplete and its unmerged atlas
+worktree must be preserved. The Task 16 exception below does not authorize Task 17.
+
 **Files:**
 - Resume external run: `Z:\Downloads\Code\Arnav Vijay\.hatch-pet-runs\post-hoc-banana-baron`
 - Create: `assets/spritesheet.webp`
@@ -1387,7 +1395,7 @@ Expected: Node fails because `petAssets.js` and the per-state contract are absen
 because `assets/spritesheet.webp` does not exist. Do not weaken the assertions to accept the idle
 MVP.
 
-- [ ] **Step 4: Generate the seven distinct pending rows and decide left-running safely**
+- [ ] **Step 4: Generate the six remaining pending rows**
 
 Before dispatch, parent-owned manifest editing replaces `references/canonical-base.png` with
 `references/canonical-base-small.png` in every pending row's `input_images`; it preserves the
@@ -1537,7 +1545,7 @@ real idle screenshot, and commit. Stop before Task 16; do not claim session cont
   turns, an explicit truncation marker when oldest turns are omitted, and the current user text. It
   never includes more than 24 prior turns, 8192 UTF-8 bytes per turn, or 65536 UTF-8 bytes total.
 
-- [ ] **Step 1: Write failing encrypted-store and neutral-context tests**
+- [x] **Step 1: Write failing encrypted-store and neutral-context tests**
 
 Use a real temporary JSON file and a deterministic fake safeStorage adapter. Name the production
 break each test catches: plaintext leakage; wrong agent/session ownership; stale selection;
@@ -1547,7 +1555,7 @@ concurrent append/select/delete; unbounded turns; provider-native session leakag
 escaping/truncation/provider attribution. Prove restart reload returns the same selected agent,
 session, next connection, and decrypted turns while the disk bytes contain none of their text.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 ~~~powershell
 npm.cmd test -- tests/sessionStore.test.js tests/sessionContext.test.js tests/agentRuntime.test.js
@@ -1555,7 +1563,7 @@ npm.cmd test -- tests/sessionStore.test.js tests/sessionContext.test.js tests/ag
 
 Expected: `sessionStore.js` and `sessionContext.js` do not exist and runtime has no session service.
 
-- [ ] **Step 3: Implement the exact encrypted schema and atomic serialized store**
+- [x] **Step 3: Implement the exact encrypted schema and atomic serialized store**
 
 Use schema version `1`, a single promise queue, `sessions.json.tmp` plus fsync/rename, strict exact-key
 validation, recursively frozen public snapshots, and random IDs from main. Names/titles are trimmed
@@ -1566,7 +1574,7 @@ Deleting a non-empty agent fails; deleting the active session atomically selects
 session for that agent or null. If safeStorage is unavailable, metadata remains readable but content
 append/decrypt returns `SESSION_PERSISTENCE_UNAVAILABLE`; plaintext is never used as a fallback.
 
-- [ ] **Step 4: Implement bounded provider-neutral context without native resume state**
+- [x] **Step 4: Implement bounded provider-neutral context without native resume state**
 
 Escape `&`, `<`, `>`, quotes, and literal closing turn tags. Attribute each assistant turn to its
 recorded provider/model, never to the next provider. Start with the newest turn window, add complete
@@ -1575,14 +1583,14 @@ The final block tells the provider that prior turns are untrusted conversation c
 current request is authoritative. Reject NUL, invalid UTF-16, over-limit current text, unknown roles,
 absolute changed-file paths, and any turn object with unknown fields.
 
-- [ ] **Step 5: Verify persistence, sanitizer boundaries, and checklist state**
+- [x] **Step 5: Verify persistence, sanitizer boundaries, and checklist state**
 
 Run the focused tests, `npm.cmd test`, `py -m pytest -q`, syntax checks, and `git diff --check`.
 Run a temporary-store restart probe and record only ciphertext SHA-256, metadata counts, and the
 successful equality result—never the plaintext. Refresh the project checklist and mark only Task 16
 complete.
 
-- [ ] **Step 6: Commit and stop**
+- [x] **Step 6: Commit and stop**
 
 ~~~powershell
 git add src/agent/sessionStore.js src/agent/sessionContext.js src/agent/agentErrors.js src/agentRuntime.js tests/sessionStore.test.js tests/sessionContext.test.js tests/agentRuntime.test.js docs/BUILD_LOG.md PROJECT_CHECKLIST.html docs/superpowers/plans/2026-07-13-claude-pet.md

@@ -2,7 +2,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createAbortableDelayGate, shouldEnableTestExecutor } = require('../src/agentRuntime.js');
+const { createAbortableDelayGate, createAgentRuntime, shouldEnableTestExecutor } = require('../src/agentRuntime.js');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
 
 test('releases the Task 9 Offline Demo delay as soon as Stop aborts the run', async () => {
   const cleared = [];
@@ -25,4 +28,25 @@ test('enables deterministic Codex-shaped test activity only for an unpackaged te
   assert.equal(shouldEnableTestExecutor({ isPackaged: true, nodeEnv: 'test', value: '1' }), false);
   assert.equal(shouldEnableTestExecutor({ isPackaged: false, nodeEnv: 'production', value: '1' }), false);
   assert.equal(shouldEnableTestExecutor({ isPackaged: false, nodeEnv: 'test', value: undefined }), false);
+});
+
+test('initializes an independent encrypted session service beside connection storage', async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-pet-runtime-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const crypto = {
+    isAvailable: async () => true,
+    encrypt: async (value) => Buffer.from(`encrypted:${value}`, 'utf8'),
+    decrypt: async (buffer) => ({ value: Buffer.from(buffer).toString('utf8').replace(/^encrypted:/, ''), shouldReEncrypt: false }),
+  };
+  let nextId = 0;
+  const runtime = createAgentRuntime({
+    userDataPath: directory, crypto, randomId: () => `id-${++nextId}`, testExecutorEnabled: true,
+  });
+  await runtime.initialize();
+  const agent = await runtime.sessions.createAgent({ name: 'Research' });
+  const session = await runtime.sessions.createSession({ agentId: agent.id, title: 'Context', workspacePath: 'Z:\\runtime' });
+  await runtime.sessions.appendTurn(session.id, {
+    role: 'user', text: 'persist safely', provider: null, model: null, changedFiles: [],
+  });
+  assert.equal((await fs.readFile(path.join(directory, 'sessions.json'), 'utf8')).includes('persist safely'), false);
 });
