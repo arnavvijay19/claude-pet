@@ -11,6 +11,7 @@ const { createResponseWindow } = require('./responseWindow.js');
 const { createResponsePreferences } = require('./response/responsePreferences.js');
 const { createFullComputerAuthorization } = require('./agent/fullComputerAuthorization.js');
 const { createTrayMenuTemplate } = require('./trayMenu.js');
+const { loadPetManifestWithDataUrl } = require('./petAssets.js');
 
 let petWindow = null;
 let tray = null;
@@ -76,16 +77,13 @@ async function refreshTray() {
   })));
 }
 
-// Renderer can't fetch() file:// URLs, so the manifest is read here and
-// handed over IPC. spritesheetDataUrl inlines the PNG for the same reason.
+// Renderer can't fetch() file:// URLs, so main validates the manifest and
+// inlines the matching PNG/WebP bytes before handing it over IPC.
 const ASSETS_DIR = path.join(__dirname, '..', 'assets');
 
 ipcMain.handle('pet:get-manifest', (event) => {
   if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender');
-  const manifest = JSON.parse(fs.readFileSync(path.join(ASSETS_DIR, 'pet.json'), 'utf-8'));
-  const png = fs.readFileSync(path.join(ASSETS_DIR, manifest.spritesheetPath));
-  manifest.spritesheetDataUrl = `data:image/png;base64,${png.toString('base64')}`;
-  return manifest;
+  return loadPetManifestWithDataUrl({ assetsDir: ASSETS_DIR, readFileSync: fs.readFileSync });
 });
 
 ipcMain.on('pet:move-window', (event, { dx, dy }) => {
