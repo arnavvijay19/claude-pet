@@ -265,8 +265,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Task 15 implementation and verification are complete; it is waiting at its user test gate.</p>
-      <p><strong>What you need to do:</strong> Review the Task 15 contact sheet and real 192x208 Electron idle screenshot, then accept the gate or name a row that needs repair. WSL remains optional and untouched.</p>
+      <p><strong>Next:</strong> Tasks 15–17 are accepted and integrated. Task 18 is now completing the final offline integration.</p>
+      <p><strong>What you need to do:</strong> No action while the Core V1 branch completes Task 18 and the final unsigned package. WSL remains optional and untouched.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -413,13 +413,13 @@
         title: 'Task 16 — Add encrypted agents and sessions',
         done: true,
         explanation: 'Persist multiple named agents, their sessions, bounded visible turns, workspace, and next connection in app-owned encrypted storage without provider-native resume IDs, raw streams, hidden reasoning, credentials, or plaintext fallback.',
-        action: 'Task 16 is complete pending its user test gate. It adds storage and bounded context only, not switching UI.',
+        action: 'Task 16 is accepted and complete. Task 17 consumes its encrypted storage and bounded context.',
       },
       {
         id: 'task-17',
         title: 'Task 17 — Switch agents, sessions, and providers',
         done: false,
-        explanation: 'Implementation is complete: explicit agent/session/next-provider controls, encrypted app-owned continuity, deleted-provider provenance disclosure, stale selection protection, and account-free deterministic provider switching are covered by focused 56/56 and full Node 239/239 tests. The required desktop visual/restart proof is not complete.',
+        explanation: 'Implementation is complete: explicit agent/session/next-provider controls, encrypted app-owned continuity, deleted-provider provenance disclosure, stale selection protection, real-store restart persistence, and account-free deterministic switching are covered by focused 30/30 tests. The full current-head Node run passed 242/243; the only failure was an unrelated live Codex-helper timeout whose exact rerun passed 1/1. The required desktop visual/restart proof is not complete.',
         action: 'Restore the Windows Computer Use helper, then perform and save the required fresh-profile Electron restart screenshot. Do not use a real provider or begin Task 18.',
       },
       {

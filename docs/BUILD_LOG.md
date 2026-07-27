@@ -408,6 +408,15 @@ optional — an unlogged session is a failed session even if its code worked). F
   confirms Settings receives busy state immediately after reservation. The known Computer Use visual/restart blocker remains
   pending; no screenshot or real-provider execution was attempted.
 
+- **2026-07-27 · Codex · Task 17 fix round 2 and final review** — Moved Settings busy publication
+  onto the real Agent Manager reservation, server-guarded and renderer-disabled every legacy and
+  Task 17 mutation, added forged-delete and real-store restart regressions, and proved the actual
+  Settings controls disable/re-enable in `d3cb5b3`. Final scoped review found all findings addressed.
+  Fresh focused evidence is 30/30 and pytest is 1/1. The full current-head Node run passed 242/243;
+  its sole failure was the unrelated live Codex-helper timeout, whose exact rerun passed 1/1.
+  Syntax and diff checks pass. The Computer Use module blocker still prevents the required desktop
+  visual/restart screenshot, so Task 17 remains at its user gate and Task 18 has not started.
+
 ## Field notes
 
 Things discovered mid-work that the plan/research didn't predict: a solution to a surprise
