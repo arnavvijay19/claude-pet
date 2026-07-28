@@ -265,8 +265,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Core V1 Tasks 15–19 are implemented and verified on the Core V1 branch. Optional WSL Tasks 20–23 remain separate and untouched.</p>
-      <p><strong>What you need to do:</strong> Review or merge the Core V1 branch when ready. Do not begin WSL work unless you explicitly opt in later.</p>
+      <p><strong>Next:</strong> Core V1 Tasks 1–19 are complete. UX Task 1 — shared multi-agent sessions — is the only next implementation task.</p>
+      <p><strong>What you need to do:</strong> Approve the UX implementation plan, then execute UX Task 1 only. Do not begin later UX tasks, WSL work, or multi-model work automatically.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -289,13 +289,15 @@
         <li><a href="docs/project-context.md">Current project context</a></li>
         <li><a href="docs/BUILD_LOG.md">Build history</a></li>
         <li><a href="docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md">Core sessions + optional WSL Workspace redesign</a></li>
+        <li><a href="docs/superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md">Approved Core V1 UX rebuild</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md">Current UX implementation plan (UX Task 1 is next)</a></li>
         <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Core V1 Tasks 15–19 are implemented; optional WSL Tasks 20–23 require a later opt-in)</a></li>
       </ul>
     </section>
 
     <footer>
       <button id="reset" type="button">Reset checklist</button>
-      <p>This page saves checkmarks and notes in your browser. It does not change the app. Delete this file after core Task 19 is finished and verified; optional WSL work is tracked separately.</p>
+      <p>This page saves checkmarks and notes in your browser. It does not change the app. Keep it through the UX rebuild; optional WSL and multi-model work are tracked separately.</p>
     </footer>
   </main>
 
@@ -435,6 +437,48 @@
         done: true,
         explanation: 'Built and verified an unsigned Windows package with deterministic icon, bounded package/secret scan, portable folder, and zip. The verifier scanned 150 files / 367250041 bytes; the zip SHA-256 is E6FB587B45A6D69B54D159C16F83FD23BF0A3BF630580E864C5427AC079FBEAD.',
         action: 'Core V1 ends here. Optional WSL work never starts automatically.',
+      },
+      {
+        id: 'ux-task-1',
+        title: 'UX Task 1 — Add shared multi-agent sessions',
+        done: false,
+        explanation: 'Migrate encrypted persistence so one shared session can contain up to eight named agents while preserving existing history and selection.',
+        action: 'This is the only next implementation task. Stop after its tests, docs, checklist, commit, review, and user gate.',
+      },
+      {
+        id: 'ux-task-2',
+        title: 'UX Task 2 — Route one selected agent per turn',
+        done: false,
+        explanation: 'Keep all runs sequential: one selected agent snapshots one saved connection, provider, and model, with attributed bounded history.',
+        action: 'Wait until UX Task 1 is accepted.',
+      },
+      {
+        id: 'ux-task-3',
+        title: 'UX Task 3 — Add one main-owned application snapshot',
+        done: false,
+        explanation: 'Replace duplicated Settings/Response state channels and timer polling with one validated, immutable main-process snapshot.',
+        action: 'Wait until UX Task 2 is accepted.',
+      },
+      {
+        id: 'ux-task-4',
+        title: 'UX Task 4 — Build the minimal main shell',
+        done: false,
+        explanation: 'Create the resizable two-column window, agent roster, shared-session sidebar, and first-run Offline Demo flow.',
+        action: 'Wait until UX Task 3 is accepted.',
+      },
+      {
+        id: 'ux-task-5',
+        title: 'UX Task 5 — Add conversation, activity, and Settings',
+        done: false,
+        explanation: 'Add the attributed conversation, persistent composer, compact activity cards, agent selector, and secondary connection settings.',
+        action: 'Wait until UX Task 4 is accepted.',
+      },
+      {
+        id: 'ux-task-6',
+        title: 'UX Task 6 — Prove lifecycle parity and package it',
+        done: false,
+        explanation: 'Make success, failure, Stop, retry, attachment, restart, pet/tray opening, and packaged visual gates work before removing legacy windows.',
+        action: 'Wait until UX Task 5 is accepted. Stop for the packaged-app user gate when complete.',
       },
       {
         id: 'task-20',

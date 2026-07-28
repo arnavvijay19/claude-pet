@@ -9,8 +9,12 @@ and why),
 (historical agent-first foundation),
 [superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md](superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md)
 (approved current boundary/animation redesign),
+[superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md](superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md)
+(approved current UX rebuild),
 [superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md)
 (Tasks 1-19 implemented on the Core V1 branch; optional WSL Tasks 20-23 require a later opt-in),
+[superpowers/plans/2026-07-27-core-v1-ux-rebuild.md](superpowers/plans/2026-07-27-core-v1-ux-rebuild.md)
+(next implementation sequence),
 [RESEARCH.md](RESEARCH.md)
 (evidence), and
 [BUILD_LOG.md](BUILD_LOG.md) (history).
@@ -27,6 +31,11 @@ Simple or Comprehensive form.
   validated nine-state atlas; Task 16 supplies encrypted app-owned sessions; Task 17 supplies
   explicit agent/session/next-provider switching; Tasks 18-19 complete core integration and the
   unsigned Windows package.
+- The user rejected the finished Settings/Response experience as cluttered and functionally weak.
+  The approved UX rebuild keeps the tested runtime but replaces those primary workflows with one
+  minimal main window. Shared sessions may contain multiple named agents; exactly one selected
+  agent, saved connection, provider, and model handles each turn, and only one run executes at a
+  time. UX Task 1 is the only next implementation task.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
@@ -129,6 +138,9 @@ workspace/installation/recovery-bound attestation, never caller-supplied probe r
 13. **Attachments are one-file disclosures.** Workspace files outside the selected project require a
     native warning; only bounded UTF-8 text crosses, acceptance is snapshot-bound, and the parent is
     never mounted or shared.
+14. **Shared sessions stay sequential.** A session may contain multiple named agents, but one
+    selected participant snapshots one saved connection/provider/model for each turn. Multi-model
+    or parallel-agent skills require a separate later design and cannot silently bypass this rule.
 
 ## Remaining build phases
 
@@ -147,6 +159,7 @@ workspace/installation/recovery-bound attestation, never caller-supplied probe r
 | Hermes-style switching | 17 | Explicit agent/session selection and same-session next-provider switching | Stale/busy/cross-provider disclosure tests and UI evidence |
 | Final core integration | 18 | Token-safe pet states, deliberate file input, consistent tray | Offline text/file/Stop E2E and all-nine-state evidence |
 | Unsigned core package | 19 | Bounded Windows test package with no WSL dependency | Secret scan, packaged fresh-profile run, canonical zip hash |
+| Core V1 UX rebuild | UX 1-6 | Shared-agent sessions and one usable minimal main window | Store migration, sequential routing, unified IPC, Offline Demo E2E, packaged visual gate |
 | Optional WSL installation and generic boundary | 20-21 | Pinned dedicated distro, held NTFS path, private broker | Supply-chain, mount, hostile, Stop, and recovery gates |
 | Optional Codex Workspace | 22 | Linux named profile through the verified WSL boundary | Complete generic and Codex hostile matrices |
 | Optional Claude Workspace | 23 | Locked managed sandbox through the verified WSL boundary | Complete policy, dependency, and Claude hostile matrices |
@@ -160,6 +173,9 @@ remain deferred. Multiple named agents and bounded persistent sessions are core 
   commits it.
 - Core Tasks 15-19 are implemented and verified on the Core V1 branch. Never begin optional WSL
   Tasks 20-23 without a separate post-v1 opt-in.
+- Execute UX Tasks 1-6 serially from `superpowers/plans/2026-07-27-core-v1-ux-rebuild.md`.
+  UX Task 1 is next; do not begin UX Task 2 until UX Task 1 is verified, documented, committed,
+  reviewed, and accepted.
 - Start each task with a concise ETA and revise it only when the estimate materially changes.
 - Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
@@ -185,15 +201,16 @@ Offline Demo exposes only `offline-demo`. Unlisted values and silent fallback ar
 
 ## Order
 
-Tasks 1-19 are complete on the Core V1 branch. Optional WSL Tasks 20-23 are preserved after core v1
-and are never automatic.
+Tasks 1-19 are complete on the Core V1 branch. UX Tasks 1-6 are the approved next sequence.
+Optional WSL Tasks 20-23 remain preserved and are never automatic.
 
 ## Standard entry prompt
 
 > Read Claude Pet/docs/project-context.md, Claude Pet/docs/BUILD_LOG.md,
-> Claude Pet/docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md and the
-> final Core V1 evidence. Tasks 1-19 are complete on the Core V1 branch. Do not install WSL, sign
-> into a provider CLI, or run a real Codex/Claude agent unless a later task explicitly requires it.
+> Claude Pet/docs/superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md,
+> Claude Pet/docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md, and the final Core V1
+> evidence. Tasks 1-19 are complete; UX Task 1 is the only next task. Do not install WSL, sign into
+> a provider CLI, or run a real Codex/Claude agent unless a later task explicitly requires it.
 
 ## Session contract
 
@@ -214,6 +231,8 @@ Every implementation session must:
 - Base product requirements: `superpowers/specs/claude-pet-spec.md` (amended by the current redesign)
 - Historical agent-first foundation: `superpowers/specs/2026-07-22-agent-first-provider-redesign.md`
 - Current boundary/animation redesign: `superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md`
+- Current UX rebuild: `superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md`
+- Current UX implementation tasks: `superpowers/plans/2026-07-27-core-v1-ux-rebuild.md`
 - Exact implementation tasks: `superpowers/plans/2026-07-13-claude-pet.md` (Core Tasks 1-19
   implemented and verified on `codex/task-18-19-core-v1`; optional WSL Tasks 20-23 require a
   separate opt-in)

@@ -658,3 +658,10 @@ link the note to it — this file is the inbox, not the archive.
 - Implemented main-owned activity animation, bounded text attachment handling, response dismissal capability, and tray/package support on `codex/task-18-19-core-v1`.
 - Verified 258 Node tests and 3 Python tests. The unsigned Windows package verifier scanned 150 files / 367250041 bytes; `Claude-Pet-win32-x64.zip` SHA-256 is `E6FB587B45A6D69B54D159C16F83FD23BF0A3BF630580E864C5427AC079FBEAD`.
 - Windows Graphics Capture rejected Electron's border interface, so the actual pet canvas was captured through the local DevTools protocol at `docs/evidence/task-18-animation-e2e.png`; no provider sign-in or WSL setup occurred.
+
+- **2026-07-27 · GPT-5.6 · Core V1 UX redesign and plan** — Audited community-built GitHub
+  interfaces including Agent Deck, opcode, Palot, Kanna, OpenChamber, and CloudCLI. The user
+  approved a minimal unified-window direction and clarified that shared sessions may contain
+  multiple named agents while exactly one provider/model owns each sequential turn. The amended
+  design and six-task implementation plan are committed at `509f4af`; UX Task 1 is next, and
+  optional WSL/multi-model work remains untouched.
