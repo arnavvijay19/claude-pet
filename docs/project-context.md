@@ -207,6 +207,8 @@ remain deferred. Multiple named agents and bounded persistent sessions are core 
 - UX Tasks 1-6 from `superpowers/plans/2026-07-27-core-v1-ux-rebuild.md` are implemented.
   UX Tasks 1-2 are merged; UX Tasks 3-6 are verified on the current rebuild branch.
 - Start each task with a concise ETA and revise it only when the estimate materially changes.
+- Use `C:\\Users\\eklip\\Desktop\\a` as the user-selected project workspace for manual and packaged
+  user-flow tests, unless the user changes it. Do not substitute the repository folder.
 - Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
 - Evidence before done: focused tests, full Node suite, pytest, clean Git status, and visual proof

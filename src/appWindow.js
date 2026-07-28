@@ -270,6 +270,7 @@ function createAppWindowController({
   stopRun,
   retryGoal,
   chooseTextFile,
+  shouldHideOnClose = () => true,
 }) {
   if (typeof BrowserWindow !== 'function' || !activity
       || typeof activity.snapshot !== 'function' || typeof activity.subscribe !== 'function') {
@@ -336,6 +337,7 @@ function createAppWindowController({
     });
     window.on?.('close', (event) => {
       if (!window || window.isDestroyed()) return;
+      if (!shouldHideOnClose()) return;
       event?.preventDefault?.();
       window.hide?.();
     });

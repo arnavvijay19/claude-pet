@@ -67,7 +67,7 @@ test('groups secondary settings and keeps the Full Computer warning permanent', 
   const root = new Element();
   renderSettings(root, snapshot(), () => {}, { document: documentBoundary });
   const text = flatten(root).map((item) => item.textContent);
-  for (const heading of ['Connections', 'Access', 'Model', 'Advanced']) {
+  for (const heading of ['Connections', 'Access', 'Model']) {
     assert.equal(text.includes(heading), true);
   }
   assert.equal(text.includes('Full computer access'), true);
@@ -120,6 +120,14 @@ test('creates a named agent and adds an existing agent to the selected session i
     ['create-agent', { name: 'Reviewer', marker: 'blue', instruction: '' }],
     ['add-participant', { sessionId: 'shared', agentId: 'b', connectionId: 'codex' }],
   ]);
+});
+
+test('does not render obsolete active-connection controls that no longer carry a connection id', () => {
+  const root = new Element();
+  renderSettings(root, snapshot(), () => {}, { document: documentBoundary });
+  const text = flatten(root).map((item) => item.textContent).join(' ');
+  assert.doesNotMatch(text, /Test active connection/);
+  assert.doesNotMatch(text, /Provider sign-in/);
 });
 
 test('renders an explicit Codex editor with no Workspace fallback and targets saved connection actions', async () => {

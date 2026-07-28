@@ -74,6 +74,35 @@ test('pet, tray, and first launch share one app window whose close hides to tray
   assert.equal(firstLaunch.hidden, 1);
 });
 
+test('shared app window closes normally when the application is quitting', () => {
+  function BrowserWindow() {
+    const listeners = {};
+    return {
+      hidden: 0,
+      destroyed: false,
+      webContents: { send() {} },
+      loadFile() {},
+      show() {},
+      focus() {},
+      hide() { this.hidden += 1; },
+      isDestroyed() { return this.destroyed; },
+      on(name, listener) { listeners[name] = listener; },
+      emit(name, event) { listeners[name]?.(event); },
+    };
+  }
+  const controller = createAppWindowController({
+    BrowserWindow,
+    ipcMain: fakeIpc(),
+    shouldHideOnClose: () => false,
+    ...appDependencies(),
+  });
+  const window = controller.show();
+  let prevented = false;
+  window.emit('close', { preventDefault() { prevented = true; } });
+  assert.equal(prevented, false);
+  assert.equal(window.hidden, 0);
+});
+
 test('retry stores only the visible request and uses the currently selected participant', async () => {
   const calls = [];
   const tracker = createVisibleRequestTracker({
@@ -95,6 +124,8 @@ test('production lifecycle has one app subscription and no legacy window or poll
   assert.match(preload, /openApp/);
   assert.match(pet, /openApp/);
   assert.match(main, /appWindowController\.show\(\{ view: 'conversation' \}\)/);
+  assert.match(main, /app\.on\('before-quit', \(\) => \{ isQuitting = true; \}\)/);
+  assert.match(main, /shouldHideOnClose: \(\) => !isQuitting/);
   assert.doesNotMatch(main, /SettingsWindow|ResponseWindow|'(?:response|settings):/);
   assert.equal((app.match(/bridge\.subscribe\(/g) || []).length, 1);
   assert.doesNotMatch(app, /setInterval|1000/);

@@ -235,16 +235,6 @@
     }
     shell.append(agentProfiles);
 
-    const advanced = group(document, 'Advanced');
-    advanced.append(
-      mutationButton(document, 'Test active connection', () => {
-        void dispatch('test-connection', {});
-      }, busy, 'secondary-action'),
-      mutationButton(document, 'Provider sign-in', () => {
-        void dispatch('begin-provider-setup', {});
-      }, busy, 'secondary-action'),
-    );
-    shell.append(advanced);
     target.replaceChildren(shell);
     return shell;
   }

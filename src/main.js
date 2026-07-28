@@ -34,7 +34,10 @@ let trayRefreshGeneration = 0;
 let animation = null;
 let animationSequence = 0;
 let requestTracker = null;
+let isQuitting = false;
 function publishPetState(state) { const envelope = { animationSequence: ++animationSequence, state }; petWindow?.webContents.send('pet:state', envelope); return envelope; }
+
+app.on('before-quit', () => { isQuitting = true; });
 
 function createPetWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
@@ -226,6 +229,7 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
     submitGoal: (text) => requestTracker.submit(text),
     stopRun: () => promptController.stop(),
     retryGoal: () => requestTracker.retry(),
+    shouldHideOnClose: () => !isQuitting,
     chooseTextFile: async () => {
       const result = await dialog.showOpenDialog(appWindowController?.getWindow() || petWindow, {
         title: 'Attach one text file',
@@ -267,7 +271,7 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
 
 app.on('window-all-closed', (event) => {
   // Tray-resident app: do not quit when the window closes.
-  event.preventDefault();
+  if (!isQuitting) event.preventDefault();
 });
 
 module.exports = { getPetWindow: () => petWindow };

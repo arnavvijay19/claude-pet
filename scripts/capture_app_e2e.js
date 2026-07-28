@@ -152,8 +152,9 @@ async function main() {
   const outputDirectory = path.resolve(process.argv[3]);
   const mode = process.argv[4] || 'run';
   const attachmentPath = process.argv[5];
+  const workspacePath = process.argv[6] || 'C:\\Users\\eklip\\Desktop\\a';
   if (!Number.isSafeInteger(port) || !process.argv[3]) {
-    throw new Error('Usage: node capture_app_e2e.js <port> <output-directory> [run|restore] [attachment]');
+    throw new Error('Usage: node capture_app_e2e.js <port> <output-directory> [run|restore] [attachment] [workspace]');
   }
   await fs.mkdir(outputDirectory, { recursive: true });
   const targets = await json(`http://127.0.0.1:${port}/json/list`);
@@ -175,7 +176,7 @@ async function main() {
       await waitFor(app, `!document.querySelector('#first-run').hidden`, 'fresh profile');
       await evaluate(app, `(() => {
         document.querySelector('#first-agent-name').value = 'Researcher';
-        document.querySelector('#first-workspace').value = 'Z:\\\\Downloads\\\\Code\\\\Claude Pet';
+        document.querySelector('#first-workspace').value = ${JSON.stringify(workspacePath)};
         document.querySelector('#first-goal').value = 'Summarize the workspace safely';
         document.querySelector('#first-run-form').requestSubmit();
       })()`);

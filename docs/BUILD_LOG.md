@@ -831,3 +831,21 @@ link the note to it — this file is the inbox, not the archive.
   installed but not signed in yet`, retained unrelated Offline Demo/session controls, and launched
   the official visible `codex.exe login` flow. The account action remains open for the user; no
   credentials were handled and no real task was run.
+
+## 2026-07-28 — User-flow audit and tray Quit repair
+
+- The user-selected test workspace is `C:\\Users\\eklip\\Desktop\\a`; the user-flow harness now
+  defaults to it instead of the repository folder. A fresh packaged Offline Demo flow completed
+  first run, two participants, Stop/Retry, controlled failure/recovery, a bounded attachment, and
+  pet reopen using that workspace. Its legacy screenshot watchdog timed out only after the pet
+  reopen checkpoint; it does not indicate that the completed app action failed.
+- Root cause for tray Quit: the tray correctly called `app.quit()`, but the shared main window
+  cancelled every close and hid itself, including Electron's explicit quit close. `before-quit`
+  now marks an intentional exit; only ordinary window closes hide to tray, while app quit closes
+  normally. Focused regressions cover both paths.
+- Removed the obsolete generic `Test active connection` and `Provider sign-in` controls. They
+  dispatched empty requests after connection actions became card-specific, so they could only fail
+  silently. The live Codex card remains the sole honest Test/sign-in route.
+- Audit note: `src/trayController.js` is an unused older tray helper; production uses
+  `src/trayMenu.js` from `src/main.js`. It was left untouched because it has no runtime path and
+  the repair pass stayed focused on user-visible behavior.
