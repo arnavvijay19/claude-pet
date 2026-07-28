@@ -43,10 +43,19 @@ test('initializes an independent encrypted session service beside connection sto
     userDataPath: directory, crypto, randomId: () => `id-${++nextId}`, testExecutorEnabled: true,
   });
   await runtime.initialize();
-  const agent = await runtime.sessions.createAgent({ name: 'Research' });
-  const session = await runtime.sessions.createSession({ agentId: agent.id, title: 'Context', workspacePath: 'Z:\\runtime' });
+  const agent = await runtime.sessions.createAgent({
+    name: 'Research', marker: 'amber', instruction: 'Keep evidence bounded.',
+  });
+  const session = await runtime.sessions.createSession({
+    title: 'Context',
+    workspacePath: 'Z:\\runtime',
+    participant: { agentId: agent.id, connectionId: 'offline-demo' },
+  });
+  await runtime.sessions.select({ sessionId: session.id });
   await runtime.sessions.appendTurn(session.id, {
-    role: 'user', text: 'persist safely', provider: null, model: null, changedFiles: [],
+    role: 'user', text: 'persist safely', agentId: agent.id,
+    provider: null, model: null, changedFiles: [],
   });
   assert.equal((await fs.readFile(path.join(directory, 'sessions.json'), 'utf8')).includes('persist safely'), false);
+  assert.equal((await runtime.coordinator.snapshot()).activeAgent.id, agent.id);
 });

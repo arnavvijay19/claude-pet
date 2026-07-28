@@ -686,3 +686,33 @@ link the note to it — this file is the inbox, not the archive.
   while new turns must belong to the currently selected participant rather than any participant.
 - UX Task 2, optional WSL work, provider sign-in, real provider runs, and multi-model work were not
   started. UX Task 1 remains at the user acceptance gate after direct review and final commit.
+
+## 2026-07-28 — UX Task 2 sequential routing checkpoint
+
+- Fast-forwarded the verified UX Task 1 commit `1436234` into clean `master`. Its focused
+  session-store/context suite passed 15/15 after the merge.
+- Removed the stale Task 15 (`979a7a2`) and Task 17 (`12e1ba2`) worktrees and branch refs only after
+  verifying that their shipped implementation/evidence already exists on `master`; no delivered
+  atlas, session, or provider-switching content was removed.
+- Started UX Task 2 from `1436234` in the isolated
+  `codex/ux-task-2-sequential-routing` worktree. The exact focused RED command reported 9 expected
+  failures out of 12 tests because active-participant routing, agent-attributed prompt context, and
+  the new snapshot contract did not exist yet.
+- Implemented sequential active-participant routing. Each run resolves exactly one participant and
+  immutable connection, rechecks session/agent/connection/workspace state before provider
+  execution, attributes the user and assistant turns to the same agent, and rejects participant
+  changes while busy. Cross-provider changes disclose both agent names exactly once and cancellation
+  leaves durable and active selections unchanged.
+- The neutral prompt now includes only escaped, bounded active-agent instructions, public agent
+  names, attributed session turns, and the current request. Encrypted fields, native resume IDs,
+  authentication directories, configuration directories, and connection secrets never enter it.
+  Temporary public aliases remain only for the legacy Settings/Response renderers and are scheduled
+  for removal with those windows in UX Task 6.
+- Verification: the focused Task 2 suite passed 12/12. Intermittent canonical attempts each passed
+  264/265 while one of two unrelated real Windows process-tree fixtures missed its timing window;
+  each exact fixture immediately passed 1/1 in isolation. A subsequent complete canonical rerun
+  passed 265/265 with zero failures.
+- Direct review found no Task 2 correctness defect after checking the routing, disclosure,
+  persistence, stale-state, bounded-context, and compatibility paths against the approved plan.
+  UX Task 3, optional WSL work, provider sign-in, real provider runs, and multi-model work were not
+  started.

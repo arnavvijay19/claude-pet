@@ -32,7 +32,7 @@ const ERROR_CODES = Object.freeze([
 ]);
 
 const PUBLIC_ERROR_BY_CODE = Object.freeze({
-  AGENT_REQUIRED: Object.freeze({ message: 'Choose an agent before starting.', action: 'Select an agent and try again.' }),
+  AGENT_REQUIRED: Object.freeze({ message: 'Choose an agent in this session before starting.', action: 'Select a session participant and try again.' }),
   CLI_NOT_INSTALLED: Object.freeze({ message: 'The agent command is not installed.', action: 'Install the agent command and try again.' }),
   AUTH_REQUIRED: Object.freeze({ message: 'The agent needs you to sign in.', action: 'Finish agent setup and try again.' }),
   WORKSPACE_UNAVAILABLE: Object.freeze({ message: 'The workspace is unavailable.', action: 'Open an available workspace and try again.' }),
@@ -53,8 +53,8 @@ const PUBLIC_ERROR_BY_CODE = Object.freeze({
   FULL_COMPUTER_CONFIRMATION_CANCELLED: Object.freeze({ message: 'Full Computer was not enabled.', action: 'Choose Workspace or confirm Full Computer when ready.' }),
   NATIVE_FULL_COMPUTER_LAUNCH_FAILED: Object.freeze({ message: 'The Full Computer agent could not start.', action: 'Check the native agent installation and try again.' }),
   SESSION_PERSISTENCE_UNAVAILABLE: Object.freeze({ message: 'Session history could not be saved.', action: 'Check secure storage and try again.' }),
-  SESSION_SELECTION_EXPIRED: Object.freeze({ message: 'The selected session or provider changed.', action: 'Choose the session again and retry.' }),
-  PROVIDER_SWITCH_CANCELLED: Object.freeze({ message: 'Provider switch cancelled.', action: 'Keep the current provider or confirm the context disclosure.' }),
+  SESSION_SELECTION_EXPIRED: Object.freeze({ message: 'The selected session, agent, or connection changed.', action: 'Review the active participant and retry.' }),
+  PROVIDER_SWITCH_CANCELLED: Object.freeze({ message: 'Agent or provider switch cancelled.', action: 'Keep the current participant or confirm the context disclosure.' }),
   ATTACHMENT_INVALID: Object.freeze({ message: 'The attached file is not valid text.', action: 'Choose a regular UTF-8 text file and try again.' }),
   ATTACHMENT_TOO_LARGE: Object.freeze({ message: 'The attached file is too large.', action: 'Choose a text file up to 256 KiB.' }),
   ATTACHMENT_CHANGED: Object.freeze({ message: 'The attached file changed before it could be used.', action: 'Attach the file again.' }),
