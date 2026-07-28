@@ -46,7 +46,11 @@ function rendererHarness() {
     claudePetApp: {
       snapshot: async () => empty,
       subscribe(callback) { subscriptions += 1; this.callback = callback; return () => {}; },
-      intent: async (type, data) => { intents.push([type, data]); return true; },
+      intent: async (type, data) => {
+        intents.push([type, data]);
+        if (type === 'create-agent') return { id: 'agent' };
+        return type === 'save-connection' ? { id: 'offline' } : true;
+      },
     },
     claudePetSidebar: { renderSidebar: () => {} },
     claudePetConversation: { renderConversation: () => {}, renderActivityDrawer: () => {} },
@@ -126,6 +130,10 @@ test('clean profile exposes one obvious Offline Demo start action and dispatches
   assert.deepEqual(harness.intents.map(([type]) => type), [
     'create-agent', 'save-connection', 'create-session', 'submit-goal',
   ]);
+  assert.equal(harness.intents[2][0], 'create-session');
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.intents[2][1])), {
+    agentId: 'agent', title: 'My first session', connectionId: 'offline',
+  });
 });
 
 test('main shell uses semantic landmarks and no native prompt workflow', () => {

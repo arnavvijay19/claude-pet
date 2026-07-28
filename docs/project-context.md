@@ -103,8 +103,10 @@ Simple or Comprehensive form.
   explicit saved connection without changing the active agent. The renderer receives no
   credentials; Workspace remains unavailable and never falls back to Full Computer. A fresh
   packaged profile restored the saved connection, reported the real signed-out status, and opened
-  the official Codex sign-in. Account completion is the sole remaining user gate before a bounded
-  live Codex task can be authorized.
+  the official Codex sign-in. After the user completed that official flow, a packaged Full Computer
+  Codex task ran against `C:\\Users\\eklip\\Desktop\\a`, displayed attributed response/activity,
+  and preserved a read-only verification target. New sessions now explicitly choose a saved
+  connection and inherit its workspace, preventing a misleading session/connection mismatch.
 
 ## Architecture
 

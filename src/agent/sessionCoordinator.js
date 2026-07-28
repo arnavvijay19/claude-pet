@@ -482,12 +482,15 @@ function createSessionCoordinator({
   };
   const createSession = async (input) => {
     assertIdle();
-    if (!input || typeof input.agentId !== 'string') throw unavailable();
-    const activeConnectionId = await connectionStore.getActiveSelection();
+    if (!plainInput(input, ['agentId', 'title', 'connectionId'])
+        || typeof input.agentId !== 'string' || !input.agentId
+        || typeof input.connectionId !== 'string' || !input.connectionId) throw unavailable();
+    const connection = await readRunConnection(input.connectionId);
+    if (!connection) throw unavailable();
     return sessionStore.createSession({
       title: input.title,
-      workspacePath: input.workspacePath,
-      participant: { agentId: input.agentId, connectionId: activeConnectionId },
+      workspacePath: connection.workspacePath,
+      participant: { agentId: input.agentId, connectionId: connection.id },
     });
   };
   const renameSession = async (id, title) => {

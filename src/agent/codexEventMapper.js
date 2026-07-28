@@ -30,7 +30,14 @@ function mapItem(item) {
     return { activity: cleanEvent({ phase: 'responding', kind: 'message', summary: 'Codex response ready' }), responseText: text };
   }
   if (item.type === 'command_execution') {
-    if (typeof item.command !== 'string' || !Number.isInteger(item.exit_code)) invalid();
+    if (typeof item.command !== 'string') invalid();
+    if (item.exit_code === null) {
+      return { activity: cleanEvent({
+        phase: 'running', kind: 'status',
+        summary: 'Codex command completed without an exit code', status: 'running',
+      }) };
+    }
+    if (!Number.isInteger(item.exit_code)) invalid();
     return { activity: cleanEvent({
       phase: 'running', kind: 'command', summary: 'Codex command completed', command: item.command,
       exitCode: item.exit_code, ...(typeof item.aggregated_output === 'string' && item.aggregated_output ? { detail: item.aggregated_output } : {}),

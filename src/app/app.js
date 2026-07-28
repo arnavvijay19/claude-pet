@@ -109,7 +109,7 @@
       marker: 'amber',
       instruction: '',
     });
-    await dispatch('save-connection', {
+    const connection = await dispatch('save-connection', {
       executorType: 'offline-demo',
       label: 'Offline Demo',
       workspacePath,
@@ -121,7 +121,7 @@
     await dispatch('create-session', {
       agentId: agent?.id || snapshot?.agents?.[0]?.id || 'new-agent',
       title: 'My first session',
-      workspacePath,
+      connectionId: connection?.id || '',
     });
     await dispatch('submit-goal', { text });
   });

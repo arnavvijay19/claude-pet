@@ -34,3 +34,13 @@ test('excludes hidden reasoning and rejects malformed or unknown Codex events', 
   assert.throws(() => mapCodexEvent({ type: 'item.completed', item: { type: 'command_execution', command: 'x' } }), { code: 'PROVIDER_OUTPUT_INVALID' });
   assert.throws(() => mapCodexEvent({ type: 'made.up' }), { code: 'PROVIDER_OUTPUT_INVALID' });
 });
+
+test('keeps a valid turn when a completed Codex command reports a null exit code', () => {
+  const mapped = mapCodexEvent({
+    type: 'item.completed', item: { type: 'command_execution', command: 'write the requested file', exit_code: null },
+  });
+  assert.deepEqual(mapped.activity, {
+    phase: 'running', kind: 'status',
+    summary: 'Codex command completed without an exit code', status: 'running',
+  });
+});

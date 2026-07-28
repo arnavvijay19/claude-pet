@@ -26,7 +26,9 @@
       element(document, 'span', 'Your local desktop agent', 'brand-subtitle'),
     );
     const newSession = actionButton(document, 'New session', () => {
-      const form = navigation.children.find?.((child) => child.className === 'inline-session-form');
+      const form = Array.from(navigation.children).find(
+        (child) => child.className === 'inline-session-form',
+      );
       if (form) {
         form.hidden = false;
         form.children[0]?.focus?.();
@@ -78,19 +80,30 @@
     const title = element(document, 'input');
     title.name = 'title';
     title.setAttribute?.('aria-label', 'Session name');
+    const connection = element(document, 'select');
+    connection.name = 'connection';
+    connection.setAttribute?.('aria-label', 'Connection for this session');
+    const activeConnectionId = snapshot.session?.participants?.find(
+      (participant) => participant.agentId === snapshot.activeAgent?.id,
+    )?.connectionId || null;
+    for (const item of snapshot.connections || []) {
+      const option = element(document, 'option', `${item.label} · ${item.workspacePath}`);
+      option.value = item.id;
+      option.selected = item.id === activeConnectionId;
+      connection.append(option);
+    }
+    connection.value = activeConnectionId || snapshot.connections?.[0]?.id || '';
     const submit = element(document, 'button', 'Create', 'compact-action');
     submit.type = 'submit';
-    form.append(title, submit);
+    form.append(title, connection, submit);
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const agentId = snapshot.activeAgent?.id || snapshot.agents?.[0]?.id;
-      const workspacePath = snapshot.session?.workspacePath
-        || snapshot.connections?.[0]?.workspacePath;
-      if (agentId && workspacePath && title.value.trim()) {
+      if (agentId && connection.value && title.value.trim()) {
         void dispatch('create-session', {
           agentId,
           title: title.value.trim(),
-          workspacePath,
+          connectionId: connection.value,
         });
       }
     });

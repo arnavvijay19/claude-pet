@@ -284,6 +284,31 @@ test('rejects a different-workspace participant connection before disclosure or 
   );
 });
 
+test('creates a session from the selected connection workspace and participant', async () => {
+  const sessionStore = sharedSessionStore();
+  const connections = connectionBoundary();
+  let created = null;
+  sessionStore.createSession = async (input) => {
+    created = input;
+    return { id: 'new-session', ...input };
+  };
+  const coordinator = createSessionCoordinator({
+    sessionStore,
+    connectionStore: connections,
+    manager: managerBoundary(),
+  });
+
+  await coordinator.createSession({
+    agentId: 'researcher', title: 'Codex workspace', connectionId: 'codex-other',
+  });
+
+  assert.deepEqual(created, {
+    title: 'Codex workspace',
+    workspacePath: 'Z:\\other',
+    participant: { agentId: 'researcher', connectionId: 'codex-other' },
+  });
+});
+
 test('rejects participant changes while a run is busy', async () => {
   const coordinator = createSessionCoordinator({
     sessionStore: sharedSessionStore(),

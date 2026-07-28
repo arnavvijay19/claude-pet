@@ -849,3 +849,24 @@ link the note to it — this file is the inbox, not the archive.
 - Audit note: `src/trayController.js` is an unused older tray helper; production uses
   `src/trayMenu.js` from `src/main.js`. It was left untouched because it has no runtime path and
   the repair pass stayed focused on user-visible behavior.
+
+## 2026-07-28 — Live Codex session and response recovery
+
+- A direct packaged Codex run showed that a new session could carry an arbitrary workspace while
+  the active connection remained elsewhere. New-session UI now explicitly selects a saved
+  connection; the main-owned coordinator derives both the participant connection and workspace
+  from that one saved record. A browser-only regression also covers the real DOM `HTMLCollection`
+  behavior that had made the visible New session button a no-op despite passing fake-DOM tests.
+- The first bounded user-authorized Codex smoke wrote only
+  `C:\\Users\\eklip\\Desktop\\a\\claude-pet-live-smoke.txt` with the requested 28-byte UTF-8
+  content, but the UI then showed `The agent returned an invalid response.` The native CLI had
+  emitted a completed command with `exit_code: null`; the mapper now retains that event as an
+  honest unknown-exit status instead of discarding the already-received agent response. Missing or
+  malformed exit codes remain rejected.
+- After the user completed official OAuth, a fresh package (`151` files, `367315664` bytes) was
+  exercised through CDP using the quoted persisted test profile. A contained Full Computer boundary
+  proof passed, and the visible Retry control completed the same read-only Codex request with
+  attributed `Reviewer · Codex · gpt-5.6-terra` output and activity. The target file's length and
+  UTC write time were unchanged. An initial visible `The permission profile is unavailable.`
+  preflight result was retained for recovery testing; its retry completed after the contained proof,
+  rather than silently falling back or weakening Full Computer checks.

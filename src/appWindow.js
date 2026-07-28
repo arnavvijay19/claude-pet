@@ -141,9 +141,9 @@ function registerAppIpc({
         if (!exact(data, ['sessionId']) || (data.sessionId !== null && !id(data.sessionId))) throw unsupported();
         return coordinator.select({ sessionId: data.sessionId });
       case 'create-session':
-        if (!exact(data, ['agentId', 'title', 'workspacePath'])
+        if (!exact(data, ['agentId', 'title', 'connectionId'])
             || !id(data.agentId) || !string(data.title, { maximum: 80 })
-            || !string(data.workspacePath)) throw unsupported();
+            || !id(data.connectionId)) throw unsupported();
         {
           const created = await coordinator.createSession(data);
           if (created?.id) await coordinator.select({ sessionId: created.id });

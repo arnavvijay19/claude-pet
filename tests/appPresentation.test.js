@@ -117,6 +117,35 @@ test('does not offer an unusable New session action before the first agent exist
   assert.equal(buttons.find((button) => button.textContent === 'New session').hidden, true);
 });
 
+test('creates a session from one selected connection so its workspace cannot drift', async () => {
+  const root = new Element('aside');
+  const dispatches = [];
+  renderSidebar(root, {
+    agents: [{ id: 'agent-a', name: 'Agent A' }], sessions: [], selection: { sessionId: null },
+    activeAgent: { id: 'agent-a', name: 'Agent A' }, session: null,
+    connections: [{
+      id: 'codex', label: 'Codex', modelId: 'gpt-5.6-terra',
+      workspacePath: 'C:\\Users\\eklip\\Desktop\\a',
+    }],
+  }, (type, data) => dispatches.push([type, data]), { document: documentBoundary() });
+  const findForm = (item) => item.tagName === 'form'
+    ? item
+    : item.children.map(findForm).find(Boolean) || null;
+  const form = findForm(root);
+  const [title, connection] = form.children;
+  title.value = 'Codex smoke';
+  connection.value = 'codex';
+  await form.listeners.get('submit')({ preventDefault() {} });
+  assert.deepEqual(dispatches, [[
+    'create-session', { agentId: 'agent-a', title: 'Codex smoke', connectionId: 'codex' },
+  ]]);
+});
+
+test('opens the New session form with the browser children collection', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'sidebar.js'), 'utf8');
+  assert.match(source, /Array\.from\(navigation\.children\)\.find/);
+});
+
 test('uses the approved responsive design tokens without decorative effects', () => {
   const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'app.css'), 'utf8');
   assert.match(css, /--bg:\s*#141311/);

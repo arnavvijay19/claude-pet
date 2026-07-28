@@ -110,7 +110,7 @@ test('registers one sender-validated IPC boundary for every allowlisted intent',
 
   const invoke = (intent) => ipcMain.handlers.get('app:intent')({ sender }, intent);
   await invoke({ type: 'select-session', data: { sessionId: 'session-a' } });
-  await invoke({ type: 'create-session', data: { agentId: 'agent-a', title: 'New', workspacePath: 'Z:\\workspace' } });
+  await invoke({ type: 'create-session', data: { agentId: 'agent-a', title: 'New', connectionId: 'connection-a' } });
   await invoke({ type: 'rename-session', data: { sessionId: 'session-a', title: 'Renamed' } });
   await invoke({ type: 'delete-session', data: { sessionId: 'session-a' } });
   await invoke({ type: 'create-agent', data: { name: 'New agent', marker: 'blue', instruction: 'Review.' } });
