@@ -13,7 +13,7 @@ function createTrayController({ Tray, Menu, iconPath, actions = {} }) {
       const label = connection?.label || 'No connection selected';
       tray.setContextMenu(Menu.buildFromTemplate([
         { label, enabled: false }, { label: mode, enabled: false }, { label: busy ? 'Agent working' : 'Agent ready', enabled: false },
-        { type: 'separator' }, { label: 'Show', click: callback('show') }, { label: 'Hide', click: callback('hide') }, { label: 'Settings', click: callback('settings') },
+        { type: 'separator' }, { label: 'Open Claude Pet', click: callback('openApp') }, { label: 'Hide', click: callback('hide') }, { label: 'Settings', click: callback('settings') },
         { label: 'Stop current run', enabled: busy, click: callback('stop') }, { type: 'separator' }, { label: 'Quit', click: callback('quit') },
       ]));
     },

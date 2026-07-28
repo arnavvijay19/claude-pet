@@ -7,6 +7,12 @@ const RESULT = Object.freeze({
   text: 'Banana Baron completed the Offline Demo run.',
   changedFiles: Object.freeze(['notes/offline-demo-result.txt']),
 });
+const CONTROLLED_FAILURE = 'fail:COMMAND_FAILED';
+const WRAPPED_CONTROLLED_FAILURE = [
+  '<claude_pet_current_request>',
+  CONTROLLED_FAILURE,
+  '</claude_pet_current_request>',
+].join('\n');
 
 function abortError() {
   const error = new Error('The Offline Demo run was stopped.');
@@ -59,7 +65,10 @@ function createOfflineDemoExecutor({ clock, gate } = {}) {
 
     async runGoal(request, emitActivity, signal) {
       if (unsupportedFor(request)) throw new AgentError('UNSUPPORTED_OPTION');
-      if (request.goal === 'fail:COMMAND_FAILED') throw new AgentError('COMMAND_FAILED');
+      if (request.goal === CONTROLLED_FAILURE
+          || request.goal.endsWith(WRAPPED_CONTROLLED_FAILURE)) {
+        throw new AgentError('COMMAND_FAILED');
+      }
 
       throwIfAborted(signal);
       emitActivity({ phase: 'preparing', kind: 'status', summary: 'Preparing Offline Demo run', status: 'preparing' });

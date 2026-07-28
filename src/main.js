@@ -6,31 +6,31 @@ const { safeStorage } = require('electron');
 const { start: startPromptServer } = require('./bridge/promptServer.js');
 const { createAgentRuntime, shouldEnableTestExecutor } = require('./agentRuntime.js');
 const { createPromptController } = require('./promptController.js');
-const { createSettingsWindowController } = require('./settingsWindow.js');
-const { createResponseWindow } = require('./responseWindow.js');
-const { createAppWindowController } = require('./appWindow.js');
-const { createResponsePreferences } = require('./response/responsePreferences.js');
+const { createAppWindowController, createVisibleRequestTracker } = require('./appWindow.js');
 const { createFullComputerAuthorization } = require('./agent/fullComputerAuthorization.js');
 const { createTrayMenuTemplate } = require('./trayMenu.js');
 const { loadPetManifestWithDataUrl } = require('./petAssets.js');
 const { createPetAnimationController } = require('./petAnimationController.js');
 const { authorizeTextAttachment } = require('./bridge/attachmentAuthorization.js');
 
+const userDataArgument = process.argv.find((value) => value.startsWith('--user-data-dir='));
+if (userDataArgument) {
+  const requestedUserData = userDataArgument.slice('--user-data-dir='.length);
+  if (requestedUserData && !requestedUserData.includes('\0')) {
+    app.setPath('userData', path.resolve(requestedUserData));
+  }
+}
+
 let petWindow = null;
 let tray = null;
-let settingsWindowController = null;
-let responseWindow = null;
 let appWindowController = null;
 let runtime = null;
 let promptController = null;
 let authorization = null;
 let trayRefreshGeneration = 0;
-let refreshSessionState = async () => {};
 let animation = null;
 let animationSequence = 0;
-let responseGeneration = 0;
-let dismissal = null;
-let lastAppRequest = null;
+let requestTracker = null;
 function publishPetState(state) { const envelope = { animationSequence: ++animationSequence, state }; petWindow?.webContents.send('pet:state', envelope); return envelope; }
 
 function createPetWindow() {
@@ -81,9 +81,9 @@ async function refreshTray() {
   tray.setContextMenu(Menu.buildFromTemplate(createTrayMenuTemplate({
     permissionProfile,
     busy: managerState.busy,
-    onShow: () => petWindow?.show(),
+    onOpenApp: () => appWindowController?.show({ view: 'conversation' }),
     onHide: () => petWindow?.hide(),
-    onSettings: () => settingsWindowController?.show(),
+    onSettings: () => appWindowController?.show({ view: 'settings' }),
     onQuit: () => app.quit(),
   })));
 }
@@ -100,6 +100,10 @@ ipcMain.handle('pet:get-manifest', (event) => {
 ipcMain.handle('pet:ready', (event) => {
   if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender');
   animation?.appReady(); return { animationSequence, state: animation?.snapshot().state || 'idle' };
+});
+ipcMain.handle('pet:open-app', (event) => {
+  if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender');
+  return appWindowController?.show({ view: 'conversation' }) !== undefined;
 });
 ipcMain.on('pet:drag-start', (event) => { if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender'); animation?.dragStarted(); });
 ipcMain.on('pet:drag-move', (event, { dx, dy }) => {
@@ -130,82 +134,68 @@ app.whenReady().then(async () => {
     showMessageBox: (window, options) => dialog.showMessageBox(window, options),
     randomBytes: crypto.randomBytes,
   });
-  responseWindow = createResponseWindow({ BrowserWindow, screen });
-  settingsWindowController = createSettingsWindowController({
-    BrowserWindow, ipcMain, store: runtime.store, manager: runtime.manager, coordinator: runtime.coordinator,
-    authorization, onStateChange: async () => { await refreshSessionState(); await refreshTray(); },
-    onConnectionSaved: async (connection) => { if (connection?.id) await runtime.coordinator.ensureSessionForConnection(connection.id); },
-    submitGoal: async (text) => {
-      if (!promptController) throw new Error('Goal controller is still starting. Try again.');
-      return promptController.submitText(text);
-    },
-  });
-  const responsePreferences = createResponsePreferences({ filePath: path.join(app.getPath('userData'), 'response-preferences.json') });
-  const responseState = require('./response/responseState.js').createResponseState({ readPreference: responsePreferences.read, writePreference: responsePreferences.write });
-  const publish = () => { const state = responseState.snapshot(); responseWindow?.webContents.send('response:state', state); responseWindow?.webContents.send('response:activity', state); };
-  refreshSessionState = async () => { responseState.setSessionSnapshot(await runtime.coordinator.snapshot()); publish(); };
-  await refreshSessionState();
-  runtime.activity.subscribe((activity) => { responseState.setActivity(activity); animation?.activity(animation.currentToken()); publish(); });
+  runtime.activity.subscribe(() => { animation?.activity(animation.currentToken()); });
   const afterRunStateChange = () => {
-    void refreshSessionState();
     void refreshTray();
-    void settingsWindowController?.refresh();
     void appWindowController?.publish();
   };
   promptController = createPromptController({ manager: runtime.coordinator, animation, response: {
-    begin: (context, token) => {
-      responseGeneration += 1;
-      dismissal = {
-        responseGeneration,
-        dismissCapability: crypto.randomBytes(32).toString('base64url'),
-        token,
-      };
-      responseState.begin(context, dismissal);
-      responseWindow?.showInactive();
+    begin: (context) => {
       void appWindowController?.setNotice({
         status: 'waiting',
         message: 'Claude Pet is working.',
         agentId: context.agentId,
-        request: lastAppRequest || '',
+        request: requestTracker?.visibleRequest() || '',
       });
       afterRunStateChange();
     },
-    success: (value) => {
-      responseState.success(value);
+    success: () => {
       void appWindowController?.setNotice({
         status: 'success',
         message: 'Task completed.',
         action: 'Continue',
-        request: lastAppRequest || '',
+        request: requestTracker?.visibleRequest() || '',
       });
       afterRunStateChange();
     },
     failure: (value) => {
-      responseState.failure(value);
       void appWindowController?.setNotice({
         status: 'error',
         message: value?.message || 'The task could not be completed.',
         action: 'Retry',
-        request: lastAppRequest || '',
+        request: requestTracker?.visibleRequest() || '',
       });
       afterRunStateChange();
     },
     stopped: () => {
-      responseState.stopped();
       void appWindowController?.setNotice({
         status: 'stopped',
         message: 'Task stopped.',
         action: 'Retry',
-        request: lastAppRequest || '',
+        request: requestTracker?.visibleRequest() || '',
       });
       afterRunStateChange();
     },
     dismiss: () => {
-      responseState.dismiss();
       void appWindowController?.setNotice(null);
       afterRunStateChange();
     },
-  }, onBusyChange: () => { void settingsWindowController?.refresh(); } });
+  }, onBusyChange: afterRunStateChange });
+  requestTracker = createVisibleRequestTracker({
+    submit: (text) => promptController.submitText(text),
+  });
+  const submitAttachment = async (filePath) => {
+    const attachmentAuthorization = await authorizeTextAttachment({ filePath });
+    try {
+      const attachment = await attachmentAuthorization.consume();
+      requestTracker.noteAttachment();
+      return promptController.submitText(
+        require('./bridge/fileContext.js').buildAttachmentPrompt(attachment),
+      );
+    } finally {
+      await attachmentAuthorization.cancel();
+    }
+  };
   appWindowController = createAppWindowController({
     BrowserWindow,
     ipcMain,
@@ -222,15 +212,9 @@ app.whenReady().then(async () => {
       await refreshTray();
       return saved;
     },
-    submitGoal: async (text) => {
-      lastAppRequest = text;
-      return promptController.submitText(text);
-    },
+    submitGoal: (text) => requestTracker.submit(text),
     stopRun: () => promptController.stop(),
-    retryGoal: async () => {
-      if (!lastAppRequest) throw new Error('There is no task to retry.');
-      return promptController.submitText(lastAppRequest);
-    },
+    retryGoal: () => requestTracker.retry(),
     chooseTextFile: async () => {
       const result = await dialog.showOpenDialog(appWindowController?.getWindow() || petWindow, {
         title: 'Attach one text file',
@@ -238,38 +222,14 @@ app.whenReady().then(async () => {
         filters: [{ name: 'Text files', extensions: ['txt', 'md', 'json', 'csv', 'log'] }],
       });
       if (result.canceled || result.filePaths.length !== 1) return null;
-      const attachmentAuthorization = await authorizeTextAttachment({
-        filePath: result.filePaths[0],
-      });
-      try {
-        const attachment = await attachmentAuthorization.consume();
-        const text = require('./bridge/fileContext.js').buildAttachmentPrompt(attachment);
-        lastAppRequest = text;
-        return promptController.submitText(text);
-      } finally {
-        await attachmentAuthorization.cancel();
-      }
+      return submitAttachment(result.filePaths[0]);
     },
   });
   appWindowController.show({ view: 'conversation' });
-  const assertResponseSender = (event) => {
-    if (event.sender !== responseWindow?.webContents) throw new Error('Invalid response sender');
-  };
-  ipcMain.handle('response:stop', (event) => { assertResponseSender(event); return promptController.stop(); });
-  ipcMain.handle('response:state', (event) => { assertResponseSender(event); return responseState.snapshot(); });
-  ipcMain.handle('response:dismiss', (event, value) => {
-    assertResponseSender(event);
-    if (!value || Object.getPrototypeOf(value) !== Object.prototype || Object.keys(value).length !== 2
-      || value.responseGeneration !== dismissal?.responseGeneration || value.dismissCapability !== dismissal?.dismissCapability) return false;
-    dismissal = null; promptController.dismiss(); return true;
-  });
-  ipcMain.handle('response:open-settings', (event) => { assertResponseSender(event); return settingsWindowController?.show(); });
-  ipcMain.handle('response:set-activity-view', (event, value) => { assertResponseSender(event); responseState.setActivityView(value); publish(); return responseState.snapshot(); });
-  startPromptServer((text) => promptController.submitText(text).catch(() => {}));
+  startPromptServer((text) => requestTracker.submit(text).catch(() => {}));
   ipcMain.handle('pet:submit-text-file', async (event, filePath) => {
     if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender');
-    const authorization = await authorizeTextAttachment({ filePath });
-    try { const attachment = await authorization.consume(); return promptController.submitText(require('./bridge/fileContext.js').buildAttachmentPrompt(attachment)); } finally { await authorization.cancel(); }
+    return submitAttachment(filePath);
   });
   createTray();
 });

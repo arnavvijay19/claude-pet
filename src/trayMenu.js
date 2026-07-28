@@ -9,7 +9,7 @@ function callback(value) {
 function createTrayMenuTemplate({
   permissionProfile = null,
   busy = false,
-  onShow,
+  onOpenApp,
   onHide,
   onSettings,
   onQuit,
@@ -21,7 +21,7 @@ function createTrayMenuTemplate({
     { label: badge, enabled: false },
     { label: busy ? 'Agent working' : 'Agent ready', enabled: false },
     { type: 'separator' },
-    { label: 'Show', click: callback(onShow) },
+    { label: 'Open Claude Pet', click: callback(onOpenApp) },
     { label: 'Hide', click: callback(onHide) },
     { label: 'Settings', click: callback(onSettings) },
     { type: 'separator' },

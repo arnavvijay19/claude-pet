@@ -4,9 +4,11 @@ const { toPublicError } = require('./agent/agentErrors.js');
 
 function createPromptController({ manager, response, animation = null, onBusyChange = () => {} }) {
   let token = null;
+  let stopped = false;
   return Object.freeze({
     async submitText(text) {
       let reserved = false;
+      stopped = false;
       try {
         const result = await manager.runGoal(text, {
           onStart: (context) => { token = animation?.goalAccepted?.() ?? null; animation?.runStarted?.(token); response.begin?.(context, token); },
@@ -17,7 +19,9 @@ function createPromptController({ manager, response, animation = null, onBusyCha
         response.success?.(result, token); animation?.succeeded?.(token);
         return result;
       } catch (error) {
-        response.failure?.(toPublicError(error), token); animation?.failed?.(token);
+        if (!stopped) {
+          response.failure?.(toPublicError(error), token); animation?.failed?.(token);
+        }
         throw error;
       } finally {
         // Agent Manager clears its reservation before the run promise settles.
@@ -25,9 +29,12 @@ function createPromptController({ manager, response, animation = null, onBusyCha
       }
     },
     stop() {
-      const stopped = manager.stop();
-      if (stopped) { response.stopped?.(); animation?.stopped?.(token); }
-      return stopped;
+      const didStop = manager.stop();
+      if (didStop) {
+        stopped = true;
+        response.stopped?.(); animation?.stopped?.(token);
+      }
+      return didStop;
     },
     dismiss() { response.dismiss?.(); animation?.dismissed?.(token); },
   });

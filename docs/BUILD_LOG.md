@@ -762,3 +762,33 @@ link the note to it — this file is the inbox, not the archive.
   Full Computer remains permanently warned, busy mutations are disabled and main-guarded, a second
   named agent can be created and added inline, and removing a participant leaves attributed history
   intact. No provider sign-in or real provider run occurred.
+
+## 2026-07-28 — UX Task 6 lifecycle parity, legacy removal, and package gate
+
+- TDD RED produced six expected lifecycle/parity failures. GREEN passes 9/9 focused lifecycle,
+  tray, and package tests; later regressions cover fresh-profile storage binding, Stop remaining
+  terminal after abort rejection, shared-session controlled failure, and legitimate token-usage
+  counters.
+- First launch, pet click, tray `Open Claude Pet`, and tray Settings now reuse the unified window.
+  Closing hides it without cancelling work. Retry stores only the visible user request and submits
+  through the currently selected participant. The legacy Settings/Response windows, preloads,
+  renderers, IPC channels, and superseded tests are removed.
+- Direct packaged fresh-profile exercise created Researcher and Reviewer in one shared session,
+  ran both participants, stopped and retried a run, recovered from `fail:COMMAND_FAILED`, attached
+  one bounded UTF-8 file, reopened through the pet, restarted, and restored the selected session,
+  participants, attributed history, Workspace badge, and composer. Restore console/page errors:
+  0. Responsive evidence has exact 900x650 and 1440x900 viewports with matching scroll dimensions:
+  `docs/evidence/ux-task-6-900x650.png` and `docs/evidence/ux-task-6-1440x900.png`.
+- The walkthrough exposed and fixed an application-snapshot false positive: validated
+  `inputTokens`/`outputTokens`/`cachedTokens`/`totalTokens` counters were incorrectly treated as
+  credential keys. The exact regression now passes without weakening rejection of secret-shaped
+  activity fields.
+- Verification: stable serial `npm.cmd test` passed 276/276 before the final controlled-failure
+  regression. Final canonical attempts reached 276/277 and 275/277; only unrelated live Windows
+  process/helper fixtures missed their timing windows, while the exact Codex helper immediately
+  passed 1/1 and the affected three-file group passed 30/30 in isolation. Changed-area verification
+  passed 20/20 and Python passed 3/3. The final package scan passed with 149 files and 367,302,463
+  bytes. `dist/Claude-Pet-win32-x64.zip` is 147,080,497 bytes with SHA-256
+  `20BE53521F79839454D27B00612388F5ACF1A0946260E0FE306AD0508393F369`.
+- No WSL work, provider sign-in, real provider run, parallel agent execution, or multi-model work
+  occurred. The remaining gate is user judgment of clarity and taste, not technical verification.

@@ -84,3 +84,25 @@ test('rejects secret-shaped or malformed source snapshots instead of guessing', 
     notice: { status: 'error', message: 'x', rawStderr: 'secret' },
   }));
 });
+
+test('allows validated token usage counters without treating their names as credentials', () => {
+  const snapshot = createAppSnapshot({
+    coordinator: coordinatorSnapshot(),
+    connections: [],
+    manager: { busy: false, connectionId: null },
+    activity: {
+      run: null,
+      events: [{
+        phase: 'responding',
+        kind: 'usage',
+        summary: 'Offline Demo usage',
+        usage: { inputTokens: 12, outputTokens: 8, cachedTokens: 0, totalTokens: 20 },
+        sequence: 1,
+        timestamp: 10,
+      }],
+    },
+    view: 'conversation',
+    notice: null,
+  });
+  assert.equal(snapshot.activity.events[0].usage.totalTokens, 20);
+});

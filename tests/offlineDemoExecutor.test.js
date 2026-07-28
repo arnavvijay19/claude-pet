@@ -110,6 +110,29 @@ test('maps the deterministic command failure without exposing the goal', async (
   assert.deepEqual(events, []);
 });
 
+test('maps the same controlled failure through the shared-session request envelope', async () => {
+  const executor = createOfflineDemoExecutor();
+  const wrapped = [
+    '<claude_pet_active_agent>',
+    'Name: Reviewer',
+    'Instruction: ',
+    '</claude_pet_active_agent>',
+    '<claude_pet_session_history>',
+    '</claude_pet_session_history>',
+    '<claude_pet_current_request>',
+    'fail:COMMAND_FAILED',
+    '</claude_pet_current_request>',
+  ].join('\n');
+  await assert.rejects(
+    executor.runGoal(
+      request({ goal: wrapped }),
+      () => {},
+      new AbortController().signal,
+    ),
+    (error) => error.code === 'COMMAND_FAILED',
+  );
+});
+
 test('rejects Full Computer and effort as unsupported options', async () => {
   const executor = createOfflineDemoExecutor({ clock: () => 1 });
   const signal = new AbortController().signal;

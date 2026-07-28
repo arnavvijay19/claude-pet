@@ -74,6 +74,33 @@ test('publishes a sanitized error before rethrowing it and exposes Stop', async 
   assert.equal(controller.stop(), true);
 });
 
+test('Stop remains the terminal state when the aborted run rejects afterward', async () => {
+  let rejectRun;
+  const terminal = [];
+  const manager = {
+    runGoal: (_text, { onStart }) => {
+      onStart({ agentId: 'agent-a' });
+      return new Promise((_resolve, reject) => { rejectRun = reject; });
+    },
+    stop: () => {
+      rejectRun(new AgentError('RUN_STOPPED'));
+      return true;
+    },
+  };
+  const controller = createPromptController({
+    manager,
+    response: {
+      begin: () => {},
+      stopped: () => terminal.push('stopped'),
+      failure: () => terminal.push('failure'),
+    },
+  });
+  const pending = controller.submitText('stop me');
+  assert.equal(controller.stop(), true);
+  await assert.rejects(pending, (error) => error.code === 'RUN_STOPPED');
+  assert.deepEqual(terminal, ['stopped']);
+});
+
 test('publishes Settings busy only after a real manager reservation and before executor preflight', async () => {
   const preflight = deferred();
   const release = deferred();

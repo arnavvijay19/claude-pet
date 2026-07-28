@@ -2,7 +2,7 @@
 
 Windows 10 22H2 (build 19045+) or Windows 11 x64 and Node 22.12+ are required for development. Run `npm.cmd install`, `npm.cmd test`, then `npm.cmd start`.
 
-Core V1 needs no WSL, Linux distro, API key, or telemetry. Create an Offline Demo connection in Settings, submit a loopback goal, or deliberately drop one UTF-8 text file. Outside-Workspace files require an explicit one-file disclosure; their parent folders are never shared.
+Core V1 needs no WSL, Linux distro, API key, or telemetry. On first launch, enter a project folder, name your first agent, and run the Offline Demo. The pet and tray both reopen the same Claude Pet workspace, where conversations, agents, activity, and settings stay together. Outside-Workspace files require an explicit one-file disclosure; their parent folders are never shared.
 
 New Codex/Claude connections default to warned **Full Computer**, which can access the whole PC and remains permanently badged. Offline Demo uses Workspace. Real-provider Workspace is optional post-V1 work and is not installed by this package. Agents/sessions keep only encrypted bounded visible history; provider-native auth, config, and resume state are never shared.
 

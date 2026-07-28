@@ -48,6 +48,7 @@ async function startPetRenderer() {
   }, { once: true });
   image.src = manifest.spritesheetDataUrl;
   installWindowDrag(canvas);
+  canvas.addEventListener('click', () => void window.claudePet.openApp());
   window.claudePet.onState((state) => machine.setState(state, performance.now()));
   canvas.addEventListener('drop', (event) => { event.preventDefault(); const file = event.dataTransfer?.files?.[0]; if (file) void window.claudePet.submitTextFile(file); });
   canvas.addEventListener('dragover', (event) => event.preventDefault());

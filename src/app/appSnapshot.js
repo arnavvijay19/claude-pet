@@ -20,9 +20,21 @@ const TURN_KEYS = Object.freeze([
 const RUN_KEYS = Object.freeze(['busy', 'connectionId', 'permissionProfile']);
 const NOTICE_KEYS = Object.freeze(['status', 'message', 'action', 'agentId', 'request']);
 const SECRET_KEY = /(?:encrypted|cipher|secret|token|password|authorization|dismissCapability|resumeId|authDirectory|configDirectory)/i;
+const USAGE_COUNTER_KEYS = new Set(['inputTokens', 'outputTokens', 'cachedTokens', 'totalTokens']);
 
 function invalid() {
   throw new TypeError('Invalid application snapshot source');
+}
+
+function checked(label, compose) {
+  try {
+    return compose();
+  } catch (error) {
+    throw new TypeError(
+      `Invalid application snapshot source: ${label} (${error?.message || 'invalid value'})`,
+      { cause: error },
+    );
+  }
 }
 
 function plain(value) {
@@ -116,26 +128,28 @@ function connection(value) {
   return result;
 }
 
-function safeJson(value, depth = 0) {
-  if (depth > 12) invalid();
+function safeJson(value, depth = 0, trail = 'activity') {
+  if (depth > 12) throw new TypeError(`Invalid activity value at ${trail}: depth`);
   if (value === null || typeof value === 'boolean') return value;
   if (typeof value === 'number') {
-    if (!Number.isFinite(value)) invalid();
+    if (!Number.isFinite(value)) throw new TypeError(`Invalid activity value at ${trail}: number`);
     return value;
   }
   if (typeof value === 'string') {
-    if (!safeString(value)) invalid();
+    if (!safeString(value)) throw new TypeError(`Invalid activity value at ${trail}: string`);
     return value;
   }
   if (Array.isArray(value)) {
-    if (value.length > 1000) invalid();
-    return value.map((item) => safeJson(item, depth + 1));
+    if (value.length > 1000) throw new TypeError(`Invalid activity value at ${trail}: array`);
+    return value.map((item, index) => safeJson(item, depth + 1, `${trail}[${index}]`));
   }
-  if (!plain(value)) invalid();
+  if (!plain(value)) throw new TypeError(`Invalid activity value at ${trail}: type`);
   const result = {};
   for (const [key, child] of Object.entries(value)) {
-    if (SECRET_KEY.test(key)) invalid();
-    result[key] = safeJson(child, depth + 1);
+    if (SECRET_KEY.test(key) && !USAGE_COUNTER_KEYS.has(key)) {
+      throw new TypeError(`Invalid activity value at ${trail}.${key}: key`);
+    }
+    result[key] = safeJson(child, depth + 1, `${trail}.${key}`);
   }
   return result;
 }
@@ -185,16 +199,16 @@ function createAppSnapshot({
       || !Array.isArray(coordinator.turns) || !Array.isArray(connections)
       || !plain(manager) || !plain(activity) || !VIEWS.includes(view)
       || Object.keys(coordinator).some((key) => SECRET_KEY.test(key))) invalid();
-  const runState = run(manager);
-  const noticeState = notice(noticeValue);
-  const sourceAgents = coordinator.agents.map(agent);
+  const runState = checked('run', () => run(manager));
+  const noticeState = checked('notice', () => notice(noticeValue));
+  const sourceAgents = checked('agents', () => coordinator.agents.map(agent));
   const activeAgentId = coordinator.activeAgent?.id || null;
   const statusContext = { activeAgentId, runState, noticeState };
   const agents = sourceAgents.map((item) => ({
     ...item,
     status: statusFor(item.id, statusContext),
   }));
-  const sessions = coordinator.sessions.map(session);
+  const sessions = checked('sessions', () => coordinator.sessions.map(session));
   const selection = select(coordinator.selection, ['sessionId', 'agentId'], ['sessionId']);
   if (selection.sessionId !== null
       && !safeString(selection.sessionId, { empty: false, maximum: 200 })) invalid();
@@ -203,7 +217,9 @@ function createAppSnapshot({
   const activeAgent = coordinator.activeAgent === null
     ? null
     : agents.find((item) => item.id === coordinator.activeAgent.id) || null;
-  const activeSession = coordinator.session === null ? null : session(coordinator.session);
+  const activeSession = coordinator.session === null
+    ? null
+    : checked('active session', () => session(coordinator.session));
   const result = {
     view,
     agents,
@@ -214,10 +230,10 @@ function createAppSnapshot({
     },
     activeAgent,
     session: activeSession,
-    turns: coordinator.turns.map(turn),
-    connections: connections.map(connection),
+    turns: checked('turns', () => coordinator.turns.map(turn)),
+    connections: checked('connections', () => connections.map(connection)),
     run: runState,
-    activity: safeJson(activity),
+    activity: checked('activity', () => safeJson(activity)),
     notice: noticeState,
   };
   return deepFreeze(result);

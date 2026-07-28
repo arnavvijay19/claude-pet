@@ -86,6 +86,23 @@ function unregisterAppIpc(ipcMain) {
   for (const channel of APP_CHANNELS) ipcMain.removeHandler(channel);
 }
 
+function createVisibleRequestTracker({ submit }) {
+  if (typeof submit !== 'function') throw new TypeError('Request submitter required');
+  let request = '';
+  return Object.freeze({
+    async submit(text) {
+      request = text;
+      return submit(text);
+    },
+    noteAttachment() {},
+    retry() {
+      if (!request) throw new AgentError('GOAL_REQUIRED');
+      return submit(request);
+    },
+    visibleRequest: () => request,
+  });
+}
+
 function registerAppIpc({
   ipcMain,
   sender,
@@ -312,6 +329,11 @@ function createAppWindowController({
       publish,
       setView(value) { view = value; },
     });
+    window.on?.('close', (event) => {
+      if (!window || window.isDestroyed()) return;
+      event?.preventDefault?.();
+      window.hide?.();
+    });
     window.on?.('closed', () => {
       registration?.unregister();
       registration = null;
@@ -350,6 +372,7 @@ function createAppWindowController({
 
 module.exports = {
   APP_INTENTS,
+  createVisibleRequestTracker,
   createAppWindowController,
   registerAppIpc,
   unregisterAppIpc,
