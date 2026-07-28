@@ -106,12 +106,12 @@ function unregisterSettingsIpc(ipcMain) {
   for (const channel of SETTINGS_CHANNELS) ipcMain.removeHandler(channel);
 }
 
-function createSettingsWindow({ BrowserWindow, ipcMain, store, manager, coordinator, authorization, onStateChange }) {
+function createSettingsWindow({ BrowserWindow, ipcMain, store, manager, coordinator, authorization, onStateChange, onConnectionSaved, submitGoal }) {
   const window = new BrowserWindow({ width: 900, height: 680, show: false, autoHideMenuBar: true, webPreferences: { preload: path.join(__dirname, 'settings-preload.js'), contextIsolation: true, nodeIntegration: false } });
   unregisterSettingsIpc(ipcMain);
   registerSettingsIpc({
     ipcMain, sender: window.webContents, settingsWindow: window,
-    store, manager, coordinator, authorization, onStateChange,
+    store, manager, coordinator, authorization, onStateChange, onConnectionSaved, submitGoal,
   });
   window.loadFile(path.join(__dirname, 'settings', 'index.html'));
   return window;

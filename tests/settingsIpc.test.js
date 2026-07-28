@@ -190,6 +190,31 @@ test('recreates Settings after the user closes its previous window', () => {
   assert.equal(handlers.size, 16);
 });
 
+test('forwards the Settings goal submitter through its window controller', async () => {
+  const handlers = new Map();
+  const sender = {};
+  class FakeBrowserWindow {
+    constructor() { this.webContents = sender; }
+    loadFile() {}
+    isDestroyed() { return false; }
+    show() {}
+    focus() {}
+  }
+  const submitted = [];
+  const controller = createSettingsWindowController({
+    BrowserWindow: FakeBrowserWindow,
+    ipcMain: { handle: (channel, handler) => handlers.set(channel, handler), removeHandler: (channel) => handlers.delete(channel) },
+    store: { listConnections: async () => [], getActiveSelection: async () => null },
+    manager: { getSnapshot: () => ({ busy: false }) },
+    coordinator: { busy: () => false },
+    authorization: { isPending: () => false },
+    submitGoal: async (text) => { submitted.push(text); },
+  });
+  controller.show();
+  await handlers.get('settings:submit-goal')({ sender }, 'Run this goal');
+  assert.deepEqual(submitted, ['Run this goal']);
+});
+
 test('rejects every legacy and Task 17 Settings mutation while a run is busy', async () => {
   const { authorizationCalls, handlers, selected, sender } = harness({}, {}, { busy: () => true });
   const draft = { executorType: 'offline-demo', label: 'Demo', workspacePath: 'Z:\\work', permissionProfile: 'workspace', modelId: 'offline-demo', effort: null, keyHint: null };
