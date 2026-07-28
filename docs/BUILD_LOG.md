@@ -809,3 +809,25 @@ link the note to it — this file is the inbox, not the archive.
   `AFC4970942D6112F162BA3FA4EA6FE33EEF613E19A6AF7EB6BDCDCCA9825C1A0`.
 - No WSL work, provider sign-in, real provider run, parallel agent execution, or multi-model work
   occurred. The user gate remains clarity and taste only.
+
+## 2026-07-28 — Codex-first connection recovery
+
+- Audited the visible unified controls end-to-end. The real Codex executor, encrypted storage,
+  signed native CLI discovery, authorization dialog, status, setup, activity, Stop, and session
+  boundaries already existed, but first run created Offline Demo only and Settings could not create
+  or edit a real provider connection. Its old generic Test/sign-in actions used the global active
+  connection, usually Offline Demo, so real Codex setup was unreachable.
+- Added the smallest accepted Settings slice: create/edit a Codex connection with project folder,
+  allowlisted GPT-5.6 model and effort, permanent Full Computer warning, explicit unavailable
+  Workspace copy, and card-specific Test/official sign-in actions. Save still passes through the
+  existing main-owned native authorization boundary; no renderer credentials, silent permission
+  grant, or Workspace fallback was added. Exact saved-connection delegates avoid mutating the
+  active selection, and visible feedback survives snapshot re-renders.
+- Witnessed TDD RED/GREEN for exact saved-connection routing, the editor, durable feedback,
+  cancellation copy, status-only Test, and isolated prompt-port parsing. Final verification passed
+  286/286 Node tests and 3/3 Python tests. The normal Windows package verifier passed 151 files /
+  367,314,883 bytes; the isolated QA package verifier passed 151 files / 367,314,837 bytes.
+- Fresh-profile packaged CDP verification saved and restored a Codex card, displayed `Codex is
+  installed but not signed in yet`, retained unrelated Offline Demo/session controls, and launched
+  the official visible `codex.exe login` flow. The account action remains open for the user; no
+  credentials were handled and no real task was run.

@@ -55,6 +55,11 @@ function dependencies({ busy = false } = {}) {
       workspacePath: 'Z:\\workspace', permissionProfile: 'workspace',
       modelId: 'offline-demo', effort: null, keyHint: null, hasSecret: false,
     }],
+    getConnection: async (id) => id === 'connection-a' ? {
+      id: 'connection-a', executorType: 'offline-demo', label: 'Offline Demo',
+      workspacePath: 'Z:\\workspace', permissionProfile: 'workspace',
+      modelId: 'offline-demo', effort: null, keyHint: null, hasSecret: false,
+    } : null,
     removeConnection: async (id) => { calls.push(['removeConnection', id]); return true; },
   };
   const manager = {
@@ -63,6 +68,9 @@ function dependencies({ busy = false } = {}) {
     getStatus: async () => ({ installed: true }),
     verifyPermissionProfile: async () => ({ available: true, allowed: true }),
     beginSetup: async () => { calls.push(['beginSetup']); return { started: true }; },
+    getStatusFor: async (connectionId) => { calls.push(['getStatusFor', connectionId]); return { installed: true, authenticated: false }; },
+    verifyPermissionProfileFor: async (connectionId) => { calls.push(['verifyPermissionProfileFor', connectionId]); return { available: true, allowed: true }; },
+    beginSetupFor: async (connectionId) => { calls.push(['beginSetupFor', connectionId]); return { started: true }; },
   };
   const activity = {
     snapshot: () => ({ run: null, events: [] }),
@@ -121,8 +129,8 @@ test('registers one sender-validated IPC boundary for every allowlisted intent',
     permissionProfile: 'workspace', modelId: 'offline-demo', effort: null, keyHint: null,
   } });
   await invoke({ type: 'delete-connection', data: { connectionId: 'connection-a' } });
-  await invoke({ type: 'test-connection', data: {} });
-  await invoke({ type: 'begin-provider-setup', data: {} });
+  await invoke({ type: 'test-connection', data: { connectionId: 'connection-a' } });
+  await invoke({ type: 'begin-provider-setup', data: { connectionId: 'connection-a' } });
   await invoke({ type: 'set-view', data: { view: 'settings' } });
 
   assert.equal(sent.filter((value) => value === 'published').length, APP_INTENTS.length);
@@ -164,6 +172,27 @@ test('rejects malformed, secret-bearing, cross-session, and busy mutations befor
     }
     assert.deepEqual(deps.calls, []);
   }
+});
+
+test('tests and starts official setup for the explicitly requested saved connection', async () => {
+  const ipcMain = fakeIpc();
+  const sender = {};
+  const deps = dependencies();
+  registerAppIpc({ ipcMain, sender, publish: async () => {}, setView: () => {}, ...deps });
+  const invoke = (intent) => ipcMain.handlers.get('app:intent')({ sender }, intent);
+
+  assert.deepEqual(await invoke({ type: 'test-connection', data: { connectionId: 'connection-a' } }), {
+    status: { installed: true, authenticated: false },
+  });
+  assert.deepEqual(await invoke({ type: 'begin-provider-setup', data: { connectionId: 'connection-a' } }), {
+    started: true,
+  });
+  assert.deepEqual(deps.calls, [
+    ['getStatusFor', 'connection-a'],
+    ['beginSetupFor', 'connection-a'],
+  ]);
+  await assert.rejects(invoke({ type: 'test-connection', data: {} }));
+  await assert.rejects(invoke({ type: 'begin-provider-setup', data: { connectionId: 'missing' } }));
 });
 
 test('creates one reusable native window and publishes once per activity update', async () => {

@@ -121,3 +121,43 @@ test('creates a named agent and adds an existing agent to the selected session i
     ['add-participant', { sessionId: 'shared', agentId: 'b', connectionId: 'codex' }],
   ]);
 });
+
+test('renders an explicit Codex editor with no Workspace fallback and targets saved connection actions', async () => {
+  const root = new Element();
+  const calls = [];
+  const value = snapshot();
+  const connectionAction = async (type, data) => {
+    calls.push([type, data]);
+    return type === 'save-connection' ? { id: 'codex' } : { started: true };
+  };
+  renderSettings(root, value, () => {}, {
+    document: documentBoundary,
+    connectionAction,
+    connectionFeedback: 'Codex is installed. Sign in is still required.',
+    editingConnectionId: 'codex',
+  });
+  const values = flatten(root);
+  const text = values.map((item) => item.textContent);
+  for (const expected of [
+    'Set up Codex', 'Full computer access', 'Workspace only is not available yet',
+    'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna',
+    'Codex is installed. Sign in is still required.',
+  ]) assert.equal(text.includes(expected), true, expected);
+  const workspace = values.find((item) => item.dataset.field === 'codex-workspace');
+  const model = values.find((item) => item.dataset.field === 'codex-model');
+  const effort = values.find((item) => item.dataset.field === 'codex-effort');
+  assert.equal(workspace.value, 'Z:\\workspace');
+  assert.equal(model.value, 'gpt-5.6-terra');
+  assert.equal(effort.value, 'medium');
+  await values.find((item) => item.dataset.action === 'save-codex-connection').listeners.get('click')();
+  await values.find((item) => item.dataset.action === 'test-codex-connection').listeners.get('click')();
+  await values.find((item) => item.dataset.action === 'begin-codex-setup').listeners.get('click')();
+  assert.deepEqual(calls, [
+    ['save-connection', {
+      id: 'codex', executorType: 'codex-cli', label: 'Codex', workspacePath: 'Z:\\workspace',
+      permissionProfile: 'full-computer', modelId: 'gpt-5.6-terra', effort: 'medium', keyHint: null,
+    }],
+    ['test-connection', { connectionId: 'codex' }],
+    ['begin-provider-setup', { connectionId: 'codex' }],
+  ]);
+});

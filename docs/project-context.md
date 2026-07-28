@@ -11,6 +11,8 @@ and why),
 (approved current boundary/animation redesign),
 [superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md](superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md)
 (approved current UX rebuild),
+[superpowers/specs/2026-07-28-codex-first-connection-design.md](superpowers/specs/2026-07-28-codex-first-connection-design.md)
+(focused Codex connection recovery),
 [superpowers/plans/2026-07-13-claude-pet.md](superpowers/plans/2026-07-13-claude-pet.md)
 (Tasks 1-19 implemented on the Core V1 branch; optional WSL Tasks 20-23 require a later opt-in),
 [superpowers/plans/2026-07-27-core-v1-ux-rebuild.md](superpowers/plans/2026-07-27-core-v1-ux-rebuild.md)
@@ -95,6 +97,14 @@ Simple or Comprehensive form.
   deterministic validation and model visual QA, and the WebP is visible in the real `192x208`
   Electron pet window with clean transparency and no renderer errors.
 - Real Codex or Claude Code runs are optional smoke tests when the tester is already signed in.
+- Codex-first Settings recovery is implemented and package-verified: a saved Codex connection can
+  be created or edited with a project folder, allowlisted model/effort, permanent Full Computer
+  warning, and the existing main-owned authorization dialog. Test and official sign-in target the
+  explicit saved connection without changing the active agent. The renderer receives no
+  credentials; Workspace remains unavailable and never falls back to Full Computer. A fresh
+  packaged profile restored the saved connection, reported the real signed-out status, and opened
+  the official Codex sign-in. Account completion is the sole remaining user gate before a bounded
+  live Codex task can be authorized.
 
 ## Architecture
 

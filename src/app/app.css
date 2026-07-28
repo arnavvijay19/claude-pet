@@ -212,6 +212,10 @@ select {
 }
 .settings-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space); }
 .settings-group { display: grid; gap: var(--space); margin-top: calc(var(--space) * 3); }
+.codex-editor { display: grid; gap: var(--space); max-width: 680px; }
+.connection-actions { display: flex; flex-wrap: wrap; gap: var(--space); }
+.connection-feedback { margin: 0; padding: 10px 12px; border: 1px solid var(--accent); border-radius: 8px; color: var(--text); }
+.workspace-unavailable p { margin: 4px 0 0; }
 .settings-card, .participant-row, .access-warning {
   display: flex;
   align-items: center;

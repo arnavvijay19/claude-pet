@@ -87,8 +87,14 @@ function createAgentManager({ store, executors, activity }) {
   let active = null;
   let selectedConnectionId = null;
 
-  async function selectedExecutor(signal) {
-    const activeSelection = await store.getActiveSelection();
+  async function selectedExecutor(signal, requestedConnectionId) {
+    if (requestedConnectionId !== undefined
+        && (typeof requestedConnectionId !== 'string' || !requestedConnectionId)) {
+      throw new AgentError('UNSUPPORTED_OPTION');
+    }
+    const activeSelection = requestedConnectionId === undefined
+      ? await store.getActiveSelection()
+      : requestedConnectionId;
     const selected = activeSelection ? await store.getRunConnection(activeSelection) : null;
     throwIfAborted(signal);
     if (!selected) throw new AgentError('AGENT_REQUIRED');
@@ -127,8 +133,8 @@ function createAgentManager({ store, executors, activity }) {
     return { connection, identifier, key, run, executor: executorFrom(executors, key) };
   }
 
-  async function delegate(method) {
-    const { connection, executor } = await selectedExecutor();
+  async function delegate(method, requestedConnectionId) {
+    const { connection, executor } = await selectedExecutor(undefined, requestedConnectionId);
     if (method === 'getCapabilities') {
       return cloneFrozenJson(
         await executor[method](connection, connection.modelId || null),
@@ -270,10 +276,13 @@ function createAgentManager({ store, executors, activity }) {
     getSnapshot,
     select,
     getStatus: () => delegate('getStatus'),
+    getStatusFor: (connectionId) => delegate('getStatus', connectionId),
     beginSetup: () => delegate('beginSetup'),
+    beginSetupFor: (connectionId) => delegate('beginSetup', connectionId),
     listModels: () => delegate('listModels'),
     getCapabilities: () => delegate('getCapabilities'),
     verifyPermissionProfile: () => delegate('verifyPermissionProfile'),
+    verifyPermissionProfileFor: (connectionId) => delegate('verifyPermissionProfile', connectionId),
     runGoal,
     stop,
   });

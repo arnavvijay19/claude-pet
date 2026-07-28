@@ -265,8 +265,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Core V1 Tasks 1–19 and UX Tasks 1–6 are complete or verified. The unified Claude Pet workspace is packaged, and the duplicate-launch startup crash is fixed.</p>
-      <p><strong>What you need to do:</strong> Nothing technical. Open the packaged app only to decide whether it is clear and feels right; launching it twice now returns to the existing window. WSL, provider sign-in, real provider runs, and multi-model work remain out of scope.</p>
+      <p><strong>Next:</strong> Core V1 Tasks 1–19 and UX Tasks 1–6 are complete or verified. Codex can now be set up honestly in the unified Settings view, and the duplicate-launch startup crash is fixed.</p>
+      <p><strong>What you need to do:</strong> Complete the official Codex sign-in window that is already open. Then return here; one bounded real Codex task needs your explicit approval. WSL, Claude-provider work, and multi-model work remain out of scope.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -290,6 +290,7 @@
         <li><a href="docs/BUILD_LOG.md">Build history</a></li>
         <li><a href="docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md">Core sessions + optional WSL Workspace redesign</a></li>
         <li><a href="docs/superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md">Approved Core V1 UX rebuild</a></li>
+        <li><a href="docs/superpowers/specs/2026-07-28-codex-first-connection-design.md">Focused Codex connection recovery</a></li>
         <li><a href="docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md">Current UX implementation plan (UX Tasks 1–6 complete or verified)</a></li>
         <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Core V1 Tasks 15–19 are implemented; optional WSL Tasks 20–23 require a later opt-in)</a></li>
       </ul>
@@ -479,6 +480,13 @@
         done: true,
         explanation: 'Verified success, controlled failure recovery, Stop and visible-request retry, text attachment, restart restoration, pet/tray shared-window opening, clean console output, responsive packaged layouts, removal of the obsolete Settings/Response renderers, and safe duplicate-launch handling without a main-process port crash.',
         action: 'Open the packaged app only if you want to judge whether the finished workspace is clear and feels right.',
+      },
+      {
+        id: 'codex-first-connection',
+        title: 'Codex connection recovery — Save, test, and official sign-in',
+        done: true,
+        explanation: 'Settings now creates or edits a real saved Codex connection with a project folder, model, effort, permanent Full Computer warning, and no renderer-held credentials. Packaged CDP verification proved restore after restart, signed-out Test feedback, and launch of the official Codex sign-in flow. Workspace remains unavailable and never falls back to Full Computer.',
+        action: 'Complete the already-open official Codex sign-in. Then explicitly approve one bounded real Codex task; Claude Pet will show its attributed activity, result, Stop state, or error.',
       },
       {
         id: 'task-20',

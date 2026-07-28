@@ -13,6 +13,9 @@
   const activityRoot = document.querySelector('#activity-root');
   const settingsRoot = document.querySelector('#settings-root');
   let snapshot = null;
+  let connectionFeedback = '';
+  let connectionActionPending = false;
+  let editingConnectionId = null;
 
   async function dispatch(type, data = {}) {
     try {
@@ -26,6 +29,47 @@
     }
   }
 
+  function connectionResultMessage(type, result) {
+    if (result?.failure?.message) return `${result.failure.message} ${result.failure.action || ''}`.trim();
+    if (type === 'save-connection') return 'Codex connection saved. It has not replaced your active agent.';
+    if (type === 'begin-provider-setup') {
+      return result?.started
+        ? 'Official Codex sign-in opened. Complete it there, then test this connection again.'
+        : 'Codex sign-in did not start. Check the connection and try again.';
+    }
+    if (type === 'test-connection') {
+      if (result?.status?.installed === false) return 'The Codex command is not installed.';
+      if (result?.status?.authenticated === false) return 'Codex is installed but not signed in yet.';
+      if (result?.permission?.available === false) return 'Codex is signed in, but this access mode is unavailable.';
+      if (result?.permission?.allowed === false) return 'Codex is signed in, but this access mode is blocked.';
+      return 'Codex is installed, signed in, and ready to use with this connection.';
+    }
+    return 'Connection updated.';
+  }
+
+  function connectionErrorMessage(error) {
+    const message = error?.message || 'That connection action could not be completed.';
+    const publicMessage = message.match(/AgentError:\s*(.+)$/);
+    return publicMessage ? publicMessage[1] : message;
+  }
+
+  async function connectionAction(type, data) {
+    connectionActionPending = true;
+    render(snapshot);
+    try {
+      const result = await dispatch(type, data);
+      connectionFeedback = connectionResultMessage(type, result);
+      if (type === 'save-connection' && result?.id) editingConnectionId = result.id;
+      return result;
+    } catch (error) {
+      connectionFeedback = connectionErrorMessage(error);
+      return null;
+    } finally {
+      connectionActionPending = false;
+      render(snapshot);
+    }
+  }
+
   function render(value) {
     snapshot = value;
     window.claudePetSidebar.renderSidebar(sidebarRoot, value, dispatch);
@@ -36,7 +80,17 @@
       settingsRoot.hidden = empty || value.view !== 'settings';
       activityRoot.hidden = empty || value.view !== 'activity';
       if (!empty && value.view === 'settings') {
-        window.claudePetSettings.renderSettings(settingsRoot, value, dispatch);
+        window.claudePetSettings.renderSettings(settingsRoot, value, dispatch, {
+          connectionAction,
+          connectionActionPending,
+          connectionFeedback,
+          editingConnectionId,
+          onEditConnection(connectionId) {
+            editingConnectionId = connectionId;
+            connectionFeedback = '';
+            render(snapshot);
+          },
+        });
       } else if (!empty) {
         window.claudePetConversation.renderConversation(conversationRoot, value, dispatch);
         window.claudePetConversation.renderActivityDrawer(activityRoot, value, dispatch);

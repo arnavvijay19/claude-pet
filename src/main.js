@@ -13,8 +13,10 @@ const { loadPetManifestWithDataUrl } = require('./petAssets.js');
 const { createPetAnimationController } = require('./petAnimationController.js');
 const { authorizeTextAttachment } = require('./bridge/attachmentAuthorization.js');
 const { claimSingleInstance } = require('./singleInstance.js');
+const { promptPortFromArguments } = require('./runtimeArguments.js');
 
 const userDataArgument = process.argv.find((value) => value.startsWith('--user-data-dir='));
+const promptPort = promptPortFromArguments(process.argv);
 if (userDataArgument) {
   const requestedUserData = userDataArgument.slice('--user-data-dir='.length);
   if (requestedUserData && !requestedUserData.includes('\0')) {
@@ -236,7 +238,10 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
   });
   appWindowController.show({ view: 'conversation' });
   try {
-    await startPromptServer((text) => requestTracker.submit(text).catch(() => {}));
+    await startPromptServer(
+      (text) => requestTracker.submit(text).catch(() => {}),
+      promptPort === null ? {} : { port: promptPort },
+    );
   } catch (error) {
     const occupied = error?.code === 'EADDRINUSE';
     await dialog.showMessageBox(appWindowController?.getWindow() || petWindow, {

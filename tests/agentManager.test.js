@@ -423,6 +423,46 @@ test('delegates selection and status/setup methods through the selected executor
   assert.deepEqual(calls, ['getStatus', 'beginSetup', 'listModels', 'getCapabilities', 'verifyPermissionProfile']);
 });
 
+test('targets Codex status, permission, and official setup to a saved connection without changing selection', async () => {
+  let activeSelection = 'offline';
+  const connections = new Map([
+    ['offline', {
+      id: 'offline', revision: 1, executorType: 'offline-demo', modelId: 'offline-demo', effort: null,
+      workspacePath: 'Z:\\workspace', permissionProfile: 'workspace', fullAccessConfirmed: false,
+    }],
+    ['codex', {
+      id: 'codex', revision: 4, executorType: 'codex-cli', modelId: 'gpt-5.6-terra', effort: 'medium',
+      workspacePath: 'Z:\\workspace', permissionProfile: 'full-computer', fullAccessConfirmed: true,
+    }],
+  ]);
+  const calls = [];
+  const activity = createActivityStore({ clock: () => 1 });
+  const manager = createAgentManager({
+    store: {
+      getActiveSelection: async () => activeSelection,
+      setActiveSelection: async (id) => { activeSelection = id; },
+      getConnection: async (id) => connections.get(id) || null,
+      getRunConnection: async (id) => connections.get(id) || null,
+    },
+    executors: {
+      'offline-demo:workspace': fakeExecutor(),
+      'codex-cli:full-computer': fakeExecutor({
+        getStatus: async (connection) => { calls.push(['status', connection.id]); return { installed: true, authenticated: false }; },
+        verifyPermissionProfile: async (connection) => { calls.push(['permission', connection.id]); return { available: true, allowed: true }; },
+        beginSetup: async (connection) => { calls.push(['setup', connection.id]); return { started: true }; },
+      }),
+    },
+    activity,
+  });
+
+  assert.deepEqual(await manager.getStatusFor('codex'), { installed: true, authenticated: false });
+  assert.deepEqual(await manager.verifyPermissionProfileFor('codex'), { available: true, allowed: true });
+  assert.deepEqual(await manager.beginSetupFor('codex'), { started: true });
+  assert.deepEqual(calls, [['status', 'codex'], ['permission', 'codex'], ['setup', 'codex']]);
+  assert.equal(activeSelection, 'offline');
+  await assert.rejects(manager.getStatusFor('missing'), (error) => error.code === 'AGENT_REQUIRED');
+});
+
 test('passes exact capability and permission arguments through run and delegate paths', async () => {
   const capabilityCalls = [];
   const permissionCalls = [];

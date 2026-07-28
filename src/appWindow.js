@@ -2,7 +2,7 @@
 
 const path = require('node:path');
 
-const { AgentError } = require('./agent/agentErrors.js');
+const { AgentError, toPublicError } = require('./agent/agentErrors.js');
 const { createAppSnapshot, VIEWS } = require('./app/appSnapshot.js');
 
 const APP_INTENTS = Object.freeze([
@@ -216,18 +216,23 @@ function registerAppIpc({
         if (!exact(data, ['connectionId']) || !id(data.connectionId)) throw unsupported();
         return connections.removeConnection(data.connectionId);
       case 'test-connection':
-        if (!noData(data)) throw unsupported();
+        if (!exact(data, ['connectionId']) || !id(data.connectionId)
+            || typeof manager.getStatusFor !== 'function'
+            || typeof connections.getConnection !== 'function'
+            || !await connections.getConnection(data.connectionId)) throw unsupported();
         try {
           return {
-            status: await manager.getStatus(),
-            permission: await manager.verifyPermissionProfile(),
+            status: await manager.getStatusFor(data.connectionId),
           };
         } catch (error) {
-          return { failure: error?.code || 'PROVIDER_OUTPUT_INVALID' };
+          return { failure: toPublicError(error) };
         }
       case 'begin-provider-setup':
-        if (!noData(data)) throw unsupported();
-        return manager.beginSetup();
+        if (!exact(data, ['connectionId']) || !id(data.connectionId)
+            || typeof manager.beginSetupFor !== 'function'
+            || typeof connections.getConnection !== 'function'
+            || !await connections.getConnection(data.connectionId)) throw unsupported();
+        return manager.beginSetupFor(data.connectionId);
       case 'set-view':
         if (!exact(data, ['view']) || !VIEWS.includes(data.view)) throw unsupported();
         setView(data.view);
