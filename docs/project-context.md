@@ -45,7 +45,9 @@ Simple or Comprehensive form.
   `master` at `e0f6f5a`. UX Task 3 adds one deeply frozen, allowlisted application snapshot and one
   sender-validated `app:intent` boundary for the future unified window. It publishes coordinator,
   connection, run, sanitized activity, and presentation state through only `app:snapshot`; legacy
-  windows remain temporarily available until parity is proven in UX Task 6.
+  windows remain temporarily available until parity is proven in UX Task 6. UX Task 4 adds the
+  native framed 1080x720 main shell, responsive 264 px sidebar, main-owned agent statuses, shared
+  session navigation, and an account-free first-run Offline Demo path.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
@@ -186,7 +188,7 @@ remain deferred. Multiple named agents and bounded persistent sessions are core 
 - Core Tasks 15-19 are implemented and verified on the Core V1 branch. Never begin optional WSL
   Tasks 20-23 without a separate post-v1 opt-in.
 - Execute UX Tasks 1-6 serially from `superpowers/plans/2026-07-27-core-v1-ux-rebuild.md`.
-  UX Tasks 1-2 are merged. UX Task 3 is implemented and verified; UX Task 4 is next.
+  UX Tasks 1-2 are merged. UX Tasks 3-4 are implemented and verified; UX Task 5 is next.
 - Start each task with a concise ETA and revise it only when the estimate materially changes.
 - Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
@@ -212,8 +214,8 @@ Offline Demo exposes only `offline-demo`. Unlisted values and silent fallback ar
 
 ## Order
 
-Tasks 1-19 and UX Tasks 1-2 are complete on `master`. UX Task 3 is implemented and verified on the
-current rebuild branch; UX Tasks 4-6 remain serial. Optional WSL Tasks 20-23 remain preserved and
+Tasks 1-19 and UX Tasks 1-2 are complete on `master`. UX Tasks 3-4 are implemented and verified on
+the current rebuild branch; UX Tasks 5-6 remain serial. Optional WSL Tasks 20-23 remain preserved and
 are never automatic.
 
 ## Standard entry prompt
@@ -221,8 +223,8 @@ are never automatic.
 > Read Claude Pet/docs/project-context.md, Claude Pet/docs/BUILD_LOG.md,
 > Claude Pet/docs/superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md,
 > Claude Pet/docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md, and the final Core V1
-> evidence. Tasks 1-19 and UX Tasks 1-2 are complete; UX Task 3 is implemented and verified.
-> Continue with UX Task 4 only. Do not install WSL, sign into a provider CLI, or run a real
+> evidence. Tasks 1-19 and UX Tasks 1-2 are complete; UX Tasks 3-4 are implemented and verified.
+> Continue with UX Task 5 only. Do not install WSL, sign into a provider CLI, or run a real
 > Codex/Claude agent unless a
 > later task explicitly requires it.
 

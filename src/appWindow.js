@@ -127,7 +127,11 @@ function registerAppIpc({
         if (!exact(data, ['agentId', 'title', 'workspacePath'])
             || !id(data.agentId) || !string(data.title, { maximum: 80 })
             || !string(data.workspacePath)) throw unsupported();
-        return coordinator.createSession(data);
+        {
+          const created = await coordinator.createSession(data);
+          if (created?.id) await coordinator.select({ sessionId: created.id });
+          return created;
+        }
       case 'rename-session':
         if (!exact(data, ['sessionId', 'title']) || !id(data.sessionId)
             || !string(data.title, { maximum: 80 })) throw unsupported();

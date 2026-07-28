@@ -735,3 +735,16 @@ link the note to it — this file is the inbox, not the archive.
   now routes through the prompt controller so response/animation state changes to stopped, rather
   than aborting only the lower-level manager. No WSL, provider sign-in, real provider, parallel
   agent, or multi-model work occurred.
+
+## 2026-07-28 — UX Task 4 minimal main shell
+
+- TDD RED produced the intended missing unified-renderer failures; GREEN passes 6/6 focused
+  presentation/renderer tests. The shell uses native controls and landmarks, a 264 px sidebar,
+  inline forms, visible focus, main-owned running/waiting/idle/error statuses, and no native prompt
+  dialogs or internal executor/permission-profile language.
+- A clean profile now opens one native 1080x720 main window and presents one valid start path:
+  project folder, optional agent name, first task, and Workspace-only Offline Demo with no account.
+  Direct visual review removed the unusable pre-agent New session action with a witnessed regression.
+- Electron/CDP checks at both required sizes report exact 900x650 and 1440x900 viewports, matching
+  scroll widths/heights, visible first-run content, and no clipping or horizontal overflow. Evidence:
+  `docs/evidence/ux-task-4-900x650.png` and `docs/evidence/ux-task-4-1440x900.png`.

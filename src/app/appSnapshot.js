@@ -165,6 +165,13 @@ function notice(value) {
   return result;
 }
 
+function statusFor(agentId, { activeAgentId, runState, noticeState }) {
+  if (runState.busy && agentId === activeAgentId) return 'running';
+  if (noticeState?.status === 'waiting' && noticeState.agentId === agentId) return 'waiting';
+  if (noticeState?.status === 'error' && agentId === activeAgentId) return 'error';
+  return 'idle';
+}
+
 function createAppSnapshot({
   coordinator,
   connections,
@@ -178,14 +185,24 @@ function createAppSnapshot({
       || !Array.isArray(coordinator.turns) || !Array.isArray(connections)
       || !plain(manager) || !plain(activity) || !VIEWS.includes(view)
       || Object.keys(coordinator).some((key) => SECRET_KEY.test(key))) invalid();
-  const agents = coordinator.agents.map(agent);
+  const runState = run(manager);
+  const noticeState = notice(noticeValue);
+  const sourceAgents = coordinator.agents.map(agent);
+  const activeAgentId = coordinator.activeAgent?.id || null;
+  const statusContext = { activeAgentId, runState, noticeState };
+  const agents = sourceAgents.map((item) => ({
+    ...item,
+    status: statusFor(item.id, statusContext),
+  }));
   const sessions = coordinator.sessions.map(session);
   const selection = select(coordinator.selection, ['sessionId', 'agentId'], ['sessionId']);
   if (selection.sessionId !== null
       && !safeString(selection.sessionId, { empty: false, maximum: 200 })) invalid();
   if (selection.agentId !== undefined && selection.agentId !== null
       && !safeString(selection.agentId, { empty: false, maximum: 200 })) invalid();
-  const activeAgent = coordinator.activeAgent === null ? null : agent(coordinator.activeAgent);
+  const activeAgent = coordinator.activeAgent === null
+    ? null
+    : agents.find((item) => item.id === coordinator.activeAgent.id) || null;
   const activeSession = coordinator.session === null ? null : session(coordinator.session);
   const result = {
     view,
@@ -199,9 +216,9 @@ function createAppSnapshot({
     session: activeSession,
     turns: coordinator.turns.map(turn),
     connections: connections.map(connection),
-    run: run(manager),
+    run: runState,
     activity: safeJson(activity),
-    notice: notice(noticeValue),
+    notice: noticeState,
   };
   return deepFreeze(result);
 }

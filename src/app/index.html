@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Claude Pet</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside id="sidebar-root" class="sidebar"></aside>
+    <main id="workspace-root" class="workspace">
+      <p id="app-status" class="sr-status" aria-live="polite"></p>
+      <section id="first-run" class="first-run" aria-labelledby="first-run-title">
+        <p class="eyebrow">Welcome</p>
+        <h1 id="first-run-title">Start with Offline Demo</h1>
+        <p>Pick a project folder, name your agent, and give it a first task. No account is needed.</p>
+        <form id="first-run-form">
+          <label>Project folder
+            <input id="first-workspace" name="workspace" placeholder="C:\path\to\your\project" required>
+          </label>
+          <label>Agent name
+            <input id="first-agent-name" name="agentName" value="My Agent" maxlength="80" required>
+          </label>
+          <label>First task
+            <textarea id="first-goal" name="goal" rows="4" required></textarea>
+          </label>
+          <button class="primary-action" type="submit">Start with Offline Demo</button>
+        </form>
+      </section>
+      <section id="selected-session" class="selected-session" hidden>
+        <p class="eyebrow">Selected session</p>
+        <h1 id="session-title">Ready</h1>
+        <p id="session-summary" class="muted"></p>
+      </section>
+    </main>
+  </div>
+  <script src="sidebar.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

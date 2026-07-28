@@ -140,7 +140,6 @@ app.whenReady().then(async () => {
       return promptController.submitText(text);
     },
   });
-  settingsWindowController.show();
   const responsePreferences = createResponsePreferences({ filePath: path.join(app.getPath('userData'), 'response-preferences.json') });
   const responseState = require('./response/responseState.js').createResponseState({ readPreference: responsePreferences.read, writePreference: responsePreferences.write });
   const publish = () => { const state = responseState.snapshot(); responseWindow?.webContents.send('response:state', state); responseWindow?.webContents.send('response:activity', state); };
@@ -220,7 +219,6 @@ app.whenReady().then(async () => {
     ),
     saveConnection: async (draft) => {
       const saved = await authorization.save(appWindowController?.getWindow() || petWindow, draft);
-      await runtime.coordinator.ensureSessionForConnection(saved.id);
       await refreshTray();
       return saved;
     },
@@ -253,6 +251,7 @@ app.whenReady().then(async () => {
       }
     },
   });
+  appWindowController.show({ view: 'conversation' });
   const assertResponseSender = (event) => {
     if (event.sender !== responseWindow?.webContents) throw new Error('Invalid response sender');
   };
