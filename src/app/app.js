@@ -9,9 +9,9 @@
   const firstWorkspace = document.querySelector('#first-workspace');
   const firstGoal = document.querySelector('#first-goal');
   const status = document.querySelector('#app-status');
-  const selectedSession = document.querySelector('#selected-session');
-  const sessionTitle = document.querySelector('#session-title');
-  const sessionSummary = document.querySelector('#session-summary');
+  const conversationRoot = document.querySelector('#conversation-root');
+  const activityRoot = document.querySelector('#activity-root');
+  const settingsRoot = document.querySelector('#settings-root');
   let snapshot = null;
 
   async function dispatch(type, data = {}) {
@@ -31,12 +31,16 @@
     window.claudePetSidebar.renderSidebar(sidebarRoot, value, dispatch);
     const empty = value.agents.length === 0 || value.sessions.length === 0;
     firstRun.hidden = !empty;
-    if (selectedSession) selectedSession.hidden = empty;
-    if (!empty && sessionTitle && sessionSummary) {
-      sessionTitle.textContent = value.session?.title || 'Choose a session';
-      sessionSummary.textContent = value.session
-        ? `${value.activeAgent?.name || 'No agent'} · ${value.session.workspacePath}`
-        : 'Choose a shared session to continue.';
+    if (conversationRoot && settingsRoot && activityRoot) {
+      conversationRoot.hidden = empty || value.view === 'settings';
+      settingsRoot.hidden = empty || value.view !== 'settings';
+      activityRoot.hidden = empty || value.view !== 'activity';
+      if (!empty && value.view === 'settings') {
+        window.claudePetSettings.renderSettings(settingsRoot, value, dispatch);
+      } else if (!empty) {
+        window.claudePetConversation.renderConversation(conversationRoot, value, dispatch);
+        window.claudePetConversation.renderActivityDrawer(activityRoot, value, dispatch);
+      }
     }
   }
 

@@ -265,7 +265,7 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Core V1 Tasks 1–19 and UX Tasks 1–4 are complete or verified. UX Task 5 adds the usable conversation, activity, and secondary Settings views.</p>
+      <p><strong>Next:</strong> Core V1 Tasks 1–19 and UX Tasks 1–5 are complete or verified. UX Task 6 proves lifecycle parity, removes the old windows, and packages the finished workspace.</p>
       <p><strong>What you need to do:</strong> Nothing technical. The remaining UX rebuild is continuing serially; WSL, provider sign-in, real provider runs, and multi-model work remain out of scope.</p>
     </section>
 
@@ -290,7 +290,7 @@
         <li><a href="docs/BUILD_LOG.md">Build history</a></li>
         <li><a href="docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md">Core sessions + optional WSL Workspace redesign</a></li>
         <li><a href="docs/superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md">Approved Core V1 UX rebuild</a></li>
-        <li><a href="docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md">Current UX implementation plan (UX Task 4 verified; UX Task 5 next)</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md">Current UX implementation plan (UX Task 5 verified; UX Task 6 next)</a></li>
         <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Core V1 Tasks 15–19 are implemented; optional WSL Tasks 20–23 require a later opt-in)</a></li>
       </ul>
     </section>
@@ -469,16 +469,16 @@
       {
         id: 'ux-task-5',
         title: 'UX Task 5 — Add conversation, activity, and Settings',
-        done: false,
-        explanation: 'Add the attributed conversation, persistent composer, compact activity cards, agent selector, and secondary connection settings.',
-        action: 'In progress next; no technical action is required from you.',
+        done: true,
+        explanation: 'Implemented the attributed conversation, participant-limited composer, Send/Stop and Retry/Continue states, collapsed sanitized activity cards, permanent access warning, participant controls, and grouped secondary Settings.',
+        action: 'Nothing. UX Task 6 now proves the complete lifecycle and removes the obsolete windows.',
       },
       {
         id: 'ux-task-6',
         title: 'UX Task 6 — Prove lifecycle parity and package it',
         done: false,
         explanation: 'Make success, failure, Stop, retry, attachment, restart, pet/tray opening, and packaged visual gates work before removing legacy windows.',
-        action: 'Wait until UX Task 5 is accepted. Stop for the packaged-app user gate when complete.',
+        action: 'In progress next; the final result will be handed to you for clarity and taste, not technical debugging.',
       },
       {
         id: 'task-20',

@@ -748,3 +748,17 @@ link the note to it — this file is the inbox, not the archive.
 - Electron/CDP checks at both required sizes report exact 900x650 and 1440x900 viewports, matching
   scroll widths/heights, visible first-run content, and no clipping or horizontal overflow. Evidence:
   `docs/evidence/ux-task-4-900x650.png` and `docs/evidence/ux-task-4-1440x900.png`.
+
+## 2026-07-28 — UX Task 5 conversation, activity, and secondary Settings
+
+- TDD RED recorded the intended missing conversation/Settings modules; GREEN passes 15/15 focused
+  UI tests. Every turn keeps agent/provider/model attribution and provider text is assigned only
+  through `textContent`, including a bounded-layout 20,000-character response case.
+- Added a persistent participant-only `Ask <agent>` composer, Send/Stop switching, text attachment,
+  retry/continue recovery, workspace/provider/model/access header, and a temporary Activity drawer.
+  One collapsed card is rendered for each sanitized file, command, tool, permission, network,
+  usage, or message event; 100-event containment is covered.
+- Secondary Settings groups Connections, Access, Model, session participants, Agents, and Advanced.
+  Full Computer remains permanently warned, busy mutations are disabled and main-guarded, a second
+  named agent can be created and added inline, and removing a participant leaves attributed history
+  intact. No provider sign-in or real provider run occurred.
