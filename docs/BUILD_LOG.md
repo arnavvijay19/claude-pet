@@ -716,3 +716,22 @@ link the note to it — this file is the inbox, not the archive.
   persistence, stale-state, bounded-context, and compatibility paths against the approved plan.
   UX Task 3, optional WSL work, provider sign-in, real provider runs, and multi-model work were not
   started.
+
+## 2026-07-28 — UX Task 3 unified application boundary
+
+- Fast-forwarded UX Task 2 into clean `master` at `e0f6f5a`, removed its merged worktree/branch,
+  and created `codex/ux-task-3-app-snapshot` from that exact base. The clean baseline passed
+  265/265 Node tests.
+- TDD RED produced the three intended missing-file failures for `appSnapshot`, `appWindow`, and
+  `app-preload`. GREEN passes 9/9 focused snapshot/window/preload tests.
+- Added an exact deeply frozen public snapshot with no encrypted fields, permission proof, native
+  resume/auth/config state, or response dismissal capability. One sender-validated `app:intent`
+  handler validates all 20 initial intents, rejects malformed/secret-bearing/cross-session/busy
+  mutations before side effects, and publishes only `app:snapshot`.
+- Added one reusable native 1080x720 window controller with a 900x650 minimum and one activity
+  subscription. The main process wires existing coordinator, connection, Full Computer,
+  attachment, setup, run, stop, and retry boundaries without removing legacy windows before parity.
+- Direct review found and repaired one lifecycle defect with a witnessed regression: `stop-run`
+  now routes through the prompt controller so response/animation state changes to stopped, rather
+  than aborting only the lower-level manager. No WSL, provider sign-in, real provider, parallel
+  agent, or multi-model work occurred.

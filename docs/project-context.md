@@ -41,8 +41,11 @@ Simple or Comprehensive form.
   `1436234`. UX Task 2 now routes each run through only the selected participant's immutable
   connection, attributes both turns to that participant, asks once before cross-provider context
   disclosure, rejects mismatched workspaces and stale selections before provider execution, and
-  builds a bounded escaped prompt with the active agent's instruction. It is implemented and
-  verified on `codex/ux-task-2-sequential-routing`; UX Task 3 has not started.
+  builds a bounded escaped prompt with the active agent's instruction. UX Task 2 was merged to
+  `master` at `e0f6f5a`. UX Task 3 adds one deeply frozen, allowlisted application snapshot and one
+  sender-validated `app:intent` boundary for the future unified window. It publishes coordinator,
+  connection, run, sanitized activity, and presentation state through only `app:snapshot`; legacy
+  windows remain temporarily available until parity is proven in UX Task 6.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
@@ -99,6 +102,8 @@ Electron main process
 ├─ agent/connectionStore.js   public agent metadata and future encrypted secrets
 ├─ agent/sessionStore.js      encrypted profiles/shared sessions (UX Task 1 schema v2)
 ├─ agent/sessionCoordinator.js sequential active-participant routing (UX Task 2)
+├─ app/appSnapshot.js          frozen presentation-safe application state (UX Task 3)
+├─ appWindow.js               one app:snapshot/app:intent IPC boundary (UX Task 3)
 ├─ agent/cliRunner.js         bounded official-CLI process boundary
 ├─ agent/windowsProcessTree.js verified Windows child/grandchild termination
 └─ agent/executors/
@@ -181,8 +186,7 @@ remain deferred. Multiple named agents and bounded persistent sessions are core 
 - Core Tasks 15-19 are implemented and verified on the Core V1 branch. Never begin optional WSL
   Tasks 20-23 without a separate post-v1 opt-in.
 - Execute UX Tasks 1-6 serially from `superpowers/plans/2026-07-27-core-v1-ux-rebuild.md`.
-  UX Task 1 is merged. UX Task 2 is implemented and verified on its isolated branch; do not begin
-  UX Task 3 until UX Task 2 is documented, committed, and explicitly continued.
+  UX Tasks 1-2 are merged. UX Task 3 is implemented and verified; UX Task 4 is next.
 - Start each task with a concise ETA and revise it only when the estimate materially changes.
 - Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
@@ -208,18 +212,18 @@ Offline Demo exposes only `offline-demo`. Unlisted values and silent fallback ar
 
 ## Order
 
-Tasks 1-19 and UX Task 1 are complete on `master`. UX Task 2 is implemented and verified on its
-isolated branch; UX Tasks 3-6 remain serially gated behind it. Optional WSL Tasks 20-23 remain
-preserved and are never automatic.
+Tasks 1-19 and UX Tasks 1-2 are complete on `master`. UX Task 3 is implemented and verified on the
+current rebuild branch; UX Tasks 4-6 remain serial. Optional WSL Tasks 20-23 remain preserved and
+are never automatic.
 
 ## Standard entry prompt
 
 > Read Claude Pet/docs/project-context.md, Claude Pet/docs/BUILD_LOG.md,
 > Claude Pet/docs/superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md,
 > Claude Pet/docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md, and the final Core V1
-> evidence. Tasks 1-19 and UX Task 1 are complete; UX Task 2 is implemented and verified on
-> `codex/ux-task-2-sequential-routing`. Do not begin UX Task 3, install WSL, sign into a provider
-> CLI, or run a real Codex/Claude agent unless a
+> evidence. Tasks 1-19 and UX Tasks 1-2 are complete; UX Task 3 is implemented and verified.
+> Continue with UX Task 4 only. Do not install WSL, sign into a provider CLI, or run a real
+> Codex/Claude agent unless a
 > later task explicitly requires it.
 
 ## Session contract

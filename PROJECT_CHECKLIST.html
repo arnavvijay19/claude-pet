@@ -265,8 +265,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Core V1 Tasks 1–19 and UX Task 1 are complete on master. UX Task 2 — one selected agent per turn — is implemented and self-verified on its isolated branch.</p>
-      <p><strong>What you need to do:</strong> Nothing technical. UX Task 3, WSL work, provider sign-in, real provider runs, and multi-model work remain blocked until a later continue instruction.</p>
+      <p><strong>Next:</strong> Core V1 Tasks 1–19 and UX Tasks 1–3 are complete or verified. UX Task 4 builds the actual minimal main window.</p>
+      <p><strong>What you need to do:</strong> Nothing technical. The remaining UX rebuild is continuing serially; WSL, provider sign-in, real provider runs, and multi-model work remain out of scope.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -290,7 +290,7 @@
         <li><a href="docs/BUILD_LOG.md">Build history</a></li>
         <li><a href="docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md">Core sessions + optional WSL Workspace redesign</a></li>
         <li><a href="docs/superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md">Approved Core V1 UX rebuild</a></li>
-        <li><a href="docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md">Current UX implementation plan (UX Task 2 verified checkpoint)</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md">Current UX implementation plan (UX Task 3 verified; UX Task 4 next)</a></li>
         <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Core V1 Tasks 15–19 are implemented; optional WSL Tasks 20–23 require a later opt-in)</a></li>
       </ul>
     </section>
@@ -448,23 +448,23 @@
       {
         id: 'ux-task-2',
         title: 'UX Task 2 — Route one selected agent per turn',
-        done: false,
-        explanation: 'Implemented and self-verified on its isolated branch. One selected participant snapshots one immutable connection, provider, and model; both turns retain that agent identity, while bounded history, workspace checks, stale-selection checks, and one-time cross-provider disclosure remain enforced.',
-        action: 'No technical testing is required from you. UX Task 3 remains blocked until a later continue instruction.',
+        done: true,
+        explanation: 'Merged to master at e0f6f5a. One selected participant snapshots one immutable connection, provider, and model; both turns retain that agent identity, while bounded history, workspace checks, stale-selection checks, and one-time cross-provider disclosure remain enforced.',
+        action: 'Nothing. This task is complete.',
       },
       {
         id: 'ux-task-3',
         title: 'UX Task 3 — Add one main-owned application snapshot',
-        done: false,
-        explanation: 'Replace duplicated Settings/Response state channels and timer polling with one validated, immutable main-process snapshot.',
-        action: 'Wait until UX Task 2 is accepted.',
+        done: true,
+        explanation: 'Implemented and verified one deeply frozen, allowlisted app snapshot and one sender-validated intent channel. Secrets and renderer-provided permission proof are rejected or omitted, and activity updates publish through the same snapshot channel.',
+        action: 'Nothing. UX Task 4 now builds the visible window on this boundary.',
       },
       {
         id: 'ux-task-4',
         title: 'UX Task 4 — Build the minimal main shell',
         done: false,
         explanation: 'Create the resizable two-column window, agent roster, shared-session sidebar, and first-run Offline Demo flow.',
-        action: 'Wait until UX Task 3 is accepted.',
+        action: 'In progress next; no technical action is required from you.',
       },
       {
         id: 'ux-task-5',

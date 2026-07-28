@@ -8,6 +8,7 @@ const { createAgentRuntime, shouldEnableTestExecutor } = require('./agentRuntime
 const { createPromptController } = require('./promptController.js');
 const { createSettingsWindowController } = require('./settingsWindow.js');
 const { createResponseWindow } = require('./responseWindow.js');
+const { createAppWindowController } = require('./appWindow.js');
 const { createResponsePreferences } = require('./response/responsePreferences.js');
 const { createFullComputerAuthorization } = require('./agent/fullComputerAuthorization.js');
 const { createTrayMenuTemplate } = require('./trayMenu.js');
@@ -19,6 +20,7 @@ let petWindow = null;
 let tray = null;
 let settingsWindowController = null;
 let responseWindow = null;
+let appWindowController = null;
 let runtime = null;
 let promptController = null;
 let authorization = null;
@@ -28,6 +30,7 @@ let animation = null;
 let animationSequence = 0;
 let responseGeneration = 0;
 let dismissal = null;
+let lastAppRequest = null;
 function publishPetState(state) { const envelope = { animationSequence: ++animationSequence, state }; petWindow?.webContents.send('pet:state', envelope); return envelope; }
 
 function createPetWindow() {
@@ -144,14 +147,112 @@ app.whenReady().then(async () => {
   refreshSessionState = async () => { responseState.setSessionSnapshot(await runtime.coordinator.snapshot()); publish(); };
   await refreshSessionState();
   runtime.activity.subscribe((activity) => { responseState.setActivity(activity); animation?.activity(animation.currentToken()); publish(); });
-  const afterRunStateChange = () => { void refreshSessionState(); void refreshTray(); void settingsWindowController?.refresh(); };
+  const afterRunStateChange = () => {
+    void refreshSessionState();
+    void refreshTray();
+    void settingsWindowController?.refresh();
+    void appWindowController?.publish();
+  };
   promptController = createPromptController({ manager: runtime.coordinator, animation, response: {
-    begin: (context, token) => { responseGeneration += 1; dismissal = { responseGeneration, dismissCapability: crypto.randomBytes(32).toString('base64url'), token }; responseState.begin(context, dismissal); responseWindow?.showInactive(); afterRunStateChange(); },
-    success: (value) => { responseState.success(value); afterRunStateChange(); },
-    failure: (value) => { responseState.failure(value); afterRunStateChange(); },
-    stopped: () => { responseState.stopped(); afterRunStateChange(); },
-    dismiss: () => { responseState.dismiss(); afterRunStateChange(); },
+    begin: (context, token) => {
+      responseGeneration += 1;
+      dismissal = {
+        responseGeneration,
+        dismissCapability: crypto.randomBytes(32).toString('base64url'),
+        token,
+      };
+      responseState.begin(context, dismissal);
+      responseWindow?.showInactive();
+      void appWindowController?.setNotice({
+        status: 'waiting',
+        message: 'Claude Pet is working.',
+        agentId: context.agentId,
+        request: lastAppRequest || '',
+      });
+      afterRunStateChange();
+    },
+    success: (value) => {
+      responseState.success(value);
+      void appWindowController?.setNotice({
+        status: 'success',
+        message: 'Task completed.',
+        action: 'Continue',
+        request: lastAppRequest || '',
+      });
+      afterRunStateChange();
+    },
+    failure: (value) => {
+      responseState.failure(value);
+      void appWindowController?.setNotice({
+        status: 'error',
+        message: value?.message || 'The task could not be completed.',
+        action: 'Retry',
+        request: lastAppRequest || '',
+      });
+      afterRunStateChange();
+    },
+    stopped: () => {
+      responseState.stopped();
+      void appWindowController?.setNotice({
+        status: 'stopped',
+        message: 'Task stopped.',
+        action: 'Retry',
+        request: lastAppRequest || '',
+      });
+      afterRunStateChange();
+    },
+    dismiss: () => {
+      responseState.dismiss();
+      void appWindowController?.setNotice(null);
+      afterRunStateChange();
+    },
   }, onBusyChange: () => { void settingsWindowController?.refresh(); } });
+  appWindowController = createAppWindowController({
+    BrowserWindow,
+    ipcMain,
+    coordinator: runtime.coordinator,
+    connections: runtime.store,
+    manager: runtime.manager,
+    activity: runtime.activity,
+    updateAgent: ({ agentId, name, marker, instruction }) => runtime.sessions.updateAgent(
+      agentId,
+      { name, marker, instruction },
+    ),
+    saveConnection: async (draft) => {
+      const saved = await authorization.save(appWindowController?.getWindow() || petWindow, draft);
+      await runtime.coordinator.ensureSessionForConnection(saved.id);
+      await refreshTray();
+      return saved;
+    },
+    submitGoal: async (text) => {
+      lastAppRequest = text;
+      return promptController.submitText(text);
+    },
+    stopRun: () => promptController.stop(),
+    retryGoal: async () => {
+      if (!lastAppRequest) throw new Error('There is no task to retry.');
+      return promptController.submitText(lastAppRequest);
+    },
+    chooseTextFile: async () => {
+      const result = await dialog.showOpenDialog(appWindowController?.getWindow() || petWindow, {
+        title: 'Attach one text file',
+        properties: ['openFile'],
+        filters: [{ name: 'Text files', extensions: ['txt', 'md', 'json', 'csv', 'log'] }],
+      });
+      if (result.canceled || result.filePaths.length !== 1) return null;
+      const attachmentAuthorization = await authorizeTextAttachment({
+        filePath: result.filePaths[0],
+      });
+      try {
+        const attachment = await attachmentAuthorization.consume();
+        const text = require('./bridge/fileContext.js').buildAttachmentPrompt(attachment);
+        lastAppRequest = text;
+        return promptController.submitText(text);
+      } finally {
+        await attachmentAuthorization.cancel();
+      }
+    },
+  });
   const assertResponseSender = (event) => {
     if (event.sender !== responseWindow?.webContents) throw new Error('Invalid response sender');
   };
