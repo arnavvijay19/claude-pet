@@ -1,6 +1,6 @@
 # Claude Pet Core V1 UX Rebuild
 
-**Status:** Proposed implementation design
+**Status:** Approved design; implementation plan pending review
 **Date:** 2026-07-27
 
 ## Goal
@@ -27,10 +27,47 @@ The design borrows interaction patterns, not source code or visual assets:
   side-by-side previews.
 - [Coworker](https://github.com/accomplish-ai/coworker): task-first local desktop-agent
   positioning and onboarding before advanced configuration.
+- [Agent Deck](https://github.com/asheshgoplani/agent-deck): community-maintained agent groups
+  and immediately readable running, waiting, idle, and error states.
+- [opcode](https://github.com/getAsterisk/opcode): named purpose-built agents and resumable
+  interactive sessions.
+- [Palot](https://github.com/ItsWendell/palot): restrained dark presentation, active/recent
+  session grouping, inline tool cards, and collapsible child-agent activity.
+- [Kanna](https://github.com/jakemor/kanna): project-first navigation, provider selection per
+  turn, and one pushed read model for all UI state.
 
 CloudCLI is AGPL-licensed, so Claude Pet must not copy its implementation. The useful ideas are
 common interaction patterns and will be implemented independently in the existing vanilla
 Electron architecture.
+
+The reference products also show what Claude Pet should avoid. It is not becoming an IDE,
+terminal multiplexer, Git client, analytics cockpit, or frontier-agent platform. Community ideas
+are adopted only when they make the core pet-agent loop clearer or more dependable.
+
+## Agent, session, and model semantics
+
+Claude Pet owns a roster of named **agents**. An agent is a persistent identity with a name,
+short instruction, visual marker, and default saved connection. It is not synonymous with a
+provider or model.
+
+A **session** is a shared conversation that may contain one or more participating agents. The user
+selects which participant handles the next turn. Every user and assistant turn records the agent,
+provider, and model that actually handled it, so attribution survives later connection edits.
+
+Core V1 remains sequential:
+
+- one active agent handles one turn;
+- that turn snapshots exactly one saved connection, provider, and model;
+- only one run executes in the entire app at a time;
+- changing the selected agent while idle affects only the next turn;
+- switching to an agent backed by another provider retains the existing bounded-history
+  disclosure and workspace-compatibility checks;
+- no agent may silently delegate, fan out, or invoke a second model.
+
+A future installed skill may request multi-agent or multi-model orchestration, but it cannot
+silently weaken these rules. That later capability requires a separate design with explicit user
+activation, visible participants, concurrency and cost limits, cancellation ownership, context
+disclosure, and a hard maximum number of model calls. It is not part of this rebuild.
 
 ## Chosen product shape
 
@@ -46,7 +83,7 @@ feature parity is proven.
 
 The default layout has two columns:
 
-1. A narrow sidebar for the current agent and its sessions.
+1. A narrow sidebar for agents and shared sessions.
 2. A flexible conversation workspace for the selected session.
 
 A temporary right-side Activity drawer may open when requested. It is not visible by default and
@@ -57,7 +94,8 @@ must not shrink the conversation below a usable width.
 The sidebar contains:
 
 - product identity and a prominent New session action;
-- agents with their sessions grouped underneath;
+- a compact agent roster with running, waiting, idle, or error state;
+- shared sessions grouped separately from agent identities;
 - the selected session, latest status, and relative update time;
 - rename and delete actions in a small context menu;
 - a Settings action fixed at the bottom.
@@ -70,7 +108,8 @@ The selected workspace belongs to the session and is shown in plain language.
 The header shows:
 
 - session title;
-- active provider and model;
+- selected agent for the next turn;
+- that agent's provider and model;
 - workspace name;
 - one permanent access badge: `Workspace only` or `Full computer access`.
 
@@ -83,6 +122,7 @@ The composer stays attached to the bottom and supports:
 
 - multiline text;
 - deliberate UTF-8 text attachment;
+- an `Ask <agent>` selector limited to session participants;
 - Send while idle;
 - Stop while running;
 - a clear disabled reason when no runnable provider/session exists.
@@ -119,7 +159,8 @@ On first launch, Claude Pet creates or offers one obvious Offline Demo setup:
 
 1. Choose a folder.
 2. Confirm `Workspace only`.
-3. Start the first task.
+3. Name the first agent or accept `My Agent`.
+4. Start the first task.
 
 The user does not manually create a connection, then an agent, then a session, then select a next
 provider before discovering the goal box. Advanced real-provider setup remains available after the
@@ -132,8 +173,8 @@ button is presented as a workflow.
 
 The existing main-owned stores and coordinator remain the source of truth.
 
-1. Main publishes one immutable `app:snapshot` containing public navigation, session, run, and
-   presentation-safe activity state.
+1. Main publishes one immutable `app:snapshot` containing public agents, shared sessions,
+   selection, run, and presentation-safe activity state.
 2. The renderer sends narrow intent messages such as select session, submit goal, stop, retry,
    create session, or save connection.
 3. Main validates sender, payload, busy state, session ownership, provider compatibility, and
@@ -181,6 +222,9 @@ events, and timer polling.
 
 - A clean profile reaches a successful Offline Demo task without undocumented prerequisites.
 - The same window supports a follow-up in the same encrypted session.
+- One shared session can contain at least two named agents, while only the selected agent's single
+  provider/model runs each turn.
+- Every persisted turn retains its agent, provider, and model attribution after restart.
 - Running, success, failure, and stopped states all have correct controls and recovery paths.
 - Long text and at least 100 activity events remain navigable without clipping.
 - Provider, workspace, and Full Computer warnings remain accurate across session switching.
@@ -190,6 +234,7 @@ events, and timer polling.
 
 ## Explicitly deferred
 
-Multi-agent parallel runs, terminals, Git/diff management, voice, cloud sync, remote access,
-plugins, schedules, and a three-pane IDE layout are not part of this rebuild. They appear in the
-reference apps but would make Claude Pet less reliable and less minimal at this stage.
+Multi-agent parallel runs, multi-model skills, terminals, Git/diff management, voice, cloud sync,
+remote access, plugins, schedules, and a three-pane IDE layout are not part of this rebuild. They
+appear in the reference apps but would make Claude Pet less reliable and less minimal at this
+stage.
