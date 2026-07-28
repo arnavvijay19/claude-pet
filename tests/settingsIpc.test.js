@@ -9,6 +9,7 @@ function harness(managerOverrides = {}, authorizationOverrides = {}, coordinator
   const sender = {};
   const selected = [];
   const authorizationCalls = [];
+  const submittedGoals = [];
   const store = {
     listConnections: async () => [{
       id: 'offline', executorType: 'offline-demo', label: 'Offline Demo',
@@ -47,8 +48,9 @@ function harness(managerOverrides = {}, authorizationOverrides = {}, coordinator
       select: async () => {}, setNextConnection: async () => {},
       ...coordinatorOverrides,
     },
+    submitGoal: async (text) => { submittedGoals.push(text); },
   });
-  return { authorizationCalls, handlers, sender, selected, settingsWindow };
+  return { authorizationCalls, handlers, sender, selected, settingsWindow, submittedGoals };
 }
 
 test('serves only public Settings snapshots to the expected sender', async () => {
@@ -82,6 +84,14 @@ test('requires a non-empty workspace and selects a newly saved Offline Demo conn
   await assert.rejects(save({ sender }, { ...draft, workspacePath: '   ' }));
   await save({ sender }, draft);
   assert.deepEqual(selected, ['saved']);
+});
+
+test('accepts a visible Settings goal only from the Settings window', async () => {
+  const { handlers, sender, submittedGoals } = harness();
+  await handlers.get('settings:submit-goal')({ sender }, 'Summarize this workspace');
+  assert.deepEqual(submittedGoals, ['Summarize this workspace']);
+  await assert.rejects(handlers.get('settings:submit-goal')({ sender }, '   '));
+  await assert.rejects(handlers.get('settings:submit-goal')({ sender: {} }, 'Another goal'), /Invalid Settings sender/);
 });
 
 test('fails closed while a Full Computer dialog is already pending', async () => {
@@ -177,7 +187,7 @@ test('recreates Settings after the user closes its previous window', () => {
   assert.equal(windows.length, 2);
   assert.equal(second.shown, 1);
   assert.equal(second.focused, 1);
-  assert.equal(handlers.size, 15);
+  assert.equal(handlers.size, 16);
 });
 
 test('rejects every legacy and Task 17 Settings mutation while a run is busy', async () => {

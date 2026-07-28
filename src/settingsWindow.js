@@ -8,7 +8,7 @@ const { EFFORTS: CLAUDE_EFFORTS, MODEL_IDS: CLAUDE_MODEL_IDS } = require('./agen
 const SETTINGS_CHANNELS = Object.freeze([
   'settings:snapshot', 'settings:save', 'settings:select', 'settings:remove', 'settings:test', 'settings:setup',
   'settings:session-snapshot', 'settings:create-agent', 'settings:rename-agent', 'settings:delete-agent',
-  'settings:create-session', 'settings:rename-session', 'settings:delete-session', 'settings:select-session', 'settings:set-next-connection',
+  'settings:create-session', 'settings:rename-session', 'settings:delete-session', 'settings:select-session', 'settings:set-next-connection', 'settings:submit-goal',
 ]);
 
 function validDraft(value) {
@@ -24,7 +24,7 @@ function validDraft(value) {
   return value.executorType === 'claude-code-cli' && CLAUDE_MODEL_IDS.includes(value.modelId) && CLAUDE_EFFORTS.includes(value.effort);
 }
 function registerSettingsIpc({
-  ipcMain, sender, settingsWindow, store, manager, coordinator, authorization, onStateChange = () => {},
+  ipcMain, sender, settingsWindow, store, manager, coordinator, authorization, onStateChange = () => {}, onConnectionSaved = async () => {}, submitGoal = async () => { throw new AgentError('AGENT_REQUIRED'); },
 }) {
   const assertSender = (event) => { if (event.sender !== sender) throw new Error('Invalid Settings sender'); };
   const assertNoPendingAuthorization = () => {
@@ -49,7 +49,8 @@ function registerSettingsIpc({
     if (!authorization || typeof authorization.save !== 'function') {
       throw new AgentError('FULL_COMPUTER_CONFIRMATION_REQUIRED');
     }
-    await authorization.save(settingsWindow, draft);
+    const saved = await authorization.save(settingsWindow, draft);
+    await onConnectionSaved(saved);
     await onStateChange();
     return snapshot();
   });
@@ -92,6 +93,12 @@ function registerSettingsIpc({
   ipcMain.handle('settings:delete-session', session('removeSession', (value) => typeof value === 'string'));
   ipcMain.handle('settings:select-session', session('select', (value) => value && typeof value.agentId === 'string' && (value.sessionId === null || typeof value.sessionId === 'string') && Object.keys(value).length === 2));
   ipcMain.handle('settings:set-next-connection', session('setNextConnection', (value) => value && typeof value.sessionId === 'string' && typeof value.connectionId === 'string' && Object.keys(value).length === 2));
+  ipcMain.handle('settings:submit-goal', async (event, text) => {
+    assertSender(event);
+    if (typeof text !== 'string' || !text.trim() || text.includes('\0')) throw new AgentError('UNSUPPORTED_OPTION');
+    await submitGoal(text);
+    return true;
+  });
 }
 
 function unregisterSettingsIpc(ipcMain) {

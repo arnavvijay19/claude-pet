@@ -51,6 +51,34 @@ function createSessionStore() {
 
 function runConnection(id, executorType, modelId) { return { ...connection(id, executorType, modelId), revision: 1, fullAccessConfirmed: false }; }
 
+test('creates the first selected session and provider for a saved connection', async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-pet-first-session-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const sessionStore = createPersistentSessionStore({
+    filePath: path.join(directory, 'sessions.json'), crypto: availableCrypto(), randomId: sequence('first'), clock: () => '2026-07-27T00:00:00.000Z',
+  });
+  const active = [];
+  const coordinator = createSessionCoordinator({
+    sessionStore,
+    connectionStore: {
+      listConnections: async () => [connection('offline', 'offline-demo', 'offline-demo')],
+      getConnection: async (id) => id === 'offline' ? connection('offline', 'offline-demo', 'offline-demo') : null,
+      getRunConnection: async (id) => id === 'offline' ? runConnection('offline', 'offline-demo', 'offline-demo') : null,
+      getActiveSelection: async () => active.at(-1) || 'offline', setActiveSelection: async (id) => { active.push(id); },
+    },
+    manager: { getSnapshot: () => ({ busy: false }), runGoal: async () => { throw new Error('not needed'); }, stop: () => false },
+  });
+
+  const snapshot = await coordinator.ensureSessionForConnection('offline');
+
+  assert.equal(snapshot.agent.name, 'My Agent');
+  assert.equal(snapshot.session.title, 'New Session');
+  assert.equal(snapshot.selection.agentId, snapshot.agent.id);
+  assert.equal(snapshot.selection.sessionId, snapshot.session.id);
+  assert.equal(snapshot.session.nextConnectionId, 'offline');
+  assert.deepEqual(active, ['offline']);
+});
+
 test('requires disclosure only for a cross-provider same-session switch and keeps cancel atomic', async () => {
   const sessionStore = createSessionStore();
   const selections = [];

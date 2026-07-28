@@ -13,6 +13,8 @@ let editingId = null;
 const sessionAgent = document.querySelector('#session-agent');
 const sessionSession = document.querySelector('#session-session');
 const nextProvider = document.querySelector('#next-provider');
+const goal = document.querySelector('#goal');
+const runGoal = document.querySelector('#run-goal');
 const sessionButtons = ['#create-agent', '#rename-agent', '#delete-agent', '#create-session', '#rename-session', '#delete-session'].map((id) => document.querySelector(id));
 const connectionMutationControls = [workspace, executor, permission, model, effort, save];
 let sessionBusy = false;
@@ -96,6 +98,8 @@ function setMutationDisabled(disabled) {
   sessionSession.disabled = sessionBusy;
   nextProvider.disabled = sessionBusy;
   sessionButtons.forEach((button) => { button.disabled = sessionBusy; });
+  goal.disabled = sessionBusy;
+  runGoal.disabled = sessionBusy;
   connectionMutationControls.forEach((control) => { control.disabled = sessionBusy || (control === save && saving); });
   document.querySelectorAll('[data-settings-mutation]').forEach((control) => { control.disabled = sessionBusy; });
 }
@@ -161,10 +165,10 @@ nextProvider.addEventListener('change', async () => {
     await refresh();
   }
 });
-document.querySelector('#create-agent').addEventListener('click', async () => { const name = window.prompt('Agent name', 'My Agent'); if (name) { await window.settings.createAgent({ name }); await refresh(); } });
+document.querySelector('#create-agent').addEventListener('click', async () => { const name = window.prompt('Agent name', 'My Agent'); if (name) { const agent = await window.settings.createAgent({ name }); await window.settings.selectSession({ agentId: agent.id, sessionId: null }); await refresh(); } });
 document.querySelector('#rename-agent').addEventListener('click', async () => { const name = window.prompt('Agent name', sessionAgent.selectedOptions[0]?.textContent || ''); if (name) { await window.settings.renameAgent(sessionAgent.value, name); await refresh(); } });
 document.querySelector('#delete-agent').addEventListener('click', async () => { await window.settings.deleteAgent(sessionAgent.value); await refresh(); });
-document.querySelector('#create-session').addEventListener('click', async () => { const title = window.prompt('Session title', 'New session'); if (title && workspace.value.trim()) { await window.settings.createSession({ agentId: sessionAgent.value, title, workspacePath: workspace.value }); await refresh(); } });
+document.querySelector('#create-session').addEventListener('click', async () => { const title = window.prompt('Session title', 'New session'); if (title && workspace.value.trim()) { const session = await window.settings.createSession({ agentId: sessionAgent.value, title, workspacePath: workspace.value }); await window.settings.selectSession({ agentId: sessionAgent.value, sessionId: session.id }); await refresh(); } });
 document.querySelector('#rename-session').addEventListener('click', async () => { const title = window.prompt('Session title', sessionSession.selectedOptions[0]?.textContent || ''); if (title) { await window.settings.renameSession(sessionSession.value, title); await refresh(); } });
 document.querySelector('#delete-session').addEventListener('click', async () => { await window.settings.deleteSession(sessionSession.value); await refresh(); });
 
@@ -211,6 +215,21 @@ document.querySelector('#setup').addEventListener('click', async () => {
     text(status, `${registry.setup} sign-in started in its own window.`);
   } catch {
     text(status, `${registry.setup} sign-in could not start.`);
+  }
+});
+runGoal.addEventListener('click', async () => {
+  const textValue = goal.value.trim();
+  if (!textValue) { text(status, 'Write a goal first.'); return; }
+  runGoal.disabled = true;
+  text(status, 'Starting your goal...');
+  try {
+    await window.settings.submitGoal(textValue);
+    goal.value = '';
+    text(status, 'Goal finished. See the response window.');
+  } catch (error) {
+    text(status, error?.message || 'The goal could not start. Select a session and provider, then try again.');
+  } finally {
+    await refresh();
   }
 });
 

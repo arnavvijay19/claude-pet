@@ -118,6 +118,8 @@ app.whenReady().then(async () => {
     return result.response === 0;
   } });
   await runtime.initialize();
+  const activeConnectionId = await runtime.store.getActiveSelection();
+  if (activeConnectionId) await runtime.coordinator.ensureSessionForConnection(activeConnectionId);
   const manifest = loadPetManifestWithDataUrl({ assetsDir: ASSETS_DIR, readFileSync: fs.readFileSync });
   animation = createPetAnimationController({ manifest, publish: publishPetState });
   authorization = createFullComputerAuthorization({
@@ -129,6 +131,11 @@ app.whenReady().then(async () => {
   settingsWindowController = createSettingsWindowController({
     BrowserWindow, ipcMain, store: runtime.store, manager: runtime.manager, coordinator: runtime.coordinator,
     authorization, onStateChange: async () => { await refreshSessionState(); await refreshTray(); },
+    onConnectionSaved: async (connection) => { if (connection?.id) await runtime.coordinator.ensureSessionForConnection(connection.id); },
+    submitGoal: async (text) => {
+      if (!promptController) throw new Error('Goal controller is still starting. Try again.');
+      return promptController.submitText(text);
+    },
   });
   settingsWindowController.show();
   const responsePreferences = createResponsePreferences({ filePath: path.join(app.getPath('userData'), 'response-preferences.json') });

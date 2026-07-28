@@ -30,7 +30,7 @@ function createRendererHarness() {
   const ids = [
     'status', 'connections', 'workspace', 'executor', 'permission-profile', 'model', 'effort', 'save', 'active-permission',
     'session-agent', 'session-session', 'next-provider', 'create-agent', 'rename-agent', 'delete-agent',
-    'create-session', 'rename-session', 'delete-session', 'model-row', 'effort-row', 'permission-row', 'setup', 'mode-help', 'test',
+    'create-session', 'rename-session', 'delete-session', 'model-row', 'effort-row', 'permission-row', 'setup', 'mode-help', 'test', 'goal', 'run-goal',
   ];
   const elements = new Map(ids.map((id) => [id, new Element()]));
   elements.get('executor').value = 'offline-demo';
@@ -52,6 +52,7 @@ function createRendererHarness() {
     createElement(tagName) { return new Element(tagName); },
   };
   let publishSessionState;
+  const submittedGoals = [];
   const sessions = {
     agents: [{ id: 'agent-a', name: 'Agent A' }], sessions: [{ id: 'session-a', title: 'Session A' }],
     selection: { agentId: 'agent-a', sessionId: 'session-a' }, session: { nextConnectionId: 'offline' },
@@ -68,12 +69,12 @@ function createRendererHarness() {
       sessionSnapshot: async () => sessions,
       onSessionState: (callback) => { publishSessionState = callback; },
       save: async () => legacy, select: async () => legacy, remove: async () => true, test: async () => ({}), setup: async () => ({}),
-      createAgent: async () => {}, renameAgent: async () => {}, deleteAgent: async () => {}, createSession: async () => {}, renameSession: async () => {}, deleteSession: async () => {}, selectSession: async () => {}, setNextConnection: async () => {},
+      createAgent: async () => ({ id: 'agent-a' }), renameAgent: async () => {}, deleteAgent: async () => {}, createSession: async () => ({ id: 'session-a' }), renameSession: async () => {}, deleteSession: async () => {}, selectSession: async () => {}, setNextConnection: async () => {}, submitGoal: async (text) => { submittedGoals.push(text); },
     },
     settingsPresentation: { draftForSelection: () => ({}), connectionSummary: (connection) => connection.label },
     settingsStatus: { formatTestStatus: () => 'ok' },
   };
-  return { document, elements, publish: (busy) => publishSessionState({ ...sessions, busy }) , window };
+  return { document, elements, publish: (busy) => publishSessionState({ ...sessions, busy }), window, submittedGoals };
 }
 
 function rendererSource() {
@@ -93,7 +94,7 @@ test('actual Settings renderer disables and restores every busy-sensitive mutati
   await settleRenderer();
   const staticIds = [
     'session-agent', 'session-session', 'next-provider', 'create-agent', 'rename-agent', 'delete-agent',
-    'create-session', 'rename-session', 'delete-session', 'workspace', 'executor', 'permission-profile', 'model', 'effort', 'save',
+    'create-session', 'rename-session', 'delete-session', 'workspace', 'executor', 'permission-profile', 'model', 'effort', 'save', 'goal', 'run-goal',
   ];
   const connectionButtons = () => harness.elements.get('connections').children.flatMap((item) => item.children.filter((child) => child.tagName === 'button'));
   assert.equal(connectionButtons().length, 4, 'renders Use/Edit and Delete for each legacy connection');
@@ -105,4 +106,13 @@ test('actual Settings renderer disables and restores every busy-sensitive mutati
   harness.publish(false);
   assert.equal(staticIds.every((id) => !harness.elements.get(id).disabled), true);
   assert.equal(connectionButtons().every((button) => !button.disabled), true);
+});
+
+test('actual Settings renderer submits the visible goal through its narrow bridge', async () => {
+  const harness = createRendererHarness();
+  vm.runInNewContext(rendererSource(), { document: harness.document, window: harness.window, console });
+  await settleRenderer();
+  harness.elements.get('goal').value = 'Check the project';
+  await harness.elements.get('run-goal').listeners.get('click')();
+  assert.deepEqual(harness.submittedGoals, ['Check the project']);
 });

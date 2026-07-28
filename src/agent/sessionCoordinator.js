@@ -116,13 +116,40 @@ function createSessionCoordinator({ sessionStore, connectionStore, manager, conf
     if (!started) throw expired(); await sessionStore.appendTurn(current.session.id, { role: 'assistant', text: result.text, provider: result.executor, model: result.model, changedFiles: result.changedFiles });
     return freeze({ ...result, agentId: current.selection.agentId, sessionId: current.session.id });
   }
+  async function ensureSessionForConnection(connectionId) {
+    assertIdle();
+    if (typeof connectionId !== 'string' || !connectionId) throw unavailable();
+    const connection = await readRunConnection(connectionId);
+    if (!connection) throw unavailable();
+    let current = await snapshot();
+    let agent = current.agent;
+    if (!agent) {
+      agent = current.agents[0] || await sessionStore.createAgent({ name: 'My Agent' });
+      await sessionStore.select({ agentId: agent.id, sessionId: null });
+      current = await snapshot();
+    }
+    let session = current.session;
+    if (!session) {
+      session = current.sessions.find((item) => item.workspacePath === connection.workspacePath)
+        || await sessionStore.createSession({ agentId: agent.id, title: 'New Session', workspacePath: connection.workspacePath });
+      await sessionStore.select({ agentId: agent.id, sessionId: session.id });
+      current = await snapshot();
+      session = current.session;
+    }
+    if (!session || session.workspacePath !== connection.workspacePath) return current;
+    if (!session.nextConnectionId) {
+      await sessionStore.setNextConnection(session.id, connection.id);
+      await connectionStore.setActiveSelection(connection.id);
+    }
+    return snapshot();
+  }
   const createAgent = async (input) => { assertIdle(); return sessionStore.createAgent(input); };
   const renameAgent = async (id, name) => { assertIdle(); const current = await selectedAgent(); if (current.agent.id !== id) throw expired(); return sessionStore.renameAgent(id, name); };
   const removeAgent = async (id) => { assertIdle(); const current = await selectedAgent(); if (current.agent.id !== id) throw expired(); return sessionStore.removeAgent(id); };
   const createSession = async (input) => { assertIdle(); const current = await selectedAgent(); if (!input || input.agentId !== current.agent.id) throw expired(); return sessionStore.createSession(input); };
   const renameSession = async (id, title) => { assertIdle(); await ownedSession(id); return sessionStore.renameSession(id, title); };
   const removeSession = async (id) => { assertIdle(); await ownedSession(id); return sessionStore.removeSession(id); };
-  return Object.freeze({ snapshot, busy: () => manager.getSnapshot().busy === true, select, setNextConnection, runGoal, stop: () => manager.stop(), createAgent, renameAgent, removeAgent, createSession, renameSession, removeSession });
+  return Object.freeze({ snapshot, busy: () => manager.getSnapshot().busy === true, select, setNextConnection, runGoal, stop: () => manager.stop(), ensureSessionForConnection, createAgent, renameAgent, removeAgent, createSession, renameSession, removeSession });
 }
 
 module.exports = { createSessionCoordinator, neutralPrompt };
