@@ -665,3 +665,24 @@ link the note to it — this file is the inbox, not the archive.
   multiple named agents while exactly one provider/model owns each sequential turn. The amended
   design and six-task implementation plan are committed at `509f4af`; UX Task 1 is next, and
   optional WSL/multi-model work remains untouched.
+
+## 2026-07-27 — UX Task 1 shared-session persistence checkpoint
+
+- Started from clean `master` at `e298293` in the isolated
+  `codex/ux-task-1-shared-sessions` worktree. The pre-change canonical Node suite passed 262/262.
+- Added session-store schema version 2 with top-level shared sessions, encrypted agent
+  instructions, agent-attributed encrypted turns, a maximum of eight unique participants, active
+  participant selection, and public shapes that expose no ciphertext.
+- Added one-time version-1 migration that preserves nested history and selected session, makes the
+  former owner the first participant, encrypts the new attributed turn array and empty migrated
+  instruction, writes atomically, and replaces in-memory state only after the durable write.
+- TDD evidence: the exact focused command first failed for the missing schema/API contract, then
+  passed 15/15 after direct-review regressions. Validation, decryption, encryption, and replacement
+  failures each leave the
+  original version-1 file byte-for-byte untouched; scans find neither turn text nor agent
+  instructions on disk.
+- Direct review found and fixed two attribution-integrity gaps with failing tests first: removing a
+  participant now preserves their historical turns and prevents deletion of the referenced agent,
+  while new turns must belong to the currently selected participant rather than any participant.
+- UX Task 2, optional WSL work, provider sign-in, real provider runs, and multi-model work were not
+  started. UX Task 1 remains at the user acceptance gate after direct review and final commit.

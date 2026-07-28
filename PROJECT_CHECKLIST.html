@@ -265,8 +265,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Next:</strong> Core V1 Tasks 1–19 are complete. UX Task 1 — shared multi-agent sessions — is the only next implementation task.</p>
-      <p><strong>What you need to do:</strong> Approve the UX implementation plan, then execute UX Task 1 only. Do not begin later UX tasks, WSL work, or multi-model work automatically.</p>
+      <p><strong>Next:</strong> Core V1 Tasks 1–19 are complete. UX Task 1 — shared multi-agent sessions — is implemented and verified on its isolated branch.</p>
+      <p><strong>What you need to do:</strong> Review and accept or reject UX Task 1. UX Task 2, WSL work, provider sign-in, real provider runs, and multi-model work remain blocked.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -290,7 +290,7 @@
         <li><a href="docs/BUILD_LOG.md">Build history</a></li>
         <li><a href="docs/superpowers/specs/2026-07-26-wsl-workspace-full-computer-redesign.md">Core sessions + optional WSL Workspace redesign</a></li>
         <li><a href="docs/superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md">Approved Core V1 UX rebuild</a></li>
-        <li><a href="docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md">Current UX implementation plan (UX Task 1 is next)</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md">Current UX implementation plan (UX Task 1 acceptance gate)</a></li>
         <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Core V1 Tasks 15–19 are implemented; optional WSL Tasks 20–23 require a later opt-in)</a></li>
       </ul>
     </section>
@@ -442,8 +442,8 @@
         id: 'ux-task-1',
         title: 'UX Task 1 — Add shared multi-agent sessions',
         done: false,
-        explanation: 'Migrate encrypted persistence so one shared session can contain up to eight named agents while preserving existing history and selection.',
-        action: 'This is the only next implementation task. Stop after its tests, docs, checklist, commit, review, and user gate.',
+        explanation: 'Implemented and verified on the isolated branch: schema-version-2 top-level shared sessions, encrypted agent instructions and attributed turns, eight-participant limits, and atomic migration preserve version-1 history and selection without plaintext leakage. Removing a participant preserves attributed history; only the selected participant may own a new turn.',
+        action: 'Review and accept or reject the committed UX Task 1 changes. UX Task 2 remains blocked until acceptance.',
       },
       {
         id: 'ux-task-2',

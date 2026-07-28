@@ -45,6 +45,7 @@ test('rejects malformed, unsafe, and over-limit turn or current-request inputs',
     [{ ...assistant('bad'), provider: null }],
     [{ ...assistant('bad'), changedFiles: ['Z:\\absolute.txt'] }],
     [{ ...user('bad'), extra: true }],
+    [{ ...user('bad'), agentId: '' }],
     [{ ...user(`\0`) }],
   ];
   for (const turns of invalidTurns) {

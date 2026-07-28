@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "selection": {
+    "agentId": "agent-old",
+    "sessionId": "session-old"
+  },
+  "agents": [
+    {
+      "id": "agent-old",
+      "name": "Researcher",
+      "createdAt": "2026-07-26T12:00:00.000Z",
+      "updatedAt": "2026-07-26T12:00:01.000Z",
+      "sessions": [
+        {
+          "id": "session-old",
+          "title": "Legacy investigation",
+          "workspacePath": "Z:\\workspace",
+          "nextConnectionId": "offline",
+          "createdAt": "2026-07-26T12:00:00.000Z",
+          "updatedAt": "2026-07-26T12:00:01.000Z",
+          "turnCount": 2,
+          "lastProvider": "offline-demo",
+          "encryptedTurns": "ZW5jcnlwdGVkOlt7InJvbGUiOiJ1c2VyIiwidGV4dCI6ImxlZ2FjeSBwcml2YXRlIHR1cm4iLCJwcm92aWRlciI6bnVsbCwibW9kZWwiOm51bGwsImNoYW5nZWRGaWxlcyI6W10sImNyZWF0ZWRBdCI6IjIwMjYtMDctMjZUMTI6MDA6MDAuMDAwWiJ9LHsicm9sZSI6ImFzc2lzdGFudCIsInRleHQiOiJsZWdhY3kgcHJpdmF0ZSBhbnN3ZXIiLCJwcm92aWRlciI6Im9mZmxpbmUtZGVtbyIsIm1vZGVsIjoib2ZmbGluZS1kZW1vIiwiY2hhbmdlZEZpbGVzIjpbXSwiY3JlYXRlZEF0IjoiMjAyNi0wNy0yNlQxMjowMDowMS4wMDBaIn1d"
+        }
+      ]
+    }
+  ]
+}

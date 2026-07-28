@@ -33,9 +33,13 @@ Simple or Comprehensive form.
   unsigned Windows package.
 - The user rejected the finished Settings/Response experience as cluttered and functionally weak.
   The approved UX rebuild keeps the tested runtime but replaces those primary workflows with one
-  minimal main window. Shared sessions may contain multiple named agents; exactly one selected
-  agent, saved connection, provider, and model handles each turn, and only one run executes at a
-  time. UX Task 1 is the only next implementation task.
+  minimal main window. UX Task 1 now supplies schema-version-2 top-level shared sessions, encrypted
+  agent instructions, attributed encrypted turns, a maximum of eight participants per session, and
+  atomic one-time migration from the Task 16 version-1 store. Only one run still executes in the
+  app at a time. Removing a participant preserves their attributed history and identity, while new
+  turns must match the currently selected participant. UX Task 1 is verified on
+  `codex/ux-task-1-shared-sessions` and is waiting at the user acceptance gate; UX Task 2 remains
+  blocked until that acceptance.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.
@@ -90,7 +94,7 @@ Electron main process
 ├─ agent/activitySanitizer.js recursive redaction before validation/storage/IPC
 ├─ agent/activityStore.js     discriminated current-run activity
 ├─ agent/connectionStore.js   public agent metadata and future encrypted secrets
-├─ agent/sessionStore.js      encrypted app-owned agents/sessions (Task 16)
+├─ agent/sessionStore.js      encrypted profiles/shared sessions (UX Task 1 schema v2)
 ├─ agent/sessionCoordinator.js explicit agent/session/provider switching (Task 17)
 ├─ agent/cliRunner.js         bounded official-CLI process boundary
 ├─ agent/windowsProcessTree.js verified Windows child/grandchild termination
@@ -174,8 +178,8 @@ remain deferred. Multiple named agents and bounded persistent sessions are core 
 - Core Tasks 15-19 are implemented and verified on the Core V1 branch. Never begin optional WSL
   Tasks 20-23 without a separate post-v1 opt-in.
 - Execute UX Tasks 1-6 serially from `superpowers/plans/2026-07-27-core-v1-ux-rebuild.md`.
-  UX Task 1 is next; do not begin UX Task 2 until UX Task 1 is verified, documented, committed,
-  reviewed, and accepted.
+  UX Task 1 is implemented and verified on its isolated branch; do not begin UX Task 2 until UX
+  Task 1 is documented, committed, reviewed, and accepted.
 - Start each task with a concise ETA and revise it only when the estimate materially changes.
 - Read this file, BUILD_LOG.md, the exact task, and only its linked research/design sections.
 - Use `npm.cmd` from PowerShell. Remove inherited `ELECTRON_RUN_AS_NODE` only in the Electron child.
@@ -201,16 +205,17 @@ Offline Demo exposes only `offline-demo`. Unlisted values and silent fallback ar
 
 ## Order
 
-Tasks 1-19 are complete on the Core V1 branch. UX Tasks 1-6 are the approved next sequence.
-Optional WSL Tasks 20-23 remain preserved and are never automatic.
+Tasks 1-19 are complete on the Core V1 branch. UX Task 1 is at its acceptance gate; UX Tasks 2-6
+remain serially gated behind it. Optional WSL Tasks 20-23 remain preserved and are never automatic.
 
 ## Standard entry prompt
 
 > Read Claude Pet/docs/project-context.md, Claude Pet/docs/BUILD_LOG.md,
 > Claude Pet/docs/superpowers/specs/2026-07-27-core-v1-ux-rebuild-design.md,
 > Claude Pet/docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md, and the final Core V1
-> evidence. Tasks 1-19 are complete; UX Task 1 is the only next task. Do not install WSL, sign into
-> a provider CLI, or run a real Codex/Claude agent unless a later task explicitly requires it.
+> evidence. Tasks 1-19 are complete; UX Task 1 is implemented and waiting for acceptance. Do not
+> begin UX Task 2, install WSL, sign into a provider CLI, or run a real Codex/Claude agent unless a
+> later task explicitly requires it.
 
 ## Session contract
 
