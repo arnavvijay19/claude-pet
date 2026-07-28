@@ -792,3 +792,20 @@ link the note to it — this file is the inbox, not the archive.
   `20BE53521F79839454D27B00612388F5ACF1A0946260E0FE306AD0508393F369`.
 - No WSL work, provider sign-in, real provider run, parallel agent execution, or multi-model work
   occurred. The remaining gate is user judgment of clarity and taste, not technical verification.
+
+## 2026-07-28 — Packaged startup crash repair
+
+- Reproduced the reported startup boundary: the prompt server called `listen` without returning an
+  awaitable startup result, so an occupied `127.0.0.1:47611` emitted an uncaught `EADDRINUSE` error
+  in Electron's main process.
+- TDD regressions now prove that prompt-server listen failures reject to their caller and that a
+  second packaged launch exits successfully while asking the primary instance to reveal its shared
+  conversation window. A genuinely unavailable prompt port is caught by main and shown as a short
+  Claude Pet startup explanation rather than Electron's JavaScript exception dialog.
+- Direct verification passed 280/280 Node tests and the package verifier passed 150 files /
+  367,303,994 bytes. A real same-profile two-launch exercise kept the primary process and prompt
+  listener alive while the second process exited with code 0. The refreshed
+  `dist/Claude-Pet-win32-x64.zip` is 147,174,961 bytes with SHA-256
+  `AFC4970942D6112F162BA3FA4EA6FE33EEF613E19A6AF7EB6BDCDCCA9825C1A0`.
+- No WSL work, provider sign-in, real provider run, parallel agent execution, or multi-model work
+  occurred. The user gate remains clarity and taste only.

@@ -52,7 +52,9 @@ Simple or Comprehensive form.
   activity, terminal recovery actions, participant management, and secondary grouped Settings.
   UX Task 6 routes first launch, pet, and tray into the same reusable window; close hides to tray,
   visible-request retry stays on the selected participant, and the packaged fresh-profile flow
-  restores its shared session and attributed history.
+  restores its shared session and attributed history. Startup is single-instance: launching the
+  package again reveals the existing app instead of opening a second prompt server, while a
+  genuinely occupied loopback prompt port is caught and explained without a main-process crash.
 - The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
   server exist.
 - The approved agent-first redesign is committed at `354e8cb`.

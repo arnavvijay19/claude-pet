@@ -12,6 +12,7 @@ const { createTrayMenuTemplate } = require('./trayMenu.js');
 const { loadPetManifestWithDataUrl } = require('./petAssets.js');
 const { createPetAnimationController } = require('./petAnimationController.js');
 const { authorizeTextAttachment } = require('./bridge/attachmentAuthorization.js');
+const { claimSingleInstance } = require('./singleInstance.js');
 
 const userDataArgument = process.argv.find((value) => value.startsWith('--user-data-dir='));
 if (userDataArgument) {
@@ -115,7 +116,15 @@ ipcMain.on('pet:drag-move', (event, { dx, dy }) => {
 });
 ipcMain.on('pet:drag-end', (event) => { if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender'); animation?.dragEnded(); });
 
-app.whenReady().then(async () => {
+const isPrimaryInstance = claimSingleInstance(app, () => {
+  if (appWindowController) {
+    appWindowController.show({ view: 'conversation' });
+    return;
+  }
+  void app.whenReady().then(() => appWindowController?.show({ view: 'conversation' }));
+});
+
+if (isPrimaryInstance) app.whenReady().then(async () => {
   if (app.isPackaged && process.env.CLAUDE_PET_TEST_EXECUTOR) throw new Error('CLAUDE_PET_TEST_EXECUTOR is unavailable in packaged builds.');
   createPetWindow();
   runtime = createAgentRuntime({ userDataPath: app.getPath('userData'), crypto: {
@@ -226,7 +235,24 @@ app.whenReady().then(async () => {
     },
   });
   appWindowController.show({ view: 'conversation' });
-  startPromptServer((text) => requestTracker.submit(text).catch(() => {}));
+  try {
+    await startPromptServer((text) => requestTracker.submit(text).catch(() => {}));
+  } catch (error) {
+    const occupied = error?.code === 'EADDRINUSE';
+    await dialog.showMessageBox(appWindowController?.getWindow() || petWindow, {
+      type: 'error',
+      buttons: ['Close'],
+      title: 'Claude Pet could not start',
+      message: occupied
+        ? 'Claude Pet is already running, or its local prompt connection is busy.'
+        : 'Claude Pet could not open its local prompt connection.',
+      detail: occupied
+        ? 'Close the other Claude Pet window and try again.'
+        : 'Close Claude Pet and try again.',
+    });
+    app.quit();
+    return;
+  }
   ipcMain.handle('pet:submit-text-file', async (event, filePath) => {
     if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender');
     return submitAttachment(filePath);

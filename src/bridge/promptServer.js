@@ -2,7 +2,7 @@ const http = require('node:http');
 
 const PORT = 47611;
 
-function start(onPrompt, { port = PORT } = {}) {
+async function start(onPrompt, { port = PORT } = {}) {
   const server = http.createServer((req, res) => {
     if (req.method !== 'POST' || req.url !== '/prompt') {
       res.writeHead(404).end();
@@ -27,7 +27,19 @@ function start(onPrompt, { port = PORT } = {}) {
       Promise.resolve().then(() => onPrompt(parsed.text)).catch(() => {});
     });
   });
-  server.listen(port, '127.0.0.1');
+  await new Promise((resolve, reject) => {
+    const onListening = () => {
+      server.off('error', onError);
+      resolve();
+    };
+    const onError = (error) => {
+      server.off('listening', onListening);
+      reject(error);
+    };
+    server.once('listening', onListening);
+    server.once('error', onError);
+    server.listen(port, '127.0.0.1');
+  });
   return server;
 }
 

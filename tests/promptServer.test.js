@@ -13,9 +13,7 @@ function waitFor(server, event) {
 }
 
 async function startServer(onPrompt) {
-  const server = start(onPrompt, { port: 0 });
-  await waitFor(server, 'listening');
-  return server;
+  return start(onPrompt, { port: 0 });
 }
 
 function post(server, path, body) {
@@ -94,5 +92,24 @@ test('preserves split multi-byte UTF-8 text', async () => {
     assert.deepEqual(prompts, ['café pet']);
   } finally {
     await close(server);
+  }
+});
+
+test('reports an occupied prompt port to its caller instead of crashing the process', async () => {
+  const occupied = http.createServer();
+  occupied.listen(0, '127.0.0.1');
+  await waitFor(occupied, 'listening');
+  try {
+    const startup = start(() => {}, { port: occupied.address().port });
+    if (typeof startup?.then !== 'function') {
+      await new Promise((resolve) => startup.once('error', resolve));
+      assert.fail('prompt-server startup must return a promise that reports listen errors');
+    }
+    await assert.rejects(
+      startup,
+      (error) => error?.code === 'EADDRINUSE',
+    );
+  } finally {
+    await close(occupied);
   }
 });
