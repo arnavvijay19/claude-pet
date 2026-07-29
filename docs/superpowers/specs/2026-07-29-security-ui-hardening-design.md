@@ -111,7 +111,9 @@ read or decoding failure is a verification failure. There is no silent size-base
 One shared attachment policy owns:
 
 - the accepted extension allowlist;
-- the 256 KiB cap;
+- the 48 KiB (`49152` byte) cap, leaving bounded room for the user goal, active-agent
+  instruction, prompt envelope, and recent history inside the existing 65,536-byte provider
+  context;
 - regular-file and exact-size checks;
 - fatal UTF-8 decoding and NUL rejection; and
 - the public accepted-format description.
@@ -129,14 +131,16 @@ invalidates the pending attachment.
 ### Composer and attachment experience
 
 The composer changes `Attach text file` to **Attach file** and presents the accepted readable
-formats and 256 KiB limit in plain language. A selected file appears as a removable chip with its
+formats and 48 KiB limit in plain language. A selected file appears as a removable chip with its
 basename and size.
 
-Send combines the user's current text with the main-owned attachment content at submission time.
-The visible user turn shows the user's text plus safe attachment metadata, not the escaped internal
-prompt envelope or absolute path. A staged attachment is single-use and is cleared only after a
-successful handoff. Retry repeats the same visible request and authorized attachment content
-without reopening an arbitrary path.
+Send passes the user's bounded goal and the main-owned attachment as separate trusted internal
+fields. The coordinator builds one provider request of at most 65,536 bytes, pruning older history
+before it ever truncates the current goal or attachment. The visible persisted user turn shows the
+user's text plus safe attachment metadata, not attachment contents, the escaped internal prompt
+envelope, or an absolute path. A staged attachment is single-use and is cleared only after a
+successful handoff. Retry repeats the same in-memory request and authorized attachment content
+without reopening an arbitrary path. Attachment contents are never persisted in session history.
 
 The initial allowlist includes:
 
@@ -295,4 +299,3 @@ parallel agents, schedules, cloud sync, and WorkBuddy integration are outside th
 | R10 | Shared extension policy and main-owned pet-drop confirmation/one-use authorization |
 | R11 | Fail-closed streaming scan for all package text/source files |
 | R12 | Update the canonical architecture map to the unified app window and preload |
-
