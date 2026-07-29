@@ -5,9 +5,12 @@
   "description": "Desktop pet companion for the Claude Code Desktop app.",
   "main": "src/main.js",
   "scripts": {
+    "build:job-host": "node scripts/build-provider-job-host.js",
+    "prestart": "npm run build:job-host",
     "start": "electron .",
     "test": "node --test --test-concurrency=1",
     "verify:package": "node scripts/verify_package.js \"dist/Claude Pet-win32-x64\"",
+    "prepackage:win": "npm run build:job-host",
     "package:win": "electron-packager . \"Claude Pet\" --platform=win32 --arch=x64 --out=dist --overwrite --asar=false --icon=assets/app-icon.ico --ignore=\"^/(dist|docs|tests|scripts|\\.git|\\.claude|\\.codex|\\.agents|\\.workbuddy-ai|\\.pytest_cache|__pycache__|LOCAL_PR\\.html)($|/)\" --ignore=\"PROJECT_CHECKLIST\\.html$\""
   },
   "devDependencies": {
