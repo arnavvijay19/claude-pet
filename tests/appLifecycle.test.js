@@ -168,3 +168,9 @@ test('a fresh-profile launch binds runtime persistence to the requested user-dat
   assert.match(main, /--user-data-dir=/);
   assert.match(main, /app\.setPath\('userData'/);
 });
+
+test('packaging excludes local review and WorkBuddy-only paths', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  assert.match(manifest.scripts['package:win'], /\\\.workbuddy-ai/);
+  assert.match(manifest.scripts['package:win'], /LOCAL_PR\\\.html/);
+});
