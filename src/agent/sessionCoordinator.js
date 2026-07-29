@@ -196,6 +196,7 @@ function createSessionCoordinator({
     const activeAgent = session
       ? agents.find((item) => item.id === session.activeAgentId) || null
       : null;
+    const activeAgentProfile = activeAgent ? await readAgentProfile(activeAgent) : null;
     let turns = [];
     let persistence = { available: true };
     if (session) {
@@ -217,6 +218,7 @@ function createSessionCoordinator({
       sessions: sessions.map((item) => compatibleSession(item, selection)),
       selection: publicSelection,
       activeAgent: activeAgent ? { ...activeAgent } : null,
+      activeAgentProfile: activeAgentProfile ? { ...activeAgentProfile } : null,
       // Temporary alias consumed by the legacy response/settings surfaces.
       agent: activeAgent ? { ...activeAgent } : null,
       session,

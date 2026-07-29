@@ -221,6 +221,12 @@ test('routes one turn through only the selected participant', async () => {
   assert.deepEqual(manager.runs.map((run) => run.connectionId), ['codex-reviewer']);
   const snapshot = await coordinator.snapshot();
   assert.equal(snapshot.activeAgent.id, 'reviewer');
+  assert.deepEqual(snapshot.activeAgentProfile, {
+    id: 'reviewer',
+    name: 'Reviewer',
+    marker: 'blue',
+    instruction: 'Check completed work for concrete defects.',
+  });
   assert.deepEqual(snapshot.turns.slice(-2).map((turn) => turn.agentId), [
     'reviewer', 'reviewer',
   ]);

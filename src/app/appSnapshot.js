@@ -7,6 +7,7 @@ const VIEWS = Object.freeze(['conversation', 'activity', 'settings']);
 const AGENT_KEYS = Object.freeze([
   'id', 'name', 'marker', 'createdAt', 'updatedAt', 'sessionCount',
 ]);
+const AGENT_PROFILE_KEYS = Object.freeze(['id', 'name', 'marker', 'instruction']);
 const SESSION_KEYS = Object.freeze([
   'id', 'title', 'workspacePath', 'participants', 'activeAgentId',
   'createdAt', 'updatedAt', 'turnCount', 'lastProvider',
@@ -186,6 +187,17 @@ function notice(value) {
   return result;
 }
 
+function agentProfile(value) {
+  if (value === undefined || value === null) return null;
+  const result = select(value, AGENT_PROFILE_KEYS, AGENT_PROFILE_KEYS, { exact: true });
+  if (!safeString(result.id, { empty: false, maximum: 200 })
+      || !safeString(result.name, { empty: false, maximum: 80 })
+      || !safeString(result.marker, { empty: false, maximum: 40 })
+      || !safeString(result.instruction, { maximum: 2000 })
+      || Buffer.byteLength(result.instruction, 'utf8') > 2000) invalid();
+  return result;
+}
+
 function pendingAttachment(value) {
   if (value === undefined || value === null) return null;
   const result = select(value, ATTACHMENT_KEYS, ATTACHMENT_KEYS, { exact: true });
@@ -235,6 +247,11 @@ function createAppSnapshot({
   const activeAgent = coordinator.activeAgent === null
     ? null
     : agents.find((item) => item.id === coordinator.activeAgent.id) || null;
+  const activeAgentProfile = checked(
+    'active agent profile',
+    () => agentProfile(coordinator.activeAgentProfile),
+  );
+  if (activeAgentProfile && (!activeAgent || activeAgentProfile.id !== activeAgent.id)) invalid();
   const activeSession = coordinator.session === null
     ? null
     : checked('active session', () => session(coordinator.session));
@@ -247,6 +264,7 @@ function createAppSnapshot({
       agentId: activeAgent?.id || selection.agentId || null,
     },
     activeAgent,
+    activeAgentProfile,
     session: activeSession,
     turns: checked('turns', () => coordinator.turns.map(turn)),
     connections: checked('connections', () => connections.map(connection)),

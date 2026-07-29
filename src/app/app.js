@@ -17,6 +17,7 @@
   let connectionFeedback = '';
   let connectionActionPending = false;
   let editingConnectionId = null;
+  let settingsTab = 'agent';
 
   async function dispatch(type, data = {}) {
     try {
@@ -86,6 +87,15 @@
           connectionActionPending,
           connectionFeedback,
           editingConnectionId,
+          draftState,
+          settingsTab,
+          onSelectTab(value) {
+            settingsTab = value;
+            render(snapshot);
+          },
+          onRefresh() {
+            render(snapshot);
+          },
           onEditConnection(connectionId) {
             editingConnectionId = connectionId;
             connectionFeedback = '';

@@ -15,6 +15,9 @@ function coordinatorSnapshot() {
     }],
     selection: { sessionId: 'session-a', agentId: 'agent-a' },
     activeAgent: { id: 'agent-a', name: 'Researcher', marker: 'amber', createdAt: 'now', updatedAt: 'now', sessionCount: 1 },
+    activeAgentProfile: {
+      id: 'agent-a', name: 'Researcher', marker: 'amber', instruction: 'Use evidence.',
+    },
     session: {
       id: 'session-a', title: 'Shared', workspacePath: 'Z:\\workspace',
       participants: [{ agentId: 'agent-a', connectionId: 'connection-a' }],
@@ -51,7 +54,7 @@ test('composes the exact deeply frozen public application snapshot', () => {
   });
 
   assert.deepEqual(Object.keys(snapshot), [
-    'view', 'agents', 'sessions', 'selection', 'activeAgent', 'session',
+    'view', 'agents', 'sessions', 'selection', 'activeAgent', 'activeAgentProfile', 'session',
     'turns', 'connections', 'run', 'activity', 'notice', 'pendingAttachment',
   ]);
   assert.equal(Object.isFrozen(snapshot), true);
@@ -63,6 +66,7 @@ test('composes the exact deeply frozen public application snapshot', () => {
   assert.deepEqual(snapshot.pendingAttachment, {
     name: 'notes.md', extension: '.md', size: 12,
   });
+  assert.equal(snapshot.activeAgentProfile.instruction, 'Use evidence.');
 });
 
 test('rejects secret-shaped or malformed source snapshots instead of guessing', () => {
@@ -92,6 +96,16 @@ test('rejects secret-shaped or malformed source snapshots instead of guessing', 
     ...base,
     pendingAttachment: {
       name: 'notes.md', extension: '.md', size: 12, text: 'private',
+    },
+  }));
+  assert.throws(() => createAppSnapshot({
+    ...base,
+    coordinator: {
+      ...base.coordinator,
+      activeAgentProfile: {
+        id: 'agent-a', name: 'Researcher', marker: 'amber',
+        instruction: 'x'.repeat(2001),
+      },
     },
   }));
 });

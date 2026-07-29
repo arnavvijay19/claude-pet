@@ -21,6 +21,7 @@ class Element {
   replaceChildren(...children) { this.children = children; }
   addEventListener(type, listener) { this.listeners.set(type, listener); }
   setAttribute(name, value) { this[name] = value; }
+  focus() { this.focused = true; }
 }
 
 const documentBoundary = { createElement: (tagName) => new Element(tagName) };
@@ -39,8 +40,12 @@ function snapshot(busy = false) {
       { id: 'b', name: 'Agent B', marker: 'blue', status: 'idle' },
     ],
     activeAgent: { id: 'a', name: 'Agent A', marker: 'amber', status: 'idle' },
+    activeAgentProfile: {
+      id: 'a', name: 'Agent A', marker: 'amber', instruction: 'Review carefully.',
+    },
     session: {
-      id: 'shared', workspacePath: 'Z:\\workspace', activeAgentId: 'a',
+      id: 'shared', title: 'Shared work', workspacePath: 'Z:\\workspace',
+      updatedAt: '2026-07-29T00:00:00.000Z', activeAgentId: 'a',
       participants: [{ agentId: 'a', connectionId: 'codex' }, { agentId: 'b', connectionId: 'offline' }],
     },
     connections: [
@@ -63,15 +68,20 @@ function snapshot(busy = false) {
   };
 }
 
-test('groups secondary settings and keeps the Full Computer warning permanent', () => {
+test('opens with keyboard-accessible Agent and Session settings tabs', () => {
   const root = new Element();
   renderSettings(root, snapshot(), () => {}, { document: documentBoundary });
-  const text = flatten(root).map((item) => item.textContent);
-  for (const heading of ['Connections', 'Access', 'Model']) {
+  const values = flatten(root);
+  const text = values.map((item) => item.textContent);
+  for (const heading of [
+    'Agent settings', 'Session settings', 'Active agent profile',
+    'Assigned connection', 'Provider connections', 'Agent library',
+  ]) {
     assert.equal(text.includes(heading), true);
   }
+  const tabs = values.filter((item) => item.role === 'tab');
+  assert.deepEqual(tabs.map((item) => item['aria-selected']), ['true', 'false']);
   assert.equal(text.includes('Full computer access'), true);
-  assert.equal(text.includes('This agent can access your whole computer.'), true);
 });
 
 test('disables active agent and connection changes while busy', () => {
@@ -88,6 +98,7 @@ test('removing a participant does not remove their attributed historical turn', 
   const value = snapshot();
   renderSettings(root, value, (type, data) => calls.push([type, data]), {
     document: documentBoundary,
+    settingsTab: 'session',
   });
   const remove = flatten(root).find(
     (item) => item.dataset.removeParticipant === 'b',
@@ -100,11 +111,10 @@ test('removing a participant does not remove their attributed historical turn', 
   assert.equal(value.turns[0].text, 'Historical answer');
 });
 
-test('creates a named agent and adds an existing agent to the selected session inline', async () => {
+test('saves the active agent profile and creates a named agent', async () => {
   const root = new Element();
   const calls = [];
   const value = snapshot();
-  value.session.participants = [{ agentId: 'a', connectionId: 'codex' }];
   const dispatch = async (type, data) => {
     calls.push([type, data]);
     if (type === 'create-agent') return { id: 'new-agent', name: data.name };
@@ -112,13 +122,19 @@ test('creates a named agent and adds an existing agent to the selected session i
   };
   renderSettings(root, value, dispatch, { document: documentBoundary });
   const values = flatten(root);
+  const agentName = values.find((item) => item.dataset.field === 'agent-name');
+  const instruction = values.find((item) => item.dataset.field === 'agent-instruction');
+  agentName.value = 'Lead researcher';
+  instruction.value = 'Check sources.';
+  await values.find((item) => item.dataset.action === 'save-agent-profile').listeners.get('click')();
   const name = values.find((item) => item.dataset.field === 'new-agent-name');
   name.value = 'Reviewer';
   await values.find((item) => item.dataset.action === 'create-agent').listeners.get('click')();
-  await values.find((item) => item.dataset.action === 'add-participant').listeners.get('click')();
   assert.deepEqual(calls, [
+    ['update-agent', {
+      agentId: 'a', name: 'Lead researcher', marker: 'amber', instruction: 'Check sources.',
+    }],
     ['create-agent', { name: 'Reviewer', marker: 'blue', instruction: '' }],
-    ['add-participant', { sessionId: 'shared', agentId: 'b', connectionId: 'codex' }],
   ]);
 });
 
@@ -130,7 +146,7 @@ test('does not render obsolete active-connection controls that no longer carry a
   assert.doesNotMatch(text, /Provider sign-in/);
 });
 
-test('renders an explicit Codex editor with no Workspace fallback and targets saved connection actions', async () => {
+test('renders provider-aware Codex and Claude editors with no Workspace fallback', async () => {
   const root = new Element();
   const calls = [];
   const value = snapshot();
@@ -147,19 +163,19 @@ test('renders an explicit Codex editor with no Workspace fallback and targets sa
   const values = flatten(root);
   const text = values.map((item) => item.textContent);
   for (const expected of [
-    'Set up Codex', 'Full computer access', 'Workspace only is not available yet',
+    'Edit Codex connection', 'Full computer access', 'Workspace only is not available yet',
     'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna',
     'Codex is installed. Sign in is still required.',
   ]) assert.equal(text.includes(expected), true, expected);
-  const workspace = values.find((item) => item.dataset.field === 'codex-workspace');
-  const model = values.find((item) => item.dataset.field === 'codex-model');
-  const effort = values.find((item) => item.dataset.field === 'codex-effort');
+  const workspace = values.find((item) => item.dataset.field === 'connection-workspace');
+  const model = values.find((item) => item.dataset.field === 'connection-model');
+  const effort = values.find((item) => item.dataset.field === 'connection-effort');
   assert.equal(workspace.value, 'Z:\\workspace');
   assert.equal(model.value, 'gpt-5.6-terra');
   assert.equal(effort.value, 'medium');
-  await values.find((item) => item.dataset.action === 'save-codex-connection').listeners.get('click')();
-  await values.find((item) => item.dataset.action === 'test-codex-connection').listeners.get('click')();
-  await values.find((item) => item.dataset.action === 'begin-codex-setup').listeners.get('click')();
+  await values.find((item) => item.dataset.action === 'save-provider-connection').listeners.get('click')();
+  await values.find((item) => item.dataset.action === 'test-codex-cli').listeners.get('click')();
+  await values.find((item) => item.dataset.action === 'setup-codex-cli').listeners.get('click')();
   assert.deepEqual(calls, [
     ['save-connection', {
       id: 'codex', executorType: 'codex-cli', label: 'Codex', workspacePath: 'Z:\\workspace',
@@ -167,5 +183,43 @@ test('renders an explicit Codex editor with no Workspace fallback and targets sa
     }],
     ['test-connection', { connectionId: 'codex' }],
     ['begin-provider-setup', { connectionId: 'codex' }],
+  ]);
+
+  const claudeRoot = new Element();
+  value.connections.push({
+    id: 'claude', label: 'Claude Code', executorType: 'claude-code-cli',
+    workspacePath: 'Z:\\workspace', permissionProfile: 'full-computer',
+    modelId: 'sonnet', effort: 'high', keyHint: null, hasSecret: false,
+  });
+  renderSettings(claudeRoot, value, () => {}, {
+    document: documentBoundary,
+    editingConnectionId: 'claude',
+  });
+  const claudeText = flatten(claudeRoot).map((item) => item.textContent);
+  for (const expected of ['fable', 'opus', 'sonnet']) {
+    assert.equal(claudeText.includes(expected), true);
+  }
+  assert.equal(
+    claudeText.some((textValue) => textValue.includes('gpt-5.6-terra')),
+    true,
+    'saved Codex card remains visible',
+  );
+});
+
+test('Session settings rename and delete only through main-owned confirmation', async () => {
+  const root = new Element();
+  const calls = [];
+  renderSettings(root, snapshot(), (type, data) => {
+    calls.push([type, data]);
+    return Promise.resolve(true);
+  }, { document: documentBoundary, settingsTab: 'session' });
+  const values = flatten(root);
+  const title = values.find((item) => item.dataset.field === 'session-title');
+  title.value = 'Renamed work';
+  await values.find((item) => item.dataset.action === 'rename-session').listeners.get('click')();
+  await values.find((item) => item.dataset.action === 'delete-session').listeners.get('click')();
+  assert.deepEqual(calls, [
+    ['rename-session', { sessionId: 'shared', title: 'Renamed work' }],
+    ['confirm-delete-session', { sessionId: 'shared' }],
   ]);
 });
