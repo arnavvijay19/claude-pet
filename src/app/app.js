@@ -74,9 +74,24 @@
 
   function render(value) {
     snapshot = value;
-    window.claudePetSidebar.renderSidebar(sidebarRoot, value, dispatch);
+    window.claudePetSidebar.renderSidebar(sidebarRoot, value, dispatch, {
+      onOpenSessionSettings() {
+        settingsTab = 'session';
+        void dispatch('set-view', { view: 'settings' });
+      },
+    });
     const empty = value.agents.length === 0 || value.sessions.length === 0;
+    const noAgents = value.agents.length === 0;
     firstRun.hidden = !empty;
+    firstRunForm.hidden = !noAgents;
+    const firstRunTitle = document.querySelector('#first-run-title');
+    const firstRunDescription = document.querySelector('#first-run-description');
+    if (firstRunTitle && firstRunDescription) {
+      firstRunTitle.textContent = noAgents ? 'Start with Offline Demo' : 'Create a new session';
+      firstRunDescription.textContent = noAgents
+        ? 'Pick a project folder, name your agent, and give it a first task. No account is needed.'
+        : 'Your agents and provider connections are still here. Use New session in the sidebar to continue.';
+    }
     if (conversationRoot && settingsRoot && activityRoot) {
       conversationRoot.hidden = empty || value.view === 'settings';
       settingsRoot.hidden = empty || value.view !== 'settings';

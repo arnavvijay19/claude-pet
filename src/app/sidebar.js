@@ -64,13 +64,47 @@
     sessionSection.append(element(document, 'h2', 'Shared sessions', 'section-label'));
     const sessionList = element(document, 'ul', '', 'nav-list');
     for (const session of snapshot.sessions || []) {
-      const item = element(document, 'li');
+      const selected = snapshot.selection?.sessionId === session.id;
+      const item = element(document, 'li', '', 'session-list-item');
       const button = actionButton(document, session.title, () => {
         void dispatch('select-session', { sessionId: session.id });
       }, 'nav-item session-item');
       button.dataset.sessionId = session.id;
-      if (snapshot.selection?.sessionId === session.id) button.dataset.selected = 'true';
+      if (selected) button.dataset.selected = 'true';
       item.append(button);
+      if (selected) {
+        const menu = element(document, 'div', '', 'session-menu');
+        menu.setAttribute?.('role', 'menu');
+        menu.hidden = true;
+        const rename = actionButton(document, 'Rename', () => {
+          menu.hidden = true;
+          options.onOpenSessionSettings?.(session.id);
+        }, 'compact-action');
+        rename.setAttribute?.('role', 'menuitem');
+        rename.dataset.action = 'rename-selected-session';
+        const remove = actionButton(document, 'Delete', () => {
+          menu.hidden = true;
+          void dispatch('confirm-delete-session', { sessionId: session.id });
+        }, 'compact-action danger-action');
+        remove.setAttribute?.('role', 'menuitem');
+        remove.dataset.action = 'delete-selected-session';
+        menu.append(rename, remove);
+        const overflow = actionButton(document, 'More', () => {
+          menu.hidden = !menu.hidden;
+          if (!menu.hidden) rename.focus?.();
+        }, 'session-overflow');
+        overflow.setAttribute?.('aria-label', `More actions for ${session.title}`);
+        overflow.setAttribute?.('aria-haspopup', 'menu');
+        overflow.setAttribute?.('aria-expanded', 'false');
+        overflow.dataset.action = 'selected-session-menu';
+        menu.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') {
+            menu.hidden = true;
+            overflow.focus?.();
+          }
+        });
+        item.append(overflow, menu);
+      }
       sessionList.append(item);
     }
     sessionSection.append(sessionList);

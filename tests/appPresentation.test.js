@@ -23,6 +23,7 @@ class Element {
   replaceChildren(...children) { this.children = children; }
   addEventListener(type, listener) { this.listeners.set(type, listener); }
   focus() { this.focused = true; }
+  setAttribute(name, value) { this[name] = value; }
 }
 
 function documentBoundary() {
@@ -144,6 +145,36 @@ test('creates a session from one selected connection so its workspace cannot dri
 test('opens the New session form with the browser children collection', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'sidebar.js'), 'utf8');
   assert.match(source, /Array\.from\(navigation\.children\)\.find/);
+});
+
+test('shows one guarded menu only for the selected session', async () => {
+  const root = new Element('aside');
+  const dispatches = [];
+  let opened = null;
+  const value = structuredClone(sourceSnapshot());
+  value.sessions.push({
+    ...value.sessions[0],
+    id: 'other',
+    title: 'Other work',
+  });
+  renderSidebar(root, value, (type, data) => {
+    dispatches.push([type, data]);
+    return Promise.resolve(true);
+  }, {
+    document: documentBoundary(),
+    onOpenSessionSettings: (sessionId) => { opened = sessionId; },
+  });
+  const all = [];
+  const visit = (item) => { all.push(item); item.children.forEach(visit); };
+  root.children.forEach(visit);
+  assert.equal(all.filter((item) => item.dataset.action === 'selected-session-menu').length, 1);
+  await all.find((item) => item.dataset.action === 'rename-selected-session').listeners.get('click')();
+  assert.equal(opened, 'shared');
+  await all.find((item) => item.dataset.action === 'delete-selected-session').listeners.get('click')();
+  assert.deepEqual(dispatches, [[
+    'confirm-delete-session',
+    { sessionId: 'shared' },
+  ]]);
 });
 
 test('uses the approved responsive design tokens without decorative effects', () => {

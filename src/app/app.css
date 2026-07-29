@@ -89,6 +89,32 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .compact-action { width: auto; padding: 6px 10px; }
 .settings-action { margin-top: auto; padding: 10px 12px; }
 .status-label { color: var(--muted); font-size: .78rem; text-transform: capitalize; }
+.session-list-item { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px; }
+.session-overflow {
+  width: 40px;
+  min-height: 40px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0;
+}
+.session-overflow::after { content: "•••"; font-size: 15px; }
+.session-menu {
+  position: absolute;
+  z-index: 4;
+  top: 44px;
+  right: 0;
+  display: grid;
+  min-width: 140px;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  background: var(--panel-raised);
+}
+.session-menu[hidden] { display: none; }
 .agent-item[data-status="running"] .status-label { color: var(--accent); }
 .agent-item[data-status="error"] .status-label { color: var(--danger); }
 
