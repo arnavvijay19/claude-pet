@@ -926,3 +926,12 @@ link the note to it — this file is the inbox, not the archive.
   proposed suite still passed 327/327, proving its test gap. The approved Job Object design is
   committed as `9cd3f1a`; no application code or WorkBuddy artifacts changed. NEXT: user reviews
   the written spec, then Codex creates the implementation plan.
+
+- **2026-07-29 · Codex (GPT-5) · Provider lifecycle limits revision** — Human/operational review
+  found that Job Objects own the assigned job but are not a security sandbox: WMI, services,
+  scheduled tasks, brokers, and already-running applications can remain outside that boundary, and
+  Stop cannot undo completed side effects. Revision `4c53496` replaces runtime PowerShell
+  `Add-Type` with a precompiled helper design, restricts inherited handles, and adds explicit
+  real-login, enterprise-policy, signing/reputation, accessibility, crash, and provider-version
+  human gates. No application code or WorkBuddy artifacts changed. NEXT: user reviews the revised
+  limits, then Codex creates the red-green implementation plan.
