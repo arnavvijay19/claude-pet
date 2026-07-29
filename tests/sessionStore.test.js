@@ -236,6 +236,29 @@ test('rejects over-limit UTF-8 instructions and malformed persisted turn attribu
   );
 });
 
+test('rejects oversized base64 ciphertext before decoding or decrypting it', async (t) => {
+  const { filePath, store } = await temporaryStore(t);
+  await store.createAgent({ name: 'Bounded', marker: 'green', instruction: '' });
+  const persisted = JSON.parse(await fs.readFile(filePath, 'utf8'));
+  persisted.agents[0].encryptedInstruction = 'A'.repeat(6 * 1024 * 1024);
+  await fs.writeFile(filePath, JSON.stringify(persisted), 'utf8');
+  let decryptCalls = 0;
+  const restored = buildStore(filePath, {
+    crypto: availableCrypto({
+      decrypt: async () => {
+        decryptCalls += 1;
+        throw new Error('must not decrypt oversized input');
+      },
+    }),
+  });
+
+  await assert.rejects(
+    restored.initialize(),
+    (error) => error.code === 'SESSION_PERSISTENCE_UNAVAILABLE',
+  );
+  assert.equal(decryptCalls, 0);
+});
+
 test('leaves a version 1 file untouched when migration validation, decryption, encryption, or write fails', async (t) => {
   const original = await fs.readFile(FIXTURE_PATH, 'utf8');
   const cases = [

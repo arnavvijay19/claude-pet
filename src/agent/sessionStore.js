@@ -16,6 +16,8 @@ const MAX_TURNS_PER_SESSION = 512;
 const MAX_TURN_BYTES = 8192;
 const MAX_CHANGED_FILES = 64;
 const MAX_SESSION_BYTES = 4 * 1024 * 1024;
+const MAX_CIPHERTEXT_BYTES = MAX_SESSION_BYTES + (64 * 1024);
+const MAX_CIPHERTEXT_BASE64_LENGTH = 4 * Math.ceil(MAX_CIPHERTEXT_BYTES / 3);
 const AGENT_PUBLIC_KEYS = Object.freeze([
   'id', 'name', 'marker', 'createdAt', 'updatedAt', 'sessionCount',
 ]);
@@ -87,7 +89,12 @@ function freeze(value) {
 }
 
 function validCiphertext(value) {
-  if (!nonEmptyString(value)) return false;
+  if (!nonEmptyString(value)
+      || value.length > MAX_CIPHERTEXT_BASE64_LENGTH
+      || value.length % 4 !== 0
+      || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) {
+    return false;
+  }
   try {
     return Buffer.from(value, 'base64').toString('base64') === value;
   } catch {
@@ -881,6 +888,7 @@ module.exports = {
   MAX_SESSIONS,
   MAX_SESSIONS_PER_AGENT,
   MAX_SESSION_BYTES,
+  MAX_CIPHERTEXT_BASE64_LENGTH,
   MAX_TURN_BYTES,
   MAX_TURNS_PER_SESSION,
   SESSION_PUBLIC_KEYS,

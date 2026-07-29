@@ -14,6 +14,19 @@ test('allows only the explicit account-free probe bearer sentinel', () => {
   try { fs.writeFileSync(path.join(root, 'fixture.json'), 'Bearer __OWNER_BEARER__'); assert.deepEqual(verifyPackage(root), { files: 1, bytes: 23 }); } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test('scans secret-shaped text beyond the first MiB', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pet-package-large-'));
+  try {
+    fs.writeFileSync(
+      path.join(root, 'large.js'),
+      `${'x'.repeat(1024 * 1024 + 64)}\nBearer abcdefghijklmnopqrstuvwxyz`,
+    );
+    assert.throws(() => verifyPackage(root), /secret-pattern/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('rejects legacy Settings and Response renderers and channels', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pet-package-legacy-'));
   try {

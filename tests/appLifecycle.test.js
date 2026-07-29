@@ -143,6 +143,8 @@ test('production lifecycle has one app subscription and no legacy window or poll
   assert.match(main, /shouldHideOnClose: \(\) => !isQuitting/);
   assert.match(main, /promptTokenFromEnvironment/);
   assert.match(main, /promptPort !== null && promptToken/);
+  assert.match(main, /createSafeStorageCrypto\(safeStorage\)/);
+  assert.doesNotMatch(main, /decrypt:\s*async\s*\(value\).*safeStorage\.decryptString\(value\)/s);
   assert.doesNotMatch(main, /SettingsWindow|ResponseWindow|'(?:response|settings):/);
   assert.equal((app.match(/bridge\.subscribe\(/g) || []).length, 1);
   assert.doesNotMatch(app, /setInterval|1000/);
