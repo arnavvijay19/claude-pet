@@ -870,3 +870,22 @@ link the note to it — this file is the inbox, not the archive.
   UTC write time were unchanged. An initial visible `The permission profile is unavailable.`
   preflight result was retained for recovery testing; its retry completed after the contained proof,
   rather than silently falling back or weakening Full Computer checks.
+
+## 2026-07-29 — Review security hardening gate
+
+- Incorporated the local review findings without modifying either review source. R1-R3 now use an
+  opt-in, capability-authenticated loopback server with exact Host/Origin/content-type checks,
+  bounded sockets/body, and the same 8192-byte UTF-8 goal contract as IPC, snapshots, and sessions.
+  R4-R6 install stdin error handling before writes, retain executable identity through exact
+  process inspection, invoke absolute `taskkill.exe`, and treat exited or reused PIDs safely.
+- R5/R8 provider probes now own one abort/deadline lifecycle, terminate the verified process tree
+  before cleanup, and inherit only a minimal Windows environment. R7 production now uses the tested
+  `createSafeStorageCrypto` adapter. R9 bounds ciphertext before base64 decoding. R11 stream-scans
+  every packaged text/source file, regardless of size. R12 replaces the stale legacy-window
+  architecture map. R10's shared 48 KiB extension/UTF-8 policy is complete; its main-owned visible
+  pet-drop confirmation remains paired with the approved attachment UI phase.
+- TDD commits through `c57cefc` passed the 76/76 review-focused suite and 312/312 complete Node
+  suite; `py -3.12 -m pytest -q` passed 3/3. The first package verification correctly exposed that
+  local `LOCAL_PR.html` and `.workbuddy-ai/` paths were package-eligible; the package ignore rule
+  now excludes both without editing or staging them. The rebuilt package verified 154 files and
+  367,327,757 bytes, and a normal isolated packaged launch had zero listeners on port 47611.

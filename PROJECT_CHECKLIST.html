@@ -489,6 +489,20 @@
         action: 'Nothing technical is required. Open the packaged app only to judge whether the finished workspace is clear and feels right.',
       },
       {
+        id: 'security-review-hardening',
+        title: 'Review hardening — Secure local inputs and provider processes',
+        done: true,
+        explanation: 'Review findings R1-R9, R11, and R12 are implemented: prompt automation is authenticated and opt-in, goals share one 8192-byte contract, provider stdin and process trees fail safely, probes abort and inherit a minimal environment, production uses the tested safeStorage adapter, ciphertext and package scans are bounded, and the architecture map is current. The shared 48 KiB attachment policy needed by R10 is also complete.',
+        action: 'Nothing. The remaining R10 user-confirmation path is part of the visible attachment upgrade below.',
+      },
+      {
+        id: 'ui-attachment-settings-hardening',
+        title: 'UI hardening — Attachments and clear Agent/Session settings',
+        done: false,
+        explanation: 'Add one staged attachment chip and composer handoff, retain main-owned confirmation for pet drops, and separate Settings into clearly labeled Agent and Session sections without changing the provider runtime or WorkBuddy.',
+        action: 'Implementation is in progress on the approved hardening branch.',
+      },
+      {
         id: 'task-20',
         title: 'Optional Task 20 — Provision the dedicated WSL distro',
         done: false,
