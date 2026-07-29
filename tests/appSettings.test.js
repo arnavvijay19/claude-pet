@@ -223,3 +223,29 @@ test('Session settings rename and delete only through main-owned confirmation', 
     ['confirm-delete-session', { sessionId: 'shared' }],
   ]);
 });
+
+test('Session settings preserves an unsaved name across snapshot renders', () => {
+  const root = new Element();
+  const drafts = new Map();
+  const draftState = {
+    settings: (key) => ({ ...(drafts.get(key) || {}) }),
+    patchSettings: (key, patch) => drafts.set(key, { ...(drafts.get(key) || {}), ...patch }),
+    clearSettings: (key) => drafts.delete(key),
+  };
+  renderSettings(root, snapshot(), () => Promise.resolve(true), {
+    document: documentBoundary,
+    settingsTab: 'session',
+    draftState,
+  });
+  let title = flatten(root).find((item) => item.dataset.field === 'session-title');
+  title.value = 'Unsent session name';
+  title.listeners.get('input')();
+
+  renderSettings(root, snapshot(), () => Promise.resolve(true), {
+    document: documentBoundary,
+    settingsTab: 'session',
+    draftState,
+  });
+  title = flatten(root).find((item) => item.dataset.field === 'session-title');
+  assert.equal(title.value, 'Unsent session name');
+});

@@ -889,3 +889,34 @@ link the note to it — this file is the inbox, not the archive.
   local `LOCAL_PR.html` and `.workbuddy-ai/` paths were package-eligible; the package ignore rule
   now excludes both without editing or staging them. The rebuilt package verified 154 files and
   367,327,757 bytes, and a normal isolated packaged launch had zero listeners on port 47611.
+
+## 2026-07-29 — Attachment and scoped Settings UI gate
+
+- Finished the review's visible attachment path without changing the provider runtime: file choice
+  and pet-drop handoff are main-owned, pet drops require native confirmation, only shared-policy
+  UTF-8 text/source/config types up to 48 KiB are accepted, and the renderer receives safe
+  name/extension/size metadata. One attachment stays staged in the composer until Send or Remove;
+  provider prompt construction treats its bounded contents as untrusted current-request data, while
+  encrypted history retains only the visible attachment name.
+- Split Settings into keyboard-accessible **Agent settings** and **Session settings**. Agent scope
+  contains the active profile, assigned connection, provider cards/editor, model/effort/access
+  controls, and agent library. Session scope contains name, project folder, participants, and
+  main-confirmed deletion. Composer and Settings drafts survive snapshot refreshes, connection
+  feedback names Codex or Claude Code correctly, and only the selected session exposes Rename/Delete.
+- Live Electron/CDP QA used the user-selected `C:\Users\eklip\Desktop\a` workspace and the
+  deterministic unpackaged test executor; it did not sign in or run a real provider. The 900x650
+  screenshot exposed a fourth-grid-item composer defect, which was fixed with a witnessed
+  regression and recaptured with three semantic composer children, a 446 px message field, matching
+  viewport/scroll widths, and no horizontal overflow. Evidence:
+  `docs/evidence/security-ui-conversation-900x650.png`,
+  `docs/evidence/security-ui-conversation-1440x900.png`,
+  `docs/evidence/security-ui-attachment-900x650.png`,
+  `docs/evidence/security-ui-attachment-1440x900.png`,
+  `docs/evidence/security-ui-agent-settings-900x650.png`,
+  `docs/evidence/security-ui-agent-settings-1440x900.png`,
+  `docs/evidence/security-ui-session-settings-900x650.png`, and
+  `docs/evidence/security-ui-session-settings-1440x900.png`.
+- Final verification passed 325/325 Node tests and 3/3 Python tests. The rebuilt Windows package
+  verified 156 files and 367,356,576 bytes; a normal isolated packaged launch used the expected
+  executable and had zero prompt listeners on port 47611. The local review HTML/JSON sources and
+  `.workbuddy-ai/` were neither edited nor staged.

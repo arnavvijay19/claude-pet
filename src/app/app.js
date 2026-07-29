@@ -31,20 +31,27 @@
     }
   }
 
-  function connectionResultMessage(type, result) {
+  function connectionProvider(data = {}) {
+    const executorType = data.executorType
+      || snapshot?.connections?.find((item) => item.id === data.connectionId)?.executorType;
+    return executorType === 'claude-code-cli' ? 'Claude Code' : 'Codex';
+  }
+
+  function connectionResultMessage(type, result, data) {
+    const provider = connectionProvider(data);
     if (result?.failure?.message) return `${result.failure.message} ${result.failure.action || ''}`.trim();
-    if (type === 'save-connection') return 'Codex connection saved. It has not replaced your active agent.';
+    if (type === 'save-connection') return `${provider} connection saved. It has not replaced your active agent.`;
     if (type === 'begin-provider-setup') {
       return result?.started
-        ? 'Official Codex sign-in opened. Complete it there, then test this connection again.'
-        : 'Codex sign-in did not start. Check the connection and try again.';
+        ? `Official ${provider} sign-in opened. Complete it there, then test this connection again.`
+        : `${provider} sign-in did not start. Check the connection and try again.`;
     }
     if (type === 'test-connection') {
-      if (result?.status?.installed === false) return 'The Codex command is not installed.';
-      if (result?.status?.authenticated === false) return 'Codex is installed but not signed in yet.';
-      if (result?.permission?.available === false) return 'Codex is signed in, but this access mode is unavailable.';
-      if (result?.permission?.allowed === false) return 'Codex is signed in, but this access mode is blocked.';
-      return 'Codex is installed, signed in, and ready to use with this connection.';
+      if (result?.status?.installed === false) return `The ${provider} command is not installed.`;
+      if (result?.status?.authenticated === false) return `${provider} is installed but not signed in yet.`;
+      if (result?.permission?.available === false) return `${provider} is signed in, but this access mode is unavailable.`;
+      if (result?.permission?.allowed === false) return `${provider} is signed in, but this access mode is blocked.`;
+      return `${provider} is installed, signed in, and ready to use with this connection.`;
     }
     return 'Connection updated.';
   }
@@ -60,7 +67,7 @@
     render(snapshot);
     try {
       const result = await dispatch(type, data);
-      connectionFeedback = connectionResultMessage(type, result);
+      connectionFeedback = connectionResultMessage(type, result, data);
       if (type === 'save-connection' && result?.id) editingConnectionId = result.id;
       return result;
     } catch (error) {

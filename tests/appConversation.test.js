@@ -205,3 +205,15 @@ test('preserves an unsent draft across snapshots and renders safe attachment met
   await values.find((item) => item.textContent === 'Remove').listeners.get('click')();
   assert.deepEqual(calls.at(-1), ['clear-attachment', {}]);
 });
+
+test('keeps the attachment summary with the message field instead of creating a fourth grid column', () => {
+  const root = new Element();
+  renderConversation(root, snapshot(), () => {}, { document: documentBoundary });
+  const values = flatten(root);
+  const entry = values.find((item) => item.className === 'composer-entry');
+  assert.ok(entry);
+  assert.equal(entry.children.some((item) => item.tagName === 'textarea'), true);
+  assert.equal(entry.children.some((item) => item.className === 'attachment-area'), true);
+  const composer = values.find((item) => item.className === 'composer');
+  assert.equal(composer.children.length, 3);
+});

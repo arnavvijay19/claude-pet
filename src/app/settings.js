@@ -355,7 +355,7 @@
     renderAgentLibrary(document, panel, snapshot, dispatch, busy);
   }
 
-  function renderSessionSettings(document, panel, snapshot, dispatch, busy) {
+  function renderSessionSettings(document, panel, snapshot, dispatch, options, busy) {
     const session = snapshot.session;
     const details = group(document, 'Session details');
     if (!session) {
@@ -363,13 +363,19 @@
       panel.append(details);
       return;
     }
-    const title = input(document, 'session-title', session.title);
+    const draftKey = `session:${session.id}`;
+    const draft = settingsDraft(options, draftKey, { title: session.title });
+    const title = input(document, 'session-title', draft.title);
     title.disabled = busy;
     title.dataset.mutation = 'true';
-    const save = mutationButton(document, 'Save session name', () => dispatch(
-      'rename-session',
-      { sessionId: session.id, title: title.value.trim() },
-    ), busy, 'primary-action');
+    bindDraft(options, draftKey, title, 'title');
+    const save = mutationButton(document, 'Save session name', async () => {
+      const result = await dispatch(
+        'rename-session',
+        { sessionId: session.id, title: title.value.trim() },
+      );
+      if (result) options.draftState?.clearSettings(draftKey);
+    }, busy, 'primary-action');
     save.dataset.action = 'rename-session';
     details.append(
       label(document, 'Session name', title),
@@ -490,7 +496,7 @@
     panel.setAttribute?.('aria-label', selected === 'agent' ? 'Agent settings' : 'Session settings');
     const merged = { ...options, dispatch };
     if (selected === 'agent') renderAgentSettings(document, panel, snapshot, dispatch, merged, busy);
-    else renderSessionSettings(document, panel, snapshot, dispatch, busy);
+    else renderSessionSettings(document, panel, snapshot, dispatch, merged, busy);
     shell.append(panel);
     target.replaceChildren(shell);
     return shell;

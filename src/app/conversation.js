@@ -187,6 +187,8 @@
       'Text, code, configuration, Markdown, CSV, JSON, and logs · 48 KiB maximum.',
       'attachment-help',
     ));
+    const composerEntry = element(document, 'div', '', 'composer-entry');
+    composerEntry.append(composerText, attachmentArea);
     const attach = button(document, 'Attach file', () => {
       void dispatch('choose-attachment', {});
     }, 'secondary-action');
@@ -208,7 +210,7 @@
     );
     primary.disabled = !snapshot.run.busy && (!snapshot.activeAgent || !snapshot.session);
     actions.append(attach, primary);
-    composer.append(selectorLabel, composerText, attachmentArea, actions);
+    composer.append(selectorLabel, composerEntry, actions);
     shell.append(header, timeline, composer);
     target.replaceChildren(shell);
     return shell;

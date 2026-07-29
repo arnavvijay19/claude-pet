@@ -60,6 +60,11 @@ Simple or Comprehensive form.
 - The 192x208 transparent pet window, tray, preload bridge, and sprite state machine exist. The
   loopback prompt server is disabled by default; explicit automation launches must supply both a
   port and a per-launch capability token.
+- The unified composer stages one main-owned, allowlisted UTF-8 text/source/config attachment up to
+  48 KiB and keeps drafts across snapshot refreshes. Pet drops require a native confirmation before
+  opening the composer. Settings has separate keyboard-accessible Agent and Session tabs: agent
+  profiles and provider connections stay agent-scoped, while title, participants, and guarded
+  deletion stay session-scoped.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
 - The WSL Workspace + default Full Computer redesign is committed at `759afe4`, and the earlier

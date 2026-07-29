@@ -112,6 +112,35 @@ test('shows a plain Full Computer cancellation result instead of Electron IPC er
   assert.doesNotMatch(harness.settingsOptions().connectionFeedback, /AgentError|remote method/i);
 });
 
+test('uses the selected provider name in connection feedback', async () => {
+  const harness = rendererHarness();
+  harness.window.claudePetApp.intent = async (type, data) => {
+    harness.intents.push([type, data]);
+    return { id: 'claude' };
+  };
+  vm.runInNewContext(
+    fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'app.js'), 'utf8'),
+    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  harness.window.claudePetApp.callback({
+    view: 'settings', agents: [{ id: 'agent', name: 'Agent' }], sessions: [{ id: 'session' }],
+    selection: { sessionId: 'session', agentId: 'agent' }, activeAgent: { id: 'agent', name: 'Agent' },
+    session: { id: 'session' }, turns: [],
+    connections: [{ id: 'claude', executorType: 'claude-code-cli', label: 'Claude Code' }],
+    run: { busy: false, connectionId: null, permissionProfile: null },
+    activity: { run: null, events: [] }, notice: null,
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  await harness.settingsOptions().connectionAction('save-connection', {
+    executorType: 'claude-code-cli',
+  });
+  assert.equal(
+    harness.settingsOptions().connectionFeedback,
+    'Claude Code connection saved. It has not replaced your active agent.',
+  );
+});
+
 test('clean profile exposes one obvious Offline Demo start action and dispatches onboarding intents', async () => {
   const harness = rendererHarness();
   vm.runInNewContext(
