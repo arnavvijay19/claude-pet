@@ -920,3 +920,9 @@ link the note to it — this file is the inbox, not the archive.
   verified 156 files and 367,356,576 bytes; a normal isolated packaged launch used the expected
   executable and had zero prompt listeners on port 47611. The local review HTML/JSON sources and
   `.workbuddy-ai/` were neither edited nor staged.
+
+- **2026-07-29 · Codex (GPT-5) · Windows provider lifecycle design** — Rejected hypothetical
+  `1f55f90` after reproducing a root-only kill that left a non-Node descendant alive; the full
+  proposed suite still passed 327/327, proving its test gap. The approved Job Object design is
+  committed as `9cd3f1a`; no application code or WorkBuddy artifacts changed. NEXT: user reviews
+  the written spec, then Codex creates the implementation plan.
