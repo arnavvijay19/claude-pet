@@ -12,4 +12,12 @@ function promptPortFromArguments(argumentsList) {
   return Number.isSafeInteger(port) && port <= 65535 ? port : null;
 }
 
-module.exports = { promptPortFromArguments };
+function promptTokenFromEnvironment(environment) {
+  const value = environment?.CLAUDE_PET_PROMPT_TOKEN;
+  return typeof value === 'string' && !value.includes('\0')
+    && Buffer.byteLength(value, 'utf8') >= 32
+    ? value
+    : null;
+}
+
+module.exports = { promptPortFromArguments, promptTokenFromEnvironment };

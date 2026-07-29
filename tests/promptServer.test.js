@@ -5,6 +5,8 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const { start } = require('../src/bridge/promptServer.js');
 
+const TOKEN = 'a'.repeat(32);
+
 function waitFor(server, event) {
   return new Promise((resolve, reject) => {
     server.once(event, resolve);
@@ -13,15 +15,22 @@ function waitFor(server, event) {
 }
 
 async function startServer(onPrompt) {
-  return start(onPrompt, { port: 0 });
+  return start(onPrompt, { port: 0, token: TOKEN });
 }
 
-function post(server, path, body) {
+function post(server, path, body, overrides = {}) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(body);
+    const port = server.address().port;
     const request = http.request({
-      hostname: '127.0.0.1', port: server.address().port, path, method: 'POST', agent: false,
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+      hostname: '127.0.0.1', port, path, method: overrides.method || 'POST', agent: false,
+      headers: {
+        Host: `127.0.0.1:${port}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data),
+        'X-Claude-Pet-Token': TOKEN,
+        ...(overrides.headers || {}),
+      },
     }, (response) => {
       let text = '';
       response.setEncoding('utf8');
@@ -37,7 +46,12 @@ function postChunked(server, chunks) {
   return new Promise((resolve, reject) => {
     const request = http.request({
       hostname: '127.0.0.1', port: server.address().port, path: '/prompt', method: 'POST', agent: false,
-      headers: { 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked' },
+      headers: {
+        Host: `127.0.0.1:${server.address().port}`,
+        'Content-Type': 'application/json',
+        'Transfer-Encoding': 'chunked',
+        'X-Claude-Pet-Token': TOKEN,
+      },
     }, (response) => {
       let text = '';
       response.setEncoding('utf8');
@@ -82,6 +96,40 @@ test('preserves Task 5 request validation', async () => {
   }
 });
 
+test('rejects unauthenticated browser-shaped or wrongly typed requests', async () => {
+  const server = await startServer(() => {});
+  try {
+    assert.equal((await post(server, '/prompt', { text: 'hello' }, {
+      headers: { 'X-Claude-Pet-Token': 'wrong'.repeat(8) },
+    })).status, 401);
+    assert.equal((await post(server, '/prompt', { text: 'hello' }, {
+      headers: { Host: 'localhost:9999' },
+    })).status, 403);
+    assert.equal((await post(server, '/prompt', { text: 'hello' }, {
+      headers: { Origin: 'http://example.com' },
+    })).status, 403);
+    assert.equal((await post(server, '/prompt', { text: 'hello' }, {
+      headers: { 'Content-Type': 'text/plain' },
+    })).status, 415);
+  } finally {
+    await close(server);
+  }
+});
+
+test('bounds request bytes and configures short socket lifetimes', async () => {
+  const server = await startServer(() => {});
+  try {
+    const response = await post(server, '/prompt', { text: 'x'.repeat(10000) });
+    assert.equal(response.status, 413);
+    assert.equal(server.headersTimeout, 2000);
+    assert.equal(server.requestTimeout, 5000);
+    assert.equal(server.keepAliveTimeout, 1000);
+    assert.equal(server.maxRequestsPerSocket, 8);
+  } finally {
+    await close(server);
+  }
+});
+
 test('preserves split multi-byte UTF-8 text', async () => {
   const prompts = [];
   const server = await startServer((text) => prompts.push(text));
@@ -100,7 +148,7 @@ test('reports an occupied prompt port to its caller instead of crashing the proc
   occupied.listen(0, '127.0.0.1');
   await waitFor(occupied, 'listening');
   try {
-    const startup = start(() => {}, { port: occupied.address().port });
+    const startup = start(() => {}, { port: occupied.address().port, token: TOKEN });
     if (typeof startup?.then !== 'function') {
       await new Promise((resolve) => startup.once('error', resolve));
       assert.fail('prompt-server startup must return a promise that reports listen errors');
@@ -112,4 +160,16 @@ test('reports an occupied prompt port to its caller instead of crashing the proc
   } finally {
     await close(occupied);
   }
+});
+
+test('requires a high-entropy launch token before listening', async () => {
+  const expectRejected = (options) => assert.rejects(
+    start(() => {}, options).then(async (server) => {
+      await close(server);
+      return server;
+    }),
+    /token/i,
+  );
+  await expectRejected({ port: 0 });
+  await expectRejected({ port: 0, token: 'short' });
 });
