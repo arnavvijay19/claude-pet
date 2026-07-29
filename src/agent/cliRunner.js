@@ -201,8 +201,6 @@ function createCliRunner({
     } catch (error) {
       throw error instanceof AgentError ? error : new AgentError('COMMAND_FAILED', { cause: error });
     }
-    if (typeof spec.goal === 'string') child.stdin.end(spec.goal);
-    else child.stdin.end();
     return { child, command };
   }
 
@@ -216,12 +214,14 @@ function createCliRunner({
     const signal = spec.signal;
     let onChildError = null;
     let onChildClose = null;
+    let onStdinError = null;
     const finishCleanup = () => {
       if (timeout !== null) clearTimeout(timeout);
       if (terminalCheck !== null) clearImmediate(terminalCheck);
       if (signal) signal.removeEventListener('abort', onAbort);
       if (onChildError) child.removeListener('error', onChildError);
       if (onChildClose) child.removeListener('close', onChildClose);
+      if (onStdinError) child.stdin?.removeListener?.('error', onStdinError);
       dataCleanup?.();
       dataCleanup = null;
     };
@@ -266,9 +266,21 @@ function createCliRunner({
       };
       child.once('error', onChildError);
       child.once('close', onChildClose);
+      onStdinError = (error) => {
+        if (!finished) {
+          void stop(new AgentError('COMMAND_FAILED', { cause: error }));
+        }
+      };
+      child.stdin?.once?.('error', onStdinError);
       dataCleanup = onData(child, (error) => {
         void stop(error instanceof AgentError ? error : new AgentError('COMMAND_FAILED', { cause: error }));
       }) || null;
+      try {
+        if (typeof spec.goal === 'string') child.stdin.end(spec.goal);
+        else child.stdin.end();
+      } catch (error) {
+        onStdinError(error);
+      }
       const alreadyExited = Number.isInteger(child.exitCode) || typeof child.signalCode === 'string';
       if (alreadyExited) {
         terminalCheck = setImmediate(() => {

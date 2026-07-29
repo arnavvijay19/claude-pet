@@ -15,6 +15,8 @@ test('invokes taskkill without a shell and proves child and recorded grandchild 
   const result = await terminateWindowsProcessTree({
     pid: 321,
     execFile: 'C:\\tool.exe',
+    systemRoot: 'C:\\Windows',
+    inspectProcess: async () => ({ exists: true, executablePath: 'c:\\TOOL.exe' }),
     grandchildPids: [654],
     spawn(command, args, options) {
       calls.push({ command, args, options });
@@ -23,14 +25,44 @@ test('invokes taskkill without a shell and proves child and recorded grandchild 
     waitForExit: async () => { exits += 1; return true; },
   });
   assert.equal(result, true);
-  assert.deepEqual(calls, [{ command: 'taskkill.exe', args: ['/PID', '321', '/T', '/F'], options: { shell: false, windowsHide: true } }]);
+  assert.deepEqual(calls, [{
+    command: 'C:\\Windows\\System32\\taskkill.exe',
+    args: ['/PID', '321', '/T', '/F'],
+    options: { shell: false, windowsHide: true },
+  }]);
   assert.equal(exits, 2);
+});
+
+test('does not target an exited or identity-mismatched reused PID', async () => {
+  let spawns = 0;
+  assert.equal(await terminateWindowsProcessTree({
+    pid: 321,
+    execFile: 'C:\\tools\\provider.exe',
+    inspectProcess: async () => ({ exists: false, executablePath: null }),
+    spawn: () => { spawns += 1; },
+  }), true);
+  await assert.rejects(
+    terminateWindowsProcessTree({
+      pid: 321,
+      execFile: 'C:\\tools\\provider.exe',
+      inspectProcess: async () => ({
+        exists: true,
+        executablePath: 'C:\\unrelated\\replacement.exe',
+      }),
+      spawn: () => { spawns += 1; },
+    }),
+    (error) => error?.code === 'COMMAND_FAILED',
+  );
+  assert.equal(spawns, 0);
 });
 
 test('fails when taskkill fails or either observed process remains alive', async () => {
   await assert.rejects(
     terminateWindowsProcessTree({
       pid: 321,
+      execFile: 'C:\\tool.exe',
+      systemRoot: 'C:\\Windows',
+      inspectProcess: async () => ({ exists: true, executablePath: 'C:\\tool.exe' }),
       spawn() { return { once(event, callback) { if (event === 'close') queueMicrotask(() => callback(1)); } }; },
       waitForExit: async () => true,
     }),
@@ -38,7 +70,9 @@ test('fails when taskkill fails or either observed process remains alive', async
   );
   await assert.rejects(
     terminateWindowsProcessTree({
-      pid: 321, grandchildPids: [654],
+      pid: 321, execFile: 'C:\\tool.exe', grandchildPids: [654],
+      systemRoot: 'C:\\Windows',
+      inspectProcess: async () => ({ exists: true, executablePath: 'C:\\tool.exe' }),
       spawn() { return { once(event, callback) { if (event === 'close') queueMicrotask(() => callback(0)); } }; },
       waitForExit: async (pid) => pid !== 654,
     }),

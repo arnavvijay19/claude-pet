@@ -55,6 +55,32 @@ test('launches a resolved exe without a shell and sends goals through stdin', as
   assert.equal(child.stdinValue, 'never put a goal in argv');
 });
 
+test('normalizes stdin EPIPE before writing can crash the main process', async () => {
+  const child = fakeChild();
+  child.stdin = new EventEmitter();
+  child.stdin.end = () => {
+    setImmediate(() => child.stdin.emit('error', Object.assign(new Error('closed'), {
+      code: 'EPIPE',
+    })));
+  };
+  const runner = createCliRunner({
+    spawn: () => child,
+    resolveCommand: async () => 'C:\\tools\\codex.exe',
+    terminateWindowsProcessTree: async () => true,
+  });
+  await assert.rejects(
+    runner.capture({
+      command: 'codex.exe',
+      args: [],
+      goal: 'bounded goal',
+      timeoutMs: 100,
+    }),
+    (error) => error?.code === 'COMMAND_FAILED',
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(child.stdin.listenerCount('error'), 0);
+});
+
 test('resolveCommandCandidatesWithWhere uses absolute where.exe with a bounded minimal environment and returns every candidate', async () => {
   const calls = [];
   const child = fakeChild();
