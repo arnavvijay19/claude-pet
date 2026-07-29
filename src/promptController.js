@@ -6,11 +6,12 @@ function createPromptController({ manager, response, animation = null, onBusyCha
   let token = null;
   let stopped = false;
   return Object.freeze({
-    async submitText(text) {
+    async submitText(text, { attachment = null } = {}) {
       let reserved = false;
       stopped = false;
       try {
         const result = await manager.runGoal(text, {
+          attachment,
           onStart: (context) => { token = animation?.goalAccepted?.() ?? null; animation?.runStarted?.(token); response.begin?.(context, token); },
           // The coordinator invokes this only once the Agent Manager has made
           // its real reservation, before executor preflight begins.

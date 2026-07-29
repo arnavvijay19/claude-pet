@@ -82,6 +82,7 @@ function snapshot({ busy = false, notice = null, long = false } = {}) {
       ],
     },
     notice,
+    pendingAttachment: { name: 'notes.md', extension: '.md', size: 12288 },
   };
 }
 
@@ -173,4 +174,34 @@ test('opens and closes the activity drawer through the single view intent', asyn
     ['set-view', { view: 'activity' }],
     ['set-view', { view: 'conversation' }],
   ]);
+});
+
+test('preserves an unsent draft across snapshots and renders safe attachment metadata', async () => {
+  const calls = [];
+  const draftValues = new Map();
+  const drafts = {
+    composer: (id) => draftValues.get(id) || '',
+    setComposer: (id, text) => draftValues.set(id, text),
+    clearComposer: (id) => draftValues.delete(id),
+  };
+  const root = new Element();
+  renderConversation(root, snapshot(), (type, data) => {
+    calls.push([type, data]);
+    return Promise.resolve(true);
+  }, { document: documentBoundary, draftState: drafts });
+  let values = flatten(root);
+  const textarea = values.find((item) => item.tagName === 'textarea');
+  textarea.value = 'unsent draft';
+  textarea.listeners.get('input')();
+
+  renderConversation(root, snapshot(), (type, data) => {
+    calls.push([type, data]);
+    return Promise.resolve(true);
+  }, { document: documentBoundary, draftState: drafts });
+  values = flatten(root);
+  assert.equal(values.find((item) => item.tagName === 'textarea').value, 'unsent draft');
+  assert.equal(values.some((item) => item.textContent === 'notes.md · 12 KB'), true);
+  assert.equal(JSON.stringify(values).includes('private'), false);
+  await values.find((item) => item.textContent === 'Remove').listeners.get('click')();
+  assert.deepEqual(calls.at(-1), ['clear-attachment', {}]);
 });

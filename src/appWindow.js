@@ -4,6 +4,10 @@ const path = require('node:path');
 
 const { AgentError, toPublicError } = require('./agent/agentErrors.js');
 const { validateGoal } = require('./agent/goalLimits.js');
+const {
+  MAX_ATTACHMENT_BYTES,
+  validateAttachmentName,
+} = require('./bridge/attachmentPolicy.js');
 const { createAppSnapshot, VIEWS } = require('./app/appSnapshot.js');
 
 const APP_INTENTS = Object.freeze([
@@ -90,19 +94,37 @@ function unregisterAppIpc(ipcMain) {
 
 function createVisibleRequestTracker({ submit }) {
   if (typeof submit !== 'function') throw new TypeError('Request submitter required');
-  let request = '';
+  let request = null;
+  const normalizeAttachment = (value) => {
+    if (value === undefined || value === null) return null;
+    const keys = ['name', 'extension', 'size', 'text'];
+    if (!exact(value, keys)
+        || !Number.isSafeInteger(value.size) || value.size < 0
+        || value.size > MAX_ATTACHMENT_BYTES
+        || typeof value.text !== 'string' || value.text.includes('\0')
+        || Buffer.byteLength(value.text, 'utf8') !== value.size) throw unsupported();
+    const name = validateAttachmentName(value.name);
+    if (name.extension !== value.extension) throw unsupported();
+    return Object.freeze({ ...value });
+  };
+  const visible = (value) => value.attachment
+    ? `${value.text}\n\n[Attached file: ${value.attachment.name}]`
+    : value.text;
   return Object.freeze({
-    async submit(text) {
-      const next = validateGoal(text);
+    async submit(text, attachment = null) {
+      const next = Object.freeze({
+        text: validateGoal(text),
+        attachment: normalizeAttachment(attachment),
+      });
+      validateGoal(visible(next));
       request = next;
-      return submit(next);
+      return submit(next.text, { attachment: next.attachment });
     },
-    noteAttachment() {},
     retry() {
       if (!request) throw new AgentError('GOAL_REQUIRED');
-      return submit(request);
+      return submit(request.text, { attachment: request.attachment });
     },
-    visibleRequest: () => request,
+    visibleRequest: () => request ? visible(request) : '',
   });
 }
 

@@ -1,6 +1,7 @@
 'use strict';
 
 const { AgentError } = require('./agentErrors.js');
+const { validateGoal } = require('./goalLimits.js');
 const { buildNeutralSessionPrompt } = require('./sessionContext.js');
 
 function freeze(value) {
@@ -65,7 +66,7 @@ function compatibleSession(session, selection) {
   };
 }
 
-function neutralPrompt(turns, agents, activeAgent, text) {
+function neutralPrompt(turns, agents, activeAgent, text, attachment = null) {
   return buildNeutralSessionPrompt({
     turns,
     agents: agents.map((agent) => ({ id: agent.id, name: agent.name })),
@@ -75,7 +76,19 @@ function neutralPrompt(turns, agents, activeAgent, text) {
       instruction: activeAgent.instruction,
     },
     currentText: text,
+    currentAttachment: attachment,
   });
+}
+
+function normalizedAttachment(value) {
+  if (value === undefined || value === null) return null;
+  if (!plainInput(value, ['name', 'extension', 'size', 'text'])
+      || typeof value.name !== 'string' || !value.name
+      || typeof value.extension !== 'string' || !value.extension.startsWith('.')
+      || !Number.isSafeInteger(value.size) || value.size < 0 || value.size > 49152
+      || typeof value.text !== 'string' || value.text.includes('\0')
+      || Buffer.byteLength(value.text, 'utf8') !== value.size) throw unavailable();
+  return freeze({ ...value });
 }
 
 function createSessionCoordinator({
@@ -370,11 +383,15 @@ function createSessionCoordinator({
   async function runGoal(text, options = {}) {
     if (typeof text !== 'string' || !text.trim() || text.includes('\0')
         || !options || Object.getPrototypeOf(options) !== Object.prototype
-        || Object.keys(options).some((key) => !['onStart', 'onReserved'].includes(key))
+        || Object.keys(options).some((key) => !['onStart', 'onReserved', 'attachment'].includes(key))
         || (Object.hasOwn(options, 'onStart') && typeof options.onStart !== 'function')
         || (Object.hasOwn(options, 'onReserved') && typeof options.onReserved !== 'function')) {
       throw unavailable();
     }
+    const attachment = normalizedAttachment(options.attachment);
+    const visibleText = validateGoal(
+      attachment ? `${text}\n\n[Attached file: ${attachment.name}]` : text,
+    );
     assertIdle();
     const current = await selected();
     if (!current.participant.connectionId) throw new AgentError('AGENT_REQUIRED');
@@ -384,7 +401,7 @@ function createSessionCoordinator({
       throw new AgentError('UNSUPPORTED_OPTION');
     }
     const turns = await sessionStore.getContextTurns(current.session.id);
-    const prompt = neutralPrompt(turns, current.agents, current.profile, text);
+    const prompt = neutralPrompt(turns, current.agents, current.profile, text, attachment);
     await assertStable(current, runConnection);
     let started = false;
     const result = await manager.runGoal(prompt, {
@@ -395,7 +412,7 @@ function createSessionCoordinator({
         await assertStable(current, runConnection);
         await sessionStore.appendTurn(current.session.id, {
           role: 'user',
-          text,
+          text: visibleText,
           agentId: current.agent.id,
           provider: null,
           model: null,

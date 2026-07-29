@@ -284,6 +284,31 @@ test('rejects a different-workspace participant connection before disclosure or 
   );
 });
 
+test('sends attachment contents only in the current provider prompt and persists metadata', async () => {
+  const sessionStore = sharedSessionStore();
+  const connections = connectionBoundary();
+  const manager = managerBoundary();
+  const coordinator = createSessionCoordinator({
+    sessionStore,
+    connectionStore: connections,
+    manager,
+    confirmProviderSwitch: async () => true,
+  });
+  await coordinator.selectParticipant({ sessionId: 'shared', agentId: 'reviewer' });
+  await coordinator.runGoal('Review this', {
+    attachment: {
+      name: 'notes.md', extension: '.md',
+      size: Buffer.byteLength('private details'), text: 'private details',
+    },
+  });
+
+  assert.match(manager.runs[0].text, /private details/);
+  const snapshot = await coordinator.snapshot();
+  const userTurn = snapshot.turns.at(-2);
+  assert.equal(userTurn.text, 'Review this\n\n[Attached file: notes.md]');
+  assert.doesNotMatch(JSON.stringify(snapshot), /private details/);
+});
+
 test('creates a session from the selected connection workspace and participant', async () => {
   const sessionStore = sharedSessionStore();
   const connections = connectionBoundary();

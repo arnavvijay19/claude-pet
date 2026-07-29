@@ -16,6 +16,7 @@ const { claimSingleInstance } = require('./singleInstance.js');
 const { createSafeStorageCrypto } = require('./agent/safeStorageCrypto.js');
 const { createPendingAttachment } = require('./bridge/pendingAttachment.js');
 const { TEXT_ATTACHMENT_EXTENSIONS } = require('./bridge/attachmentPolicy.js');
+const { validateGoal } = require('./agent/goalLimits.js');
 const {
   promptPortFromArguments,
   promptTokenFromEnvironment,
@@ -202,7 +203,7 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
     },
   }, onBusyChange: afterRunStateChange });
   requestTracker = createVisibleRequestTracker({
-    submit: (text) => promptController.submitText(text),
+    submit: (text, { attachment }) => promptController.submitText(text, { attachment }),
   });
   pendingAttachment = createPendingAttachment({
     authorize: authorizeTextAttachment,
@@ -250,7 +251,11 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
       await refreshTray();
       return saved;
     },
-    submitGoal: (text) => requestTracker.submit(text),
+    submitGoal: (text) => {
+      const metadata = pendingAttachment.snapshot();
+      if (metadata) validateGoal(`${text}\n\n[Attached file: ${metadata.name}]`);
+      return requestTracker.submit(text, pendingAttachment.take());
+    },
     stopRun: () => promptController.stop(),
     retryGoal: () => requestTracker.retry(),
     shouldHideOnClose: () => !isQuitting,

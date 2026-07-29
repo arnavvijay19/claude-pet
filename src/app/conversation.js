@@ -66,6 +66,7 @@
 
   function renderConversation(target, snapshot, dispatch, options = {}) {
     const document = options.document || globalThis.document;
+    const draftState = options.draftState || null;
     const shell = element(document, 'section', '', 'conversation-shell');
     const connection = snapshot.connections.find(
       (item) => item.id === snapshot.session?.participants?.find(
@@ -159,9 +160,35 @@
       ? `Ask ${snapshot.activeAgent.name}…`
       : 'Choose an agent to start';
     composerText.disabled = snapshot.run.busy || !snapshot.activeAgent;
+    if (snapshot.session?.id && draftState) {
+      composerText.value = draftState.composer(snapshot.session.id);
+      composerText.addEventListener('input', () => {
+        draftState.setComposer(snapshot.session.id, composerText.value);
+      });
+    }
     const actions = element(document, 'div', '', 'composer-actions');
-    const attach = button(document, 'Attach text file', () => {
-      void dispatch('choose-text-file', {});
+    const attachmentArea = element(document, 'div', '', 'attachment-area');
+    if (snapshot.pendingAttachment) {
+      const size = snapshot.pendingAttachment.size < 1024
+        ? `${snapshot.pendingAttachment.size} bytes`
+        : `${Math.ceil(snapshot.pendingAttachment.size / 1024)} KB`;
+      const chip = element(document, 'div', '', 'attachment-chip');
+      chip.append(
+        element(document, 'span', `${snapshot.pendingAttachment.name} · ${size}`),
+        button(document, 'Remove', () => {
+          void dispatch('clear-attachment', {});
+        }, 'compact-action'),
+      );
+      attachmentArea.append(chip);
+    }
+    attachmentArea.append(element(
+      document,
+      'p',
+      'Text, code, configuration, Markdown, CSV, JSON, and logs · 48 KiB maximum.',
+      'attachment-help',
+    ));
+    const attach = button(document, 'Attach file', () => {
+      void dispatch('choose-attachment', {});
     }, 'secondary-action');
     attach.disabled = snapshot.run.busy || !snapshot.activeAgent;
     const primary = button(
@@ -172,6 +199,7 @@
         else if (composerText.value.trim()) {
           void dispatch('submit-goal', { text: composerText.value.trim() }).then(() => {
             composerText.value = '';
+            if (snapshot.session?.id && draftState) draftState.clearComposer(snapshot.session.id);
             composerText.focus?.();
           });
         }
@@ -180,7 +208,7 @@
     );
     primary.disabled = !snapshot.run.busy && (!snapshot.activeAgent || !snapshot.session);
     actions.append(attach, primary);
-    composer.append(selectorLabel, composerText, actions);
+    composer.append(selectorLabel, composerText, attachmentArea, actions);
     shell.append(header, timeline, composer);
     target.replaceChildren(shell);
     return shell;

@@ -106,13 +106,21 @@ test('shared app window closes normally when the application is quitting', () =>
 test('retry stores only the visible request and uses the currently selected participant', async () => {
   const calls = [];
   const tracker = createVisibleRequestTracker({
-    submit: async (text) => calls.push(text),
+    submit: async (text, options) => calls.push([text, options]),
   });
-  await tracker.submit('Review the visible request');
-  tracker.noteAttachment();
+  const attachment = {
+    name: 'notes.md', extension: '.md', size: 7, text: 'private',
+  };
+  await tracker.submit('Review the visible request', attachment);
   await tracker.retry();
-  assert.deepEqual(calls, ['Review the visible request', 'Review the visible request']);
-  assert.equal(tracker.visibleRequest(), 'Review the visible request');
+  assert.deepEqual(calls, [
+    ['Review the visible request', { attachment }],
+    ['Review the visible request', { attachment }],
+  ]);
+  assert.equal(
+    tracker.visibleRequest(),
+    'Review the visible request\n\n[Attached file: notes.md]',
+  );
 });
 
 test('an invalid goal cannot replace the last valid retry request', async () => {

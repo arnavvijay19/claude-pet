@@ -12,6 +12,7 @@
   const conversationRoot = document.querySelector('#conversation-root');
   const activityRoot = document.querySelector('#activity-root');
   const settingsRoot = document.querySelector('#settings-root');
+  const draftState = window.claudePetDraftState?.createDraftState?.() || null;
   let snapshot = null;
   let connectionFeedback = '';
   let connectionActionPending = false;
@@ -92,7 +93,9 @@
           },
         });
       } else if (!empty) {
-        window.claudePetConversation.renderConversation(conversationRoot, value, dispatch);
+        window.claudePetConversation.renderConversation(conversationRoot, value, dispatch, {
+          draftState,
+        });
         window.claudePetConversation.renderActivityDrawer(activityRoot, value, dispatch);
       }
     }
