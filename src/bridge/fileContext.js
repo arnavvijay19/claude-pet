@@ -1,7 +1,8 @@
 'use strict';
 
 const { AgentError } = require('../agent/agentErrors.js');
-const MAX_BYTES = 262144;
+const { MAX_ATTACHMENT_BYTES } = require('./attachmentPolicy.js');
+const MAX_BYTES = MAX_ATTACHMENT_BYTES;
 
 async function readBoundedUtf8File({ handle, size }) {
   if (!handle || typeof handle.read !== 'function' || !Number.isSafeInteger(size) || size < 0) throw new AgentError('ATTACHMENT_INVALID');

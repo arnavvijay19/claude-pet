@@ -57,8 +57,9 @@ Simple or Comprehensive form.
   restores its shared session and attributed history. Startup is single-instance: launching the
   package again reveals the existing app instead of opening a second prompt server, while a
   genuinely occupied loopback prompt port is caught and explained without a main-process crash.
-- The 192x208 transparent pet window, tray, preload bridge, sprite state machine, and loopback prompt
-  server exist.
+- The 192x208 transparent pet window, tray, preload bridge, and sprite state machine exist. The
+  loopback prompt server is disabled by default; explicit automation launches must supply both a
+  port and a per-launch capability token.
 - The approved agent-first redesign is committed at `354e8cb`.
 - Its reviewed security-boundary correction is committed at `0f6f9ba`.
 - The WSL Workspace + default Full Computer redesign is committed at `759afe4`, and the earlier
@@ -112,11 +113,12 @@ Simple or Comprehensive form.
 
 ~~~text
 Electron main process
-├─ main.js                    pet, response, and Settings windows; tray; IPC wiring
+├─ main.js                    pet, unified app window, tray, and IPC wiring
 ├─ preload.js                 pet-only bridge
-├─ settings-preload.js        settings bridge
-├─ response-preload.js        response/activity actions
-├─ bridge/promptServer.js     loopback POST /prompt (complete foundation)
+├─ app-preload.js             unified context-isolated renderer bridge
+├─ appWindow.js               unified app:snapshot/app:intent boundary
+├─ app/                       sidebar, conversation, activity, and Settings renderer
+├─ bridge/promptServer.js     authenticated opt-in loopback POST /prompt
 ├─ agent/agentManager.js      immutable run, busy guard, stop, attribution
 ├─ agent/activitySanitizer.js recursive redaction before validation/storage/IPC
 ├─ agent/activityStore.js     discriminated current-run activity
@@ -124,7 +126,6 @@ Electron main process
 ├─ agent/sessionStore.js      encrypted profiles/shared sessions (UX Task 1 schema v2)
 ├─ agent/sessionCoordinator.js sequential active-participant routing (UX Task 2)
 ├─ app/appSnapshot.js          frozen presentation-safe application state (UX Task 3)
-├─ appWindow.js               one app:snapshot/app:intent IPC boundary (UX Task 3)
 ├─ agent/cliRunner.js         bounded official-CLI process boundary
 ├─ agent/windowsProcessTree.js verified Windows child/grandchild termination
 └─ agent/executors/
@@ -134,8 +135,8 @@ Electron main process
 
 Context-isolated vanilla-JS renderers
 ├─ renderer/                  192x208 pet canvas and deliberate file drop
-├─ response/                  response plus Simple/Comprehensive live activity
-└─ settings/                  connection/workspace/permissions/model UI
+├─ response/                  retained response/activity view-model helpers
+└─ settings/                  retained connection/setup view-model helpers
 ~~~
 
 Optional post-v1 Workspace boundary (not implemented): Electron main selects an immutable native Full Computer

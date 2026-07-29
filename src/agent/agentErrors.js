@@ -58,7 +58,7 @@ const PUBLIC_ERROR_BY_CODE = Object.freeze({
   SESSION_SELECTION_EXPIRED: Object.freeze({ message: 'The selected session, agent, or connection changed.', action: 'Review the active participant and retry.' }),
   PROVIDER_SWITCH_CANCELLED: Object.freeze({ message: 'Agent or provider switch cancelled.', action: 'Keep the current participant or confirm the context disclosure.' }),
   ATTACHMENT_INVALID: Object.freeze({ message: 'The attached file is not valid text.', action: 'Choose a regular UTF-8 text file and try again.' }),
-  ATTACHMENT_TOO_LARGE: Object.freeze({ message: 'The attached file is too large.', action: 'Choose a text file up to 256 KiB.' }),
+  ATTACHMENT_TOO_LARGE: Object.freeze({ message: 'The attached file is too large.', action: 'Choose an allowed UTF-8 text file up to 48 KiB.' }),
   ATTACHMENT_CHANGED: Object.freeze({ message: 'The attached file changed before it could be used.', action: 'Attach the file again.' }),
   ATTACHMENT_CANCELLED: Object.freeze({ message: 'The file attachment was cancelled.', action: 'Attach the file again when ready.' }),
   ATTACHMENT_CONFIRMATION_EXPIRED: Object.freeze({ message: 'The file attachment confirmation expired.', action: 'Attach the file again.' }),
