@@ -7,6 +7,8 @@ const http = require('node:http');
 const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
+const { EventEmitter } = require('node:events');
+const { PassThrough } = require('node:stream');
 
 const { CODEX_KNOWN_0145_FEATURES } = require('../src/agent/codexFeaturePolicy.js');
 const providerHarness = require('../resources/probes/local-provider-harness.js');
@@ -14,6 +16,7 @@ const providerHarness = require('../resources/probes/local-provider-harness.js')
 const {
   PROBE_LIMITS,
   createLocalProviderProbe,
+  defaultSpawn,
   sanitizeProbeEnvironment,
   verifyNativeToolSurface,
 } = require('../src/agent/localProviderProbe.js');
@@ -390,20 +393,94 @@ test('Claude accepts only the pinned unauthenticated HEAD preflight on the secre
   assert.deepEqual(await fs.readdir(temporaryRoot), []);
 });
 
-test('scrubs inherited credentials, endpoints, proxies, and certificate overrides', () => {
+test('inherits only the minimal Windows environment allowlist', () => {
   const clean = sanitizeProbeEnvironment({
     PATH: 'C:\\Windows\\System32',
+    SystemRoot: 'C:\\Windows',
+    TEMP: 'C:\\Temp',
     OPENAI_API_KEY: 'real-openai', ANTHROPIC_API_KEY: 'real-anthropic',
     CODEX_API_KEY: 'real-codex', CLAUDE_CODE_OAUTH_TOKEN: 'real-claude',
     OPENAI_BASE_URL: 'https://attacker.invalid', ANTHROPIC_BASE_URL: 'https://attacker.invalid',
     HTTP_PROXY: 'http://proxy.invalid', HTTPS_PROXY: 'http://proxy.invalid', ALL_PROXY: 'socks://proxy.invalid',
     NO_PROXY: '*', NODE_EXTRA_CA_CERTS: 'Z:\\hostile.pem', SSL_CERT_FILE: 'Z:\\hostile.pem',
-    OTHER_SAFE_VALUE: 'kept',
+    AWS_SECRET_ACCESS_KEY: 'cloud-secret',
+    GITHUB_TOKEN: 'github-secret',
+    DATABASE_PASSWORD: 'database-secret',
+    OTHER_SAFE_VALUE: 'must-not-be-inherited',
   });
   assert.deepEqual(clean, {
     PATH: 'C:\\Windows\\System32',
-    OTHER_SAFE_VALUE: 'kept',
+    SystemRoot: 'C:\\Windows',
+    TEMP: 'C:\\Temp',
   });
+});
+
+test('default spawn aborts the verified process tree and waits for close', async () => {
+  const child = new EventEmitter();
+  child.pid = 4242;
+  child.exitCode = null;
+  child.stdin = new PassThrough();
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  const events = [];
+  const controller = new AbortController();
+  const result = defaultSpawn({
+    command: 'C:\\Program Files\\OpenAI\\Codex\\codex.exe',
+    args: [],
+    cwd: 'Z:\\workspace',
+    env: {},
+    signal: controller.signal,
+    goal: 'probe',
+  }, {
+    spawnProcess: () => child,
+    terminate: async (identity) => {
+      events.push(['terminate', identity]);
+      child.exitCode = 1;
+      child.emit('close', 1);
+    },
+  });
+
+  controller.abort(new Error('caller stopped probe'));
+  await assert.rejects(result, /caller stopped probe/);
+  assert.deepEqual(events, [[
+    'terminate',
+    { pid: 4242, execFile: 'C:\\Program Files\\OpenAI\\Codex\\codex.exe' },
+  ]]);
+});
+
+test('forwards caller cancellation through probe spawning before cleanup', async (t) => {
+  const fixtureRoot = await tempRoot(t);
+  const temporaryRoot = await tempRoot(t);
+  const controller = new AbortController();
+  let observedSignal;
+  const probe = createLocalProviderProbe({
+    provider: 'codex-cli',
+    fixtures: fixtures(),
+    randomBytes: deterministicSecrets(),
+    temporaryRoot,
+    spawn: (spec) => {
+      observedSignal = spec.signal;
+      return new Promise((resolve, reject) => {
+        spec.signal.addEventListener('abort', () => reject(spec.signal.reason), { once: true });
+      });
+    },
+  });
+
+  const running = probe.run({
+    cliBinding: { path: 'C:\\codex.exe', version: '0.145.0' },
+    workspacePath: 'Z:\\workspace',
+    fixtureRoot,
+    signal: controller.signal,
+  });
+  while (!observedSignal) await new Promise((resolve) => setImmediate(resolve));
+  controller.abort(new Error('cancelled by owner'));
+
+  await assert.rejects(
+    running,
+    (error) => error.code === 'PERMISSION_PROFILE_UNAVAILABLE',
+  );
+  assert.equal(observedSignal.aborted, true);
+  assert.deepEqual(await fs.readdir(temporaryRoot), []);
 });
 
 test('owns authenticated loopback endpoints and separates control traffic from child canary traffic', async (t) => {

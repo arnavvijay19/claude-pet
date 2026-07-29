@@ -9,6 +9,9 @@ const path = require('node:path');
 
 const { AgentError } = require('./agentErrors.js');
 const {
+  terminateWindowsProcessTree: defaultTerminateWindowsProcessTree,
+} = require('./windowsProcessTree.js');
+const {
   assertCodexFeaturePolicy,
   codexFeatureArgs,
   codexFeatureInspectionArgs,
@@ -36,7 +39,18 @@ const FIXTURE_SHA256 = Object.freeze({
   'claude-code-cli': 'd9bf3d2be500b5c4d6d9fae43dfe0ca51467b64802ec94ca8fef8c43862ccf82',
 });
 
-const SECRET_ENVIRONMENT = /(?:^|_)(?:OPENAI|ANTHROPIC|CLAUDE|CODEX)(?:_|$)|(?:API[_-]?KEY|ACCESS[_-]?TOKEN|AUTH[_-]?TOKEN|BASE[_-]?URL)|(?:^|_)(?:HTTP|HTTPS|ALL|NO)_PROXY$|PROXY|CERT|SSL/i;
+const PROBE_ENVIRONMENT_ALLOWLIST = Object.freeze(new Set([
+  'APPDATA',
+  'COMSPEC',
+  'LOCALAPPDATA',
+  'PATH',
+  'PATHEXT',
+  'SYSTEMDRIVE',
+  'SYSTEMROOT',
+  'TEMP',
+  'TMP',
+  'USERPROFILE',
+]));
 
 function unavailable(cause) {
   return new AgentError('PERMISSION_PROFILE_UNAVAILABLE', { cause });
@@ -50,7 +64,9 @@ function plain(value) {
 function sanitizeProbeEnvironment(source) {
   const clean = {};
   for (const [key, value] of Object.entries(source || {})) {
-    if (typeof value === 'string' && !SECRET_ENVIRONMENT.test(key)) clean[key] = value;
+    if (typeof value === 'string' && PROBE_ENVIRONMENT_ALLOWLIST.has(key.toUpperCase())) {
+      clean[key] = value;
+    }
   }
   return clean;
 }
@@ -196,9 +212,16 @@ function normalizeHeaders(headers, bearer, provider) {
   };
 }
 
-function defaultSpawn(spec) {
+function abortReason(signal) {
+  return signal?.reason instanceof Error ? signal.reason : new Error('Probe cancelled');
+}
+
+function defaultSpawn(spec, {
+  spawnProcess = childProcess.spawn,
+  terminate = defaultTerminateWindowsProcessTree,
+} = {}) {
   return new Promise((resolve, reject) => {
-    const child = childProcess.spawn(spec.command, spec.args || [], {
+    const child = spawnProcess(spec.command, spec.args || [], {
       cwd: spec.cwd,
       env: spec.env,
       shell: false,
@@ -207,18 +230,61 @@ function defaultSpawn(spec) {
     });
     let stdout = Buffer.alloc(0);
     let stderr = Buffer.alloc(0);
+    let settled = false;
+    let stopping = false;
     const append = (current, chunk) => Buffer.concat([current, Buffer.from(chunk)])
       .subarray(0, PROBE_LIMITS.transcriptBytes);
+    const cleanup = () => {
+      spec.signal?.removeEventListener('abort', onAbort);
+      child.stdin?.removeListener('error', onStdinError);
+    };
+    const finish = (error, result) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (error) reject(error);
+      else resolve(result);
+    };
+    const stop = async (reason) => {
+      if (settled || stopping) return;
+      stopping = true;
+      child.stdin?.destroy();
+      try {
+        await terminate({ pid: child.pid, execFile: spec.command });
+      } catch (error) {
+        finish(error);
+        return;
+      }
+      if (child.exitCode !== null) finish(reason);
+    };
+    const onAbort = () => { void stop(abortReason(spec.signal)); };
+    const onStdinError = (error) => { void stop(error); };
     child.stdout.on('data', (chunk) => { stdout = append(stdout, chunk); });
     child.stderr.on('data', (chunk) => { stderr = append(stderr, chunk); });
-    child.once('error', reject);
-    child.once('close', (exitCode) => resolve({
-      exitCode,
-      stdout: stdout.toString('utf8'),
-      stderr: stderr.toString('utf8'),
-    }));
-    if (typeof spec.goal === 'string') child.stdin.end(spec.goal);
-    else child.stdin.end();
+    child.once('error', (error) => finish(error));
+    child.once('close', (exitCode) => {
+      if (stopping) {
+        finish(abortReason(spec.signal));
+        return;
+      }
+      finish(null, {
+        exitCode,
+        stdout: stdout.toString('utf8'),
+        stderr: stderr.toString('utf8'),
+      });
+    });
+    child.stdin?.once('error', onStdinError);
+    spec.signal?.addEventListener('abort', onAbort, { once: true });
+    if (spec.signal?.aborted) {
+      onAbort();
+      return;
+    }
+    try {
+      if (typeof spec.goal === 'string') child.stdin.end(spec.goal);
+      else child.stdin.end();
+    } catch (error) {
+      void stop(error);
+    }
   });
 }
 
@@ -262,6 +328,15 @@ function createLocalProviderProbe({
     let controlServer = null;
     let canaryServer = null;
     let cleanupError = null;
+    const controller = new AbortController();
+    const forwardAbort = () => controller.abort(abortReason(input.signal));
+    if (input.signal?.aborted) forwardAbort();
+    else input.signal?.addEventListener('abort', forwardAbort, { once: true });
+    const deadline = setTimeout(
+      () => controller.abort(new Error('Probe deadline exceeded')),
+      PROBE_LIMITS.deadlineMs,
+    );
+    deadline.unref?.();
     try {
       await fileSystem.mkdir(temporaryRoot, { recursive: true });
       ownerDirectory = await fileSystem.mkdtemp(path.join(temporaryRoot, 'claude-pet-native-probe-'));
@@ -540,7 +615,7 @@ function createLocalProviderProbe({
           args: [...codexFeatureInspectionArgs(), 'features', 'list'],
           cwd: probeWorkspace,
           env: probeEnvironment,
-          signal: input.signal,
+          signal: controller.signal,
         });
         if (!plain(featureResult) || featureResult.exitCode !== 0) {
           throw new Error('Codex feature policy check failed');
@@ -548,20 +623,14 @@ function createLocalProviderProbe({
         assertCodexFeaturePolicy(parseCodexFeatureList(featureResult.stdout));
       }
 
-      const processResult = await Promise.race([
-        spawn({
-          command: input.cliBinding.path,
-          args,
-          cwd: probeWorkspace,
-          env: probeEnvironment,
-          goal,
-          signal: input.signal,
-        }),
-        new Promise((_, reject) => {
-          const timer = setTimeout(() => reject(new Error('Probe deadline exceeded')), PROBE_LIMITS.deadlineMs);
-          timer.unref?.();
-        }),
-      ]);
+      const processResult = await spawn({
+        command: input.cliBinding.path,
+        args,
+        cwd: probeWorkspace,
+        env: probeEnvironment,
+        goal,
+        signal: controller.signal,
+      });
       const scenarioReport = harness?.report();
       const expectedControlRequests = provider === 'codex-cli' ? 4 : 3;
       const expectedUpgrades = provider === 'codex-cli' ? 7 : 0;
@@ -602,6 +671,8 @@ function createLocalProviderProbe({
     } catch (error) {
       throw error instanceof AgentError ? error : unavailable(error);
     } finally {
+      clearTimeout(deadline);
+      input.signal?.removeEventListener('abort', forwardAbort);
       try { await closeServer(controlServer); } catch (error) { cleanupError ||= error; }
       try { await closeServer(canaryServer); } catch (error) { cleanupError ||= error; }
       if (ownerDirectory) {
@@ -652,6 +723,7 @@ module.exports = {
   FIXTURE_SHA256,
   PROBE_LIMITS,
   createLocalProviderProbe,
+  defaultSpawn,
   sanitizeProbeEnvironment,
   verifyNativeToolSurface,
 };
