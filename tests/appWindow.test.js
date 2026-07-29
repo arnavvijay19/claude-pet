@@ -84,6 +84,11 @@ function dependencies({ busy = false } = {}) {
     stopRun: async () => { calls.push(['stopRun']); return true; },
     retryGoal: async () => { calls.push(['retryGoal']); return true; },
     chooseTextFile: async () => { calls.push(['chooseTextFile']); return true; },
+    chooseAttachment: async () => { calls.push(['chooseAttachment']); return true; },
+    clearAttachment: async () => { calls.push(['clearAttachment']); return true; },
+    chooseDirectory: async () => { calls.push(['chooseDirectory']); return 'Z:\\chosen'; },
+    confirmDeleteSession: async () => { calls.push(['confirmDeleteSession']); return true; },
+    pendingAttachment: { snapshot: () => null },
   };
 }
 
@@ -93,7 +98,8 @@ test('registers one sender-validated IPC boundary for every allowlisted intent',
     'create-agent', 'update-agent', 'delete-agent',
     'add-participant', 'remove-participant', 'select-participant',
     'set-participant-connection', 'submit-goal', 'stop-run', 'retry-run',
-    'choose-text-file', 'save-connection', 'delete-connection',
+    'choose-text-file', 'choose-attachment', 'clear-attachment', 'choose-directory',
+    'confirm-delete-session', 'save-connection', 'delete-connection',
     'test-connection', 'begin-provider-setup', 'set-view',
   ]);
   const ipcMain = fakeIpc();
@@ -124,6 +130,10 @@ test('registers one sender-validated IPC boundary for every allowlisted intent',
   await invoke({ type: 'stop-run', data: {} });
   await invoke({ type: 'retry-run', data: {} });
   await invoke({ type: 'choose-text-file', data: {} });
+  await invoke({ type: 'choose-attachment', data: {} });
+  await invoke({ type: 'clear-attachment', data: {} });
+  assert.equal(await invoke({ type: 'choose-directory', data: {} }), 'Z:\\chosen');
+  await invoke({ type: 'confirm-delete-session', data: { sessionId: 'session-a' } });
   await invoke({ type: 'save-connection', data: {
     executorType: 'offline-demo', label: 'Offline Demo', workspacePath: 'Z:\\workspace',
     permissionProfile: 'workspace', modelId: 'offline-demo', effort: null, keyHint: null,

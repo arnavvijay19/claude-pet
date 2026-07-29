@@ -20,6 +20,7 @@ const TURN_KEYS = Object.freeze([
 ]);
 const RUN_KEYS = Object.freeze(['busy', 'connectionId', 'permissionProfile']);
 const NOTICE_KEYS = Object.freeze(['status', 'message', 'action', 'agentId', 'request']);
+const ATTACHMENT_KEYS = Object.freeze(['name', 'extension', 'size']);
 const SECRET_KEY = /(?:encrypted|cipher|secret|token|password|authorization|dismissCapability|resumeId|authDirectory|configDirectory)/i;
 const USAGE_COUNTER_KEYS = new Set(['inputTokens', 'outputTokens', 'cachedTokens', 'totalTokens']);
 
@@ -185,6 +186,16 @@ function notice(value) {
   return result;
 }
 
+function pendingAttachment(value) {
+  if (value === undefined || value === null) return null;
+  const result = select(value, ATTACHMENT_KEYS, ATTACHMENT_KEYS, { exact: true });
+  if (!safeString(result.name, { empty: false, maximum: 255 })
+      || !safeString(result.extension, { empty: false, maximum: 16 })
+      || !result.extension.startsWith('.')
+      || !Number.isSafeInteger(result.size) || result.size < 0 || result.size > 49152) invalid();
+  return result;
+}
+
 function statusFor(agentId, { activeAgentId, runState, noticeState }) {
   if (runState.busy && agentId === activeAgentId) return 'running';
   if (noticeState?.status === 'waiting' && noticeState.agentId === agentId) return 'waiting';
@@ -199,6 +210,7 @@ function createAppSnapshot({
   activity,
   view,
   notice: noticeValue,
+  pendingAttachment: pendingAttachmentValue,
 } = {}) {
   if (!plain(coordinator) || !Array.isArray(coordinator.agents)
       || !Array.isArray(coordinator.sessions) || !plain(coordinator.selection)
@@ -241,6 +253,10 @@ function createAppSnapshot({
     run: runState,
     activity: checked('activity', () => safeJson(activity)),
     notice: noticeState,
+    pendingAttachment: checked(
+      'pending attachment',
+      () => pendingAttachment(pendingAttachmentValue),
+    ),
   };
   return deepFreeze(result);
 }

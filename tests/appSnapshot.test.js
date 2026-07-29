@@ -47,11 +47,12 @@ test('composes the exact deeply frozen public application snapshot', () => {
     },
     view: 'conversation',
     notice: null,
+    pendingAttachment: { name: 'notes.md', extension: '.md', size: 12 },
   });
 
   assert.deepEqual(Object.keys(snapshot), [
     'view', 'agents', 'sessions', 'selection', 'activeAgent', 'session',
-    'turns', 'connections', 'run', 'activity', 'notice',
+    'turns', 'connections', 'run', 'activity', 'notice', 'pendingAttachment',
   ]);
   assert.equal(Object.isFrozen(snapshot), true);
   assert.equal(Object.isFrozen(snapshot.sessions[0].participants), true);
@@ -59,6 +60,9 @@ test('composes the exact deeply frozen public application snapshot', () => {
   assert.equal(JSON.stringify(snapshot).includes('encrypted'), false);
   assert.equal(JSON.stringify(snapshot).includes('dismissCapability'), false);
   assert.deepEqual(snapshot.run, { busy: false, connectionId: 'connection-a', permissionProfile: null });
+  assert.deepEqual(snapshot.pendingAttachment, {
+    name: 'notes.md', extension: '.md', size: 12,
+  });
 });
 
 test('rejects secret-shaped or malformed source snapshots instead of guessing', () => {
@@ -69,6 +73,7 @@ test('rejects secret-shaped or malformed source snapshots instead of guessing', 
     activity: { run: null, events: [] },
     view: 'conversation',
     notice: null,
+    pendingAttachment: null,
   };
   assert.throws(() => createAppSnapshot({
     ...base,
@@ -82,6 +87,12 @@ test('rejects secret-shaped or malformed source snapshots instead of guessing', 
   assert.throws(() => createAppSnapshot({
     ...base,
     notice: { status: 'error', message: 'x', rawStderr: 'secret' },
+  }));
+  assert.throws(() => createAppSnapshot({
+    ...base,
+    pendingAttachment: {
+      name: 'notes.md', extension: '.md', size: 12, text: 'private',
+    },
   }));
 });
 

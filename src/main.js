@@ -14,6 +14,8 @@ const { createPetAnimationController } = require('./petAnimationController.js');
 const { authorizeTextAttachment } = require('./bridge/attachmentAuthorization.js');
 const { claimSingleInstance } = require('./singleInstance.js');
 const { createSafeStorageCrypto } = require('./agent/safeStorageCrypto.js');
+const { createPendingAttachment } = require('./bridge/pendingAttachment.js');
+const { TEXT_ATTACHMENT_EXTENSIONS } = require('./bridge/attachmentPolicy.js');
 const {
   promptPortFromArguments,
   promptTokenFromEnvironment,
@@ -39,6 +41,7 @@ let trayRefreshGeneration = 0;
 let animation = null;
 let animationSequence = 0;
 let requestTracker = null;
+let pendingAttachment = null;
 let isQuitting = false;
 function publishPetState(state) { const envelope = { animationSequence: ++animationSequence, state }; petWindow?.webContents.send('pet:state', envelope); return envelope; }
 
@@ -201,17 +204,35 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
   requestTracker = createVisibleRequestTracker({
     submit: (text) => promptController.submitText(text),
   });
-  const submitAttachment = async (filePath) => {
-    const attachmentAuthorization = await authorizeTextAttachment({ filePath });
-    try {
-      const attachment = await attachmentAuthorization.consume();
-      requestTracker.noteAttachment();
-      return promptController.submitText(
-        require('./bridge/fileContext.js').buildAttachmentPrompt(attachment),
+  pendingAttachment = createPendingAttachment({
+    authorize: authorizeTextAttachment,
+    confirm: async ({ name, size }) => {
+      const result = await dialog.showMessageBox(
+        appWindowController?.getWindow() || petWindow,
+        {
+          type: 'question',
+          buttons: ['Attach file', 'Cancel'],
+          defaultId: 0,
+          cancelId: 1,
+          title: 'Attach this file?',
+          message: name,
+          detail: `${size.toLocaleString()} bytes · The file will be staged for your next message.`,
+        },
       );
-    } finally {
-      await attachmentAuthorization.cancel();
-    }
+      return result.response === 0;
+    },
+  });
+  const chooseAttachment = async () => {
+    const result = await dialog.showOpenDialog(appWindowController?.getWindow() || petWindow, {
+      title: 'Attach one readable file',
+      properties: ['openFile'],
+      filters: [{
+        name: 'Readable text and code',
+        extensions: [...TEXT_ATTACHMENT_EXTENSIONS].map((extension) => extension.slice(1)),
+      }],
+    });
+    if (result.canceled || result.filePaths.length !== 1) return null;
+    return pendingAttachment.stage(result.filePaths[0]);
   };
   appWindowController = createAppWindowController({
     BrowserWindow,
@@ -233,15 +254,32 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
     stopRun: () => promptController.stop(),
     retryGoal: () => requestTracker.retry(),
     shouldHideOnClose: () => !isQuitting,
-    chooseTextFile: async () => {
+    chooseTextFile: chooseAttachment,
+    chooseAttachment,
+    clearAttachment: () => pendingAttachment.clear(),
+    chooseDirectory: async () => {
       const result = await dialog.showOpenDialog(appWindowController?.getWindow() || petWindow, {
-        title: 'Attach one text file',
-        properties: ['openFile'],
-        filters: [{ name: 'Text files', extensions: ['txt', 'md', 'json', 'csv', 'log'] }],
+        title: 'Choose project folder',
+        properties: ['openDirectory'],
       });
-      if (result.canceled || result.filePaths.length !== 1) return null;
-      return submitAttachment(result.filePaths[0]);
+      return result.canceled || result.filePaths.length !== 1 ? null : result.filePaths[0];
     },
+    confirmDeleteSession: async () => {
+      const result = await dialog.showMessageBox(
+        appWindowController?.getWindow() || petWindow,
+        {
+          type: 'warning',
+          buttons: ['Delete session', 'Cancel'],
+          defaultId: 1,
+          cancelId: 1,
+          title: 'Delete this session?',
+          message: 'Delete the selected session and its saved conversation?',
+          detail: 'Agents and provider connections will not be deleted.',
+        },
+      );
+      return result.response === 0;
+    },
+    pendingAttachment,
   });
   appWindowController.show({ view: 'conversation' });
   try {
@@ -272,7 +310,9 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
   }
   ipcMain.handle('pet:submit-text-file', async (event, filePath) => {
     if (event.sender !== petWindow?.webContents) throw new Error('Invalid pet sender');
-    return submitAttachment(filePath);
+    const staged = await pendingAttachment.stage(filePath);
+    if (staged) appWindowController.show({ view: 'conversation' });
+    return staged;
   });
   createTray();
 });

@@ -11,7 +11,8 @@ const APP_INTENTS = Object.freeze([
   'create-agent', 'update-agent', 'delete-agent',
   'add-participant', 'remove-participant', 'select-participant',
   'set-participant-connection', 'submit-goal', 'stop-run', 'retry-run',
-  'choose-text-file', 'save-connection', 'delete-connection',
+  'choose-text-file', 'choose-attachment', 'clear-attachment', 'choose-directory',
+  'confirm-delete-session', 'save-connection', 'delete-connection',
   'test-connection', 'begin-provider-setup', 'set-view',
 ]);
 const APP_CHANNELS = Object.freeze(['app:snapshot', 'app:intent']);
@@ -117,6 +118,10 @@ function registerAppIpc({
   stopRun,
   retryGoal,
   chooseTextFile,
+  chooseAttachment,
+  clearAttachment,
+  chooseDirectory,
+  confirmDeleteSession,
   publish,
   setView,
 }) {
@@ -211,6 +216,21 @@ function registerAppIpc({
       case 'choose-text-file':
         if (!noData(data) || typeof chooseTextFile !== 'function') throw unsupported();
         return chooseTextFile();
+      case 'choose-attachment':
+        if (!noData(data) || typeof chooseAttachment !== 'function') throw unsupported();
+        return chooseAttachment();
+      case 'clear-attachment':
+        if (!noData(data) || typeof clearAttachment !== 'function') throw unsupported();
+        return clearAttachment();
+      case 'choose-directory':
+        if (!noData(data) || typeof chooseDirectory !== 'function') throw unsupported();
+        return chooseDirectory();
+      case 'confirm-delete-session':
+        if (!exact(data, ['sessionId']) || !id(data.sessionId)
+            || typeof confirmDeleteSession !== 'function') throw unsupported();
+        await assertCurrentSession(coordinator, data.sessionId);
+        if (!await confirmDeleteSession(data.sessionId)) return false;
+        return coordinator.removeSession(data.sessionId);
       case 'save-connection':
         if (typeof saveConnection !== 'function') throw unsupported();
         return saveConnection(connectionDraft(data));
@@ -272,6 +292,11 @@ function createAppWindowController({
   stopRun,
   retryGoal,
   chooseTextFile,
+  chooseAttachment,
+  clearAttachment,
+  chooseDirectory,
+  confirmDeleteSession,
+  pendingAttachment,
   shouldHideOnClose = () => true,
 }) {
   if (typeof BrowserWindow !== 'function' || !activity
@@ -291,6 +316,7 @@ function createAppWindowController({
     activity: activity.snapshot(),
     view,
     notice,
+    pendingAttachment: pendingAttachment?.snapshot?.() || null,
   });
 
   const publish = () => {
@@ -334,6 +360,10 @@ function createAppWindowController({
       stopRun,
       retryGoal,
       chooseTextFile,
+      chooseAttachment,
+      clearAttachment,
+      chooseDirectory,
+      confirmDeleteSession,
       publish,
       setView(value) { view = value; },
     });
