@@ -1,6 +1,6 @@
 # Windows Job-Owned Provider Lifecycle Design
 
-**Status:** Revised for human review; implementation not started
+**Status:** User-approved revision; implementation not started
 **Date:** 2026-07-29
 **Scope:** Native Windows Codex/Claude process launch, Stop, timeout, cleanup, and the limits of those guarantees
 
