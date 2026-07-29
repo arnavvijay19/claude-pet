@@ -115,6 +115,21 @@ test('retry stores only the visible request and uses the currently selected part
   assert.equal(tracker.visibleRequest(), 'Review the visible request');
 });
 
+test('an invalid goal cannot replace the last valid retry request', async () => {
+  const calls = [];
+  const tracker = createVisibleRequestTracker({
+    submit: async (text) => calls.push(text),
+  });
+  await tracker.submit('Keep this request');
+  await assert.rejects(
+    tracker.submit('é'.repeat(4097)),
+    (error) => error?.code === 'UNSUPPORTED_OPTION',
+  );
+  await tracker.retry();
+  assert.deepEqual(calls, ['Keep this request', 'Keep this request']);
+  assert.equal(tracker.visibleRequest(), 'Keep this request');
+});
+
 test('production lifecycle has one app subscription and no legacy window or polling path', () => {
   const root = path.join(__dirname, '..');
   const main = fs.readFileSync(path.join(root, 'src', 'main.js'), 'utf8');

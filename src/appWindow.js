@@ -3,6 +3,7 @@
 const path = require('node:path');
 
 const { AgentError, toPublicError } = require('./agent/agentErrors.js');
+const { validateGoal } = require('./agent/goalLimits.js');
 const { createAppSnapshot, VIEWS } = require('./app/appSnapshot.js');
 
 const APP_INTENTS = Object.freeze([
@@ -91,8 +92,9 @@ function createVisibleRequestTracker({ submit }) {
   let request = '';
   return Object.freeze({
     async submit(text) {
-      request = text;
-      return submit(text);
+      const next = validateGoal(text);
+      request = next;
+      return submit(next);
     },
     noteAttachment() {},
     retry() {
@@ -197,9 +199,9 @@ function registerAppIpc({
         await assertCurrentSession(coordinator, data.sessionId);
         return coordinator.setParticipantConnection(data);
       case 'submit-goal':
-        if (!exact(data, ['text']) || !string(data.text, { maximum: 65536 })
+        if (!exact(data, ['text'])
             || typeof submitGoal !== 'function') throw unsupported();
-        return submitGoal(data.text);
+        return submitGoal(validateGoal(data.text));
       case 'stop-run':
         if (!noData(data) || typeof stopRun !== 'function') throw unsupported();
         return stopRun();

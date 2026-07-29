@@ -1,6 +1,7 @@
 'use strict';
 
 const { deepFreeze } = require('../agent/activityStore.js');
+const { boundedNoticeRequest } = require('../agent/goalLimits.js');
 
 const VIEWS = Object.freeze(['conversation', 'activity', 'settings']);
 const AGENT_KEYS = Object.freeze([
@@ -171,11 +172,16 @@ function run(value) {
 function notice(value) {
   if (value === null) return null;
   const result = select(value, NOTICE_KEYS, ['status', 'message'], { exact: true });
+  if (result.request !== undefined) {
+    const bounded = boundedNoticeRequest(result.request);
+    if (bounded === undefined) delete result.request;
+    else result.request = bounded;
+  }
   if (!['waiting', 'success', 'error', 'stopped'].includes(result.status)
       || !safeString(result.message, { empty: false, maximum: 2000 })
       || (result.action !== undefined && !safeString(result.action, { maximum: 200 }))
       || (result.agentId !== undefined && !safeString(result.agentId, { empty: false, maximum: 200 }))
-      || (result.request !== undefined && !safeString(result.request, { maximum: 65536 }))) invalid();
+      || (result.request !== undefined && !safeString(result.request, { maximum: 8192 }))) invalid();
   return result;
 }
 

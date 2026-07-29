@@ -1,6 +1,7 @@
 'use strict';
 
 const ERROR_CODES = Object.freeze([
+  'GOAL_REQUIRED',
   'AGENT_REQUIRED',
   'CLI_NOT_INSTALLED',
   'AUTH_REQUIRED',
@@ -32,6 +33,7 @@ const ERROR_CODES = Object.freeze([
 ]);
 
 const PUBLIC_ERROR_BY_CODE = Object.freeze({
+  GOAL_REQUIRED: Object.freeze({ message: 'Enter a request before starting.', action: 'Describe what you want the agent to do.' }),
   AGENT_REQUIRED: Object.freeze({ message: 'Choose an agent in this session before starting.', action: 'Select a session participant and try again.' }),
   CLI_NOT_INSTALLED: Object.freeze({ message: 'The agent command is not installed.', action: 'Install the agent command and try again.' }),
   AUTH_REQUIRED: Object.freeze({ message: 'The agent needs you to sign in.', action: 'Finish agent setup and try again.' }),

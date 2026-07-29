@@ -106,3 +106,24 @@ test('allows validated token usage counters without treating their names as cred
   });
   assert.equal(snapshot.activity.events[0].usage.totalTokens, 20);
 });
+
+test('drops an oversized optional notice request while preserving the public notice', () => {
+  const snapshot = createAppSnapshot({
+    coordinator: coordinatorSnapshot(),
+    connections: [],
+    manager: { busy: false, connectionId: null },
+    activity: { run: null, events: [] },
+    view: 'conversation',
+    notice: {
+      status: 'error',
+      message: 'The request was rejected.',
+      action: 'Try again',
+      request: 'x'.repeat(8193),
+    },
+  });
+  assert.deepEqual(snapshot.notice, {
+    status: 'error',
+    message: 'The request was rejected.',
+    action: 'Try again',
+  });
+});

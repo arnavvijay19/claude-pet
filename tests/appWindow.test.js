@@ -155,6 +155,10 @@ test('rejects malformed, secret-bearing, cross-session, and busy mutations befor
     const invoke = (intent) => ipcMain.handlers.get('app:intent')({ sender }, intent);
     await assert.rejects(invoke({ type: 'submit-goal', data: { text: 'bad\0text' } }));
     await assert.rejects(invoke({
+      type: 'submit-goal',
+      data: { text: 'é'.repeat(4097) },
+    }), (error) => error?.code === (busy ? 'AGENT_BUSY' : 'UNSUPPORTED_OPTION'));
+    await assert.rejects(invoke({
       type: 'save-connection',
       data: {
         executorType: 'offline-demo', label: 'x', workspacePath: 'Z:\\workspace',
