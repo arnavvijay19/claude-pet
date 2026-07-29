@@ -935,3 +935,13 @@ link the note to it — this file is the inbox, not the archive.
   real-login, enterprise-policy, signing/reputation, accessibility, crash, and provider-version
   human gates. No application code or WorkBuddy artifacts changed. NEXT: user reviews the revised
   limits, then Codex creates the red-green implementation plan.
+
+- **2026-07-29 · Codex (GPT-5) · Provider lifecycle plan approved** — The user approved the revised
+  lifecycle boundary. Plan `7cc789d` decomposes implementation into seven reviewable TDD gates:
+  offline helper compilation, native Job Object ownership, the Node readiness adapter, verified
+  lease/runner integration, provider/probe coverage, fresh-package integrity, and canonical
+  evidence plus human release gates. Plan self-review corrected two pre-code defects: provider
+  environment values remain inherited rather than entering the launch envelope, and lease release
+  waits for explicit `providerAssigned: true` readiness rather than a Node `spawn` event that
+  already occurred. No application code or WorkBuddy artifacts changed. NEXT: choose inline or
+  subagent-driven execution and begin Task 1 in an isolated worktree.
