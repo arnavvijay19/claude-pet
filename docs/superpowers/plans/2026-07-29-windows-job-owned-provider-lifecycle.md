@@ -221,6 +221,7 @@ AnyCPU managed image passed 500/500 independent launches. Task 1 therefore uses
 `Environment.Is64BitProcess` is false. The build record remains `architecture: "x64"` because
 protocol execution is fail-closed in a 32-bit process; a real x86 diagnostic build must verify
 that refusal.
+
 Add exact scripts:
 
 ```json
