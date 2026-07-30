@@ -237,7 +237,7 @@ function buildProviderJobHost(options = {}) {
     const compile = spawnCompiler(spawnSync, compilerPath, [
       '/nologo',
       '/target:exe',
-      '/platform:x64',
+      '/platform:anycpu',
       '/optimize+',
       '/warnaserror+',
       '/utf8output',

@@ -170,7 +170,7 @@ test('compiler invocations and production candidates are exact and bounded', (t)
     args: [
       '/nologo',
       '/target:exe',
-      '/platform:x64',
+      '/platform:anycpu',
       '/optimize+',
       '/warnaserror+',
       '/utf8output',
@@ -420,7 +420,7 @@ test('a failed rollback preserves its recovery directory and previous backup byt
   assert.deepEqual(fs.readFileSync(recoveryExecutable), previousExecutable);
 });
 
-test('real Windows helper reports protocol one and rejects unsupported arguments', {
+test('real Windows helper uses the portable loader and preserves command contracts', {
   skip: process.platform !== 'win32',
 }, (t) => {
   const { buildProviderJobHost } = loadBuildModule();
@@ -439,11 +439,49 @@ test('real Windows helper reports protocol one and rejects unsupported arguments
     windowsHide: true,
   });
 
-  assert.equal(peMachine(executable), 0x8664);
+  assert.equal(peMachine(executable), 0x014c);
   assert.equal(protocol.status, 0);
   assert.match(protocol.stdout, /^1\r?\n$/);
   assert.equal(protocol.stderr, '');
   assert.equal(unsupported.status, 64);
   assert.equal(unsupported.stdout, '');
   assert.equal(unsupported.stderr, '');
+});
+
+test('helper source refuses protocol execution in a 32-bit process', {
+  skip: process.platform !== 'win32',
+}, (t) => {
+  const { buildProviderJobHost } = loadBuildModule();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-pet-x86-job-build-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const record = buildProviderJobHost({ outputDirectory: path.join(root, 'generated') });
+  const x86Executable = path.join(root, 'provider-job-host-x86.exe');
+  const x86Compile = childProcess.spawnSync(record.compilerPath, [
+    '/nologo',
+    '/target:exe',
+    '/platform:x86',
+    '/optimize+',
+    '/warnaserror+',
+    '/utf8output',
+    `/out:${x86Executable}`,
+    path.resolve(__dirname, '..', 'resources', 'windows', 'provider-job-host.cs'),
+  ], {
+    cwd: path.dirname(record.compilerPath),
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024,
+    shell: false,
+    timeout: 30_000,
+    windowsHide: true,
+  });
+  assert.equal(x86Compile.status, 0);
+  assert.equal(x86Compile.stdout, '');
+  assert.equal(x86Compile.stderr, '');
+
+  const x86Protocol = childProcess.spawnSync(x86Executable, ['--protocol-version'], {
+    encoding: 'utf8',
+    windowsHide: true,
+  });
+  assert.equal(x86Protocol.status, 64);
+  assert.equal(x86Protocol.stdout, '');
+  assert.equal(x86Protocol.stderr, '');
 });
