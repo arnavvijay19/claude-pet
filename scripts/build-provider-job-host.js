@@ -7,6 +7,8 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
 const PROTOCOL_VERSION = 1;
+const COMPILER_TIMEOUT_MS = 30_000;
+const COMPILER_MAX_BUFFER_BYTES = 64 * 1024;
 const OUTPUT_NAMES = Object.freeze({
   executable: 'provider-job-host.exe',
   record: 'provider-job-host.build.json',
@@ -58,20 +60,27 @@ function resolveCompiler(candidates) {
   throw new Error('Provider helper compiler unavailable');
 }
 
-function spawnCompiler(spawnSync, compilerPath, args) {
+function spawnCompiler(
+  spawnSync,
+  compilerPath,
+  args,
+  failureMessage = 'Provider helper compilation failed',
+) {
   let result;
   try {
     result = spawnSync(compilerPath, args, {
       cwd: path.dirname(compilerPath),
       encoding: 'utf8',
+      maxBuffer: COMPILER_MAX_BUFFER_BYTES,
       shell: false,
+      timeout: COMPILER_TIMEOUT_MS,
       windowsHide: true,
     });
   } catch (error) {
-    throw new Error('Provider helper compilation failed', { cause: error });
+    throw new Error(failureMessage, { cause: error });
   }
   if (!result || result.error || result.status !== 0) {
-    throw new Error('Provider helper compilation failed', { cause: result?.error });
+    throw new Error(failureMessage, { cause: result?.error });
   }
   return {
     stdout: typeof result.stdout === 'string' ? result.stdout : '',
@@ -80,7 +89,12 @@ function spawnCompiler(spawnSync, compilerPath, args) {
 }
 
 function readCompilerVersion(spawnSync, compilerPath) {
-  const result = spawnCompiler(spawnSync, compilerPath, ['/?']);
+  const result = spawnCompiler(
+    spawnSync,
+    compilerPath,
+    ['/?'],
+    'Provider helper compiler unavailable',
+  );
   if (result.stderr.trim() !== '') throw new Error('Provider helper compiler unavailable');
   const match = COMPILER_VERSION_PATTERN.exec(result.stdout);
   if (!match) throw new Error('Provider helper compiler unavailable');

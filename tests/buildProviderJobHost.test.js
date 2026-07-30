@@ -33,6 +33,14 @@ function compilerOutputPath(args) {
   return option ? option.slice('/out:'.length) : null;
 }
 
+function peMachine(filePath) {
+  const executable = fs.readFileSync(filePath);
+  assert.equal(executable.subarray(0, 2).toString('ascii'), 'MZ');
+  const peOffset = executable.readUInt32LE(0x3c);
+  assert.equal(executable.subarray(peOffset, peOffset + 4).toString('binary'), 'PE\0\0');
+  return executable.readUInt16LE(peOffset + 4);
+}
+
 function successfulCompiler(command, args) {
   if (args.includes('/?')) {
     return {
@@ -117,6 +125,62 @@ test('an injected compiler keeps fake-compiler validation platform-neutral', (t)
   assert.equal(result.executableSha256, '96cfb1ef47c6210f19b2f35b3359daf37669d135297cde9658103f32c4d34a21');
 });
 
+test('compiler invocations and production candidates are exact and bounded', (t) => {
+  const { buildProviderJobHost, defaultCompilerCandidates } = loadBuildModule();
+  const fixture = createFixture(t);
+  const calls = [];
+
+  buildProviderJobHost({
+    sourcePath: fixture.sourcePath,
+    outputDirectory: fixture.outputDirectory,
+    compilerCandidates: [fixture.compilerPath],
+    spawnSync(command, args, options) {
+      calls.push({ command, args, options });
+      return successfulCompiler(command, args);
+    },
+  });
+
+  assert.deepEqual(defaultCompilerCandidates('C:\\Windows'), [
+    'C:\\Windows\\Microsoft.NET\\Framework64\\v4.0.30319\\csc.exe',
+    'C:\\Windows\\Microsoft.NET\\Framework\\v4.0.30319\\csc.exe',
+  ]);
+  assert.equal(calls.length, 2);
+  const expectedOptions = {
+    cwd: path.dirname(fixture.compilerPath),
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024,
+    shell: false,
+    timeout: 30_000,
+    windowsHide: true,
+  };
+  assert.deepEqual(calls[0], {
+    command: fixture.compilerPath,
+    args: ['/?'],
+    options: expectedOptions,
+  });
+
+  const stagedExecutable = compilerOutputPath(calls[1].args);
+  const stagedSource = calls[1].args.at(-1);
+  assert.equal(path.basename(stagedExecutable), 'provider-job-host.exe');
+  assert.equal(path.basename(stagedSource), 'provider-job-host.cs');
+  assert.equal(path.dirname(stagedExecutable), path.dirname(stagedSource));
+  assert.match(path.basename(path.dirname(stagedExecutable)), /^\.build-/);
+  assert.deepEqual(calls[1], {
+    command: fixture.compilerPath,
+    args: [
+      '/nologo',
+      '/target:exe',
+      '/platform:x64',
+      '/optimize+',
+      '/warnaserror+',
+      '/utf8output',
+      `/out:${stagedExecutable}`,
+      stagedSource,
+    ],
+    options: expectedOptions,
+  });
+});
+
 test('missing compiler and compiler warnings fail without replacing a previous good build', (t) => {
   const { buildProviderJobHost } = loadBuildModule();
   const fixture = createFixture(t);
@@ -176,6 +240,59 @@ test('missing compiler and compiler warnings fail without replacing a previous g
 
   assert.equal(fs.readFileSync(executablePath, 'utf8'), 'previous-executable');
   assert.equal(fs.readFileSync(recordPath, 'utf8'), '{"previous":true}\n');
+});
+
+test('compiler timeout and output overflow fail with fixed errors and preserve stale output', (t) => {
+  const { buildProviderJobHost } = loadBuildModule();
+  const fixture = createFixture(t);
+  buildProviderJobHost({
+    sourcePath: fixture.sourcePath,
+    outputDirectory: fixture.outputDirectory,
+    compilerCandidates: [fixture.compilerPath],
+    spawnSync: successfulCompiler,
+  });
+  const executablePath = path.join(fixture.outputDirectory, 'provider-job-host.exe');
+  const recordPath = path.join(fixture.outputDirectory, 'provider-job-host.build.json');
+  const previousExecutable = fs.readFileSync(executablePath);
+  const previousRecord = fs.readFileSync(recordPath);
+
+  assert.throws(
+    () => buildProviderJobHost({
+      sourcePath: fixture.sourcePath,
+      outputDirectory: fixture.outputDirectory,
+      compilerCandidates: [fixture.compilerPath],
+      spawnSync() {
+        return {
+          status: null,
+          stdout: '',
+          stderr: '',
+          error: Object.assign(new Error('fixture compiler timed out'), { code: 'ETIMEDOUT' }),
+        };
+      },
+    }),
+    /^Error: Provider helper compiler unavailable$/,
+  );
+
+  assert.throws(
+    () => buildProviderJobHost({
+      sourcePath: fixture.sourcePath,
+      outputDirectory: fixture.outputDirectory,
+      compilerCandidates: [fixture.compilerPath],
+      spawnSync(command, args) {
+        if (args.includes('/?')) return successfulCompiler(command, args);
+        return {
+          status: null,
+          stdout: '',
+          stderr: '',
+          error: Object.assign(new Error('fixture compiler output overflowed'), { code: 'ENOBUFS' }),
+        };
+      },
+    }),
+    /^Error: Provider helper compilation failed$/,
+  );
+
+  assert.deepEqual(fs.readFileSync(executablePath), previousExecutable);
+  assert.deepEqual(fs.readFileSync(recordPath), previousRecord);
 });
 
 test('a changed source during compilation cannot publish a mismatched build record', (t) => {
@@ -322,6 +439,7 @@ test('real Windows helper reports protocol one and rejects unsupported arguments
     windowsHide: true,
   });
 
+  assert.equal(peMachine(executable), 0x8664);
   assert.equal(protocol.status, 0);
   assert.match(protocol.stdout, /^1\r?\n$/);
   assert.equal(protocol.stderr, '');
