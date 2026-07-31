@@ -72,6 +72,8 @@ Codex update would cause the same outage until Claude Pet's source code was edit
 - It does not silently change models, effort, approval policy, sandbox mode, feature flags, or
   permission profile to make an update pass.
 - It does not redesign sessions, attachments, the pet, the composer, or provider lifecycle.
+- It does not depend on the unimplemented provider-lifecycle Tasks 2-7 or claim that the current
+  probe is already assigned to a Job Object.
 - It does not modify `.workbuddy-ai/`, `LOCAL_PR.html`, or any WorkBuddy worktree.
 - It does not begin provider-lifecycle Task 2.
 
@@ -311,10 +313,14 @@ incompatible update is never mislabeled as missing, signed out, or permission-bl
   evidence; return a retryable check failure.
 - **Concurrent status and run:** one qualification promise per identity; all callers receive the
   same bounded result.
-- **App exits during qualification:** provider lifecycle cleanup terminates the assigned probe and
-  no evidence is committed.
+- **App exits during qualification:** the existing bounded probe abort and cleanup path runs and no
+  evidence is committed. This PR does not describe that probe as Job-owned before the later
+  provider-lifecycle integration is actually merged.
 - **Rollback:** treated as its own identity; it may reuse only evidence previously created for that
   exact identity and current policy revision.
+
+The qualifier must continue using the shared provider runner boundary so the later Job Object
+integration can cover it without another compatibility redesign.
 
 ## Security and human limits
 
