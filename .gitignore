@@ -6,3 +6,6 @@ __pycache__/
 .codex/
 .claude/worktrees/
 dist/
+resources/windows/generated/provider-job-host.exe
+resources/windows/generated/provider-job-host.build.json
+resources/windows/generated/.build-*/

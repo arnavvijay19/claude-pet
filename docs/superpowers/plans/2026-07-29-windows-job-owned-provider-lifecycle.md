@@ -185,7 +185,7 @@ function buildProviderJobHost({
   spawnSync = childProcess.spawnSync,
 } = {}) {
   // Resolve only an allowlisted absolute candidate; hash source; compile to a fresh temporary
-  // output with fixed /nologo /target:exe /platform:x64 /optimize+ /warnaserror+ options; reject
+  // output with fixed /nologo /target:exe /platform:anycpu /optimize+ /warnaserror+ options; reject
   // nonzero status, stdout/stderr warnings, or absent output; atomically replace the generated
   // executable and JSON record; then return Object.freeze(record).
 }
@@ -213,6 +213,14 @@ internal static class Program
     }
 }
 ```
+
+**Review-approved architecture correction (2026-07-30):** WorkBuddy reproduced an access
+violation on every launch of the PE32+ image emitted by `/platform:x64`, while the compatible
+AnyCPU managed image passed 500/500 independent launches. Task 1 therefore uses
+`/platform:anycpu` and requires the helper to return `64` before processing commands whenever
+`Environment.Is64BitProcess` is false. The build record remains `architecture: "x64"` because
+protocol execution is fail-closed in a 32-bit process; a real x86 diagnostic build must verify
+that refusal.
 
 Add exact scripts:
 
