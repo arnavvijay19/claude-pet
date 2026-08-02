@@ -28,9 +28,13 @@ const BINDING = Object.freeze({
 const CODEX_PROFILE = 'C:\\Users\\tester';
 const CODEX_LEXICAL_BIN = `${CODEX_PROFILE}\\AppData\\Local\\Programs\\OpenAI\\Codex\\bin`;
 const CODEX_CURRENT = `${CODEX_PROFILE}\\.codex\\packages\\standalone\\current`;
+const CODEX_RELEASE_ROOT = `${CODEX_PROFILE}\\.codex\\packages\\standalone\\releases`;
+const CODEX_RELEASE_SUFFIX = '-x86_64-pc-windows-msvc';
 const CODEX_RELEASE = `${CODEX_PROFILE}\\.codex\\packages\\standalone\\releases\\0.145.0-x86_64-pc-windows-msvc`;
+const CODEX_FUTURE_RELEASE = `${CODEX_RELEASE_ROOT}\\0.146.0${CODEX_RELEASE_SUFFIX}`;
 const CODEX_LEXICAL_CANDIDATE = `${CODEX_LEXICAL_BIN}\\codex.exe`;
 const CODEX_FINAL_CANDIDATE = `${CODEX_RELEASE}\\bin\\codex.exe`;
+const CODEX_FUTURE_CANDIDATE = `${CODEX_FUTURE_RELEASE}\\bin\\codex.exe`;
 const CODEX_REPARSE_CHAIN = Object.freeze([
   Object.freeze({
     path: CODEX_LEXICAL_BIN,
@@ -43,6 +47,29 @@ const CODEX_REPARSE_CHAIN = Object.freeze([
     type: 'junction',
   }),
 ]);
+const CODEX_FUTURE_REPARSE_CHAIN = Object.freeze([
+  CODEX_REPARSE_CHAIN[0],
+  Object.freeze({
+    path: CODEX_CURRENT,
+    rawTarget: CODEX_FUTURE_RELEASE,
+    type: 'junction',
+  }),
+]);
+const CODEX_RELEASE_POLICY = Object.freeze({
+  minimumVersion: '0.145.0',
+  blockedVersions: Object.freeze([]),
+  releaseRoot: CODEX_RELEASE_ROOT,
+  releaseSuffix: CODEX_RELEASE_SUFFIX,
+  installerBin: CODEX_LEXICAL_BIN,
+  standaloneCurrent: CODEX_CURRENT,
+});
+const FUTURE_BINDING = Object.freeze({
+  ...BINDING,
+  path: CODEX_FUTURE_CANDIDATE,
+  sha256: '7'.repeat(64),
+  fileId: '8899AABBCCDDEEFF',
+  version: '0.146.0',
+});
 
 function validFacts(overrides = {}) {
   return Object.freeze({
@@ -258,6 +285,61 @@ test('discovery derives Codex version from bounded CLI output while the blank-ve
   }), (error) => error.code === 'CLI_NOT_INSTALLED');
   assert.equal(untrustedExecuted, false);
   assert.equal(rejected.state.held, false);
+});
+
+test('dynamic Codex inspection derives a future version from the strict release while held', async () => {
+  const facts = validFacts({
+    path: FUTURE_BINDING.path,
+    reparsePoint: true,
+    reparseChain: CODEX_FUTURE_REPARSE_CHAIN,
+    sha256: FUTURE_BINDING.sha256,
+    fileId: FUTURE_BINDING.fileId,
+    fileVersion: '',
+  });
+  const { helper, state } = holdingHelper(facts, CODEX_LEXICAL_CANDIDATE);
+  const inspection = await inspectNativeCliCandidate(CODEX_LEXICAL_CANDIDATE, {
+    helper,
+    expectedPublisher: FUTURE_BINDING.publisher,
+    codexReleasePolicy: CODEX_RELEASE_POLICY,
+    runner: {
+      async capture(spec) {
+        assert.equal(state.held, true);
+        assert.equal(spec.command, FUTURE_BINDING.path);
+        assert.deepEqual(spec.args, ['--version']);
+        return { exitCode: 0, stdout: 'codex-cli 0.146.0\n', stderr: '' };
+      },
+    },
+  });
+
+  assert.equal(inspection.path, FUTURE_BINDING.path);
+  assert.equal(inspection.version, FUTURE_BINDING.version);
+  assert.deepEqual(inspection.reparseChain, CODEX_FUTURE_REPARSE_CHAIN);
+  assert.equal(state.held, false);
+  assert.equal(state.releaseCalls, 1);
+});
+
+test('a verified launch lease accepts the future blank-PE Codex identity and exact held version', async () => {
+  const facts = validFacts({
+    path: FUTURE_BINDING.path,
+    sha256: FUTURE_BINDING.sha256,
+    fileId: FUTURE_BINDING.fileId,
+    fileVersion: '',
+  });
+  const { helper, state } = holdingHelper(facts, FUTURE_BINDING.path);
+  const lease = await openVerifiedNativeCliLaunchLease(FUTURE_BINDING, {
+    helper,
+    runner: {
+      async capture(spec) {
+        assert.equal(state.held, true);
+        assert.equal(spec.command, FUTURE_BINDING.path);
+        return { exitCode: 0, stdout: 'codex-cli 0.146.0\n', stderr: '' };
+      },
+      async launch() { throw new Error('launch is not part of this proof'); },
+    },
+  });
+  assert.equal(state.held, true);
+  await lease.cleanup();
+  assert.equal(state.held, false);
 });
 
 test('discovery accepts only the exact ordered nested Codex junction chain while its final object is held', async () => {
@@ -662,7 +744,7 @@ function runPowerShell(script, environment = {}) {
   });
 }
 
-test('live Codex helper reports the exact nested junction chain and unquoted publisher', { skip: process.platform !== 'win32', timeout: 60000 }, async (t) => {
+test('live Codex helper and dynamic inspection bind the installed release and publisher', { skip: process.platform !== 'win32', timeout: 60000 }, async (t) => {
   const localAppData = process.env.LOCALAPPDATA;
   const userProfile = process.env.USERPROFILE;
   if (!localAppData || !userProfile) {
@@ -678,14 +760,17 @@ test('live Codex helper reports the exact nested junction chain and unquoted pub
     return;
   }
   const current = path.win32.join(userProfile, '.codex', 'packages', 'standalone', 'current');
-  const release = path.win32.join(
-    userProfile, '.codex', 'packages', 'standalone', 'releases',
-    '0.145.0-x86_64-pc-windows-msvc',
-  );
+  const releaseRoot = path.win32.join(userProfile, '.codex', 'packages', 'standalone', 'releases');
   const helper = createNativeCliInspectionHelper();
   const session = await helper.open(lexicalCandidate);
   t.after(() => session.release());
 
+  const release = session.facts.reparseChain[1]?.rawTarget;
+  const releaseName = path.win32.basename(release || '');
+  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-x86_64-pc-windows-msvc$/.exec(releaseName);
+  assert.ok(match, releaseName);
+  const version = `${match[1]}.${match[2]}.${match[3]}`;
+  assert.equal(path.win32.dirname(release).toLowerCase(), releaseRoot.toLowerCase());
   assert.equal(session.facts.path.toLowerCase(), path.win32.join(release, 'bin', 'codex.exe').toLowerCase());
   assert.deepEqual(session.facts.reparseChain.map((entry) => ({
     path: entry.path.toLowerCase(),
@@ -697,6 +782,20 @@ test('live Codex helper reports the exact nested junction chain and unquoted pub
   ]);
   assert.equal(session.facts.publisher, 'OpenAI OpCo, LLC');
   await session.release();
+
+  const inspection = await inspectNativeCliCandidate(lexicalCandidate, {
+    expectedPublisher: 'OpenAI OpCo, LLC',
+    codexReleasePolicy: {
+      minimumVersion: '0.145.0',
+      blockedVersions: [],
+      releaseRoot,
+      releaseSuffix: '-x86_64-pc-windows-msvc',
+      installerBin: lexicalBin,
+      standaloneCurrent: current,
+    },
+  });
+  assert.equal(inspection.version, version);
+  assert.equal(inspection.path.toLowerCase(), session.facts.path.toLowerCase());
 });
 
 test('Windows helper holds a real FILE_SHARE_READ-only handle that blocks overwrite, rename, and delete until release', { skip: process.platform !== 'win32', timeout: 60000 }, async (t) => {

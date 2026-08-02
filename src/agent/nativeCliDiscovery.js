@@ -7,7 +7,10 @@ const {
   minimalEnvironment,
   resolveCommandCandidatesWithWhere,
 } = require('./cliRunner.js');
-const { inspectNativeCliCandidate } = require('./nativeCliLaunchLease.js');
+const {
+  codexVersionAllowed,
+  inspectNativeCliCandidate,
+} = require('./nativeCliLaunchLease.js');
 
 const REPOSITORY_ROOT = path.win32.resolve(__dirname, '..', '..');
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
@@ -16,38 +19,12 @@ const NATIVE_CLI_POLICY = Object.freeze({
   'codex-cli': Object.freeze({
     rootEnvironmentKey: 'LOCALAPPDATA',
     rootParts: Object.freeze(['Programs', 'OpenAI', 'Codex']),
-    allowedJunction: Object.freeze({
-      pathEnvironmentKey: 'LOCALAPPDATA',
-      pathParts: Object.freeze(['Programs', 'OpenAI', 'Codex', 'bin']),
-      targetEnvironmentKey: 'USERPROFILE',
-      targetParts: Object.freeze([
-        '.codex', 'packages', 'standalone', 'releases',
-        '0.145.0-x86_64-pc-windows-msvc', 'bin',
-      ]),
-      reparseChain: Object.freeze([
-        Object.freeze({
-          pathEnvironmentKey: 'LOCALAPPDATA',
-          pathParts: Object.freeze(['Programs', 'OpenAI', 'Codex', 'bin']),
-          rawTargetEnvironmentKey: 'USERPROFILE',
-          rawTargetParts: Object.freeze([
-            '.codex', 'packages', 'standalone', 'current', 'bin',
-          ]),
-          type: 'junction',
-        }),
-        Object.freeze({
-          pathEnvironmentKey: 'USERPROFILE',
-          pathParts: Object.freeze(['.codex', 'packages', 'standalone', 'current']),
-          rawTargetEnvironmentKey: 'USERPROFILE',
-          rawTargetParts: Object.freeze([
-            '.codex', 'packages', 'standalone', 'releases',
-            '0.145.0-x86_64-pc-windows-msvc',
-          ]),
-          type: 'junction',
-        }),
-      ]),
+    releasePolicy: Object.freeze({
+      minimumVersion: '0.145.0',
+      blockedVersions: Object.freeze([]),
+      releaseSuffix: '-x86_64-pc-windows-msvc',
     }),
     publisher: 'OpenAI OpCo, LLC',
-    version: '0.145.0',
     executable: 'codex.exe',
   }),
   'claude-code-cli': Object.freeze({
@@ -139,6 +116,25 @@ function resolveReparsePolicy(policy, environment) {
   });
 }
 
+function resolveCodexReleasePolicy(policy, environment) {
+  if (!policy.releasePolicy) return null;
+  const localAppData = normalizeAbsolute(environment?.LOCALAPPDATA);
+  const userProfile = normalizeAbsolute(environment?.USERPROFILE);
+  if (!localAppData || !userProfile) return null;
+  return Object.freeze({
+    minimumVersion: policy.releasePolicy.minimumVersion,
+    blockedVersions: policy.releasePolicy.blockedVersions,
+    releaseRoot: path.win32.join(
+      userProfile, '.codex', 'packages', 'standalone', 'releases',
+    ),
+    releaseSuffix: policy.releasePolicy.releaseSuffix,
+    installerBin: path.win32.join(localAppData, 'Programs', 'OpenAI', 'Codex', 'bin'),
+    standaloneCurrent: path.win32.join(
+      userProfile, '.codex', 'packages', 'standalone', 'current',
+    ),
+  });
+}
+
 function exactReparseChain(actual, expected) {
   if (!Array.isArray(actual) || actual.length !== expected.length) return false;
   return actual.every((entry, index) => {
@@ -154,14 +150,56 @@ function exactReparseChain(actual, expected) {
   });
 }
 
+function codexReleaseFromInspection(candidate, inspection, policy, executable) {
+  if (!policy || !Array.isArray(inspection.reparseChain)
+    || inspection.reparseChain.length !== 2) return null;
+  const release = normalizeAbsolute(inspection.reparseChain[1]?.rawTarget);
+  if (!release || !samePath(path.win32.dirname(release), policy.releaseRoot)) return null;
+  const releaseName = path.win32.basename(release);
+  if (!releaseName.endsWith(policy.releaseSuffix)) return null;
+  const version = releaseName.slice(0, -policy.releaseSuffix.length);
+  if (!codexVersionAllowed(version, policy)) return null;
+  const target = path.win32.join(release, 'bin');
+  const expectedChain = Object.freeze([
+    Object.freeze({
+      path: policy.installerBin,
+      rawTarget: path.win32.join(policy.standaloneCurrent, 'bin'),
+      type: 'junction',
+    }),
+    Object.freeze({
+      path: policy.standaloneCurrent,
+      rawTarget: release,
+      type: 'junction',
+    }),
+  ]);
+  const junctionPath = normalizeAbsolute(inspection.junctionPath);
+  const junctionTarget = normalizeAbsolute(inspection.junctionTarget);
+  if (!samePath(candidate, path.win32.join(policy.installerBin, executable))
+    || !samePath(inspection.path, path.win32.join(target, executable))
+    || !exactReparseChain(inspection.reparseChain, expectedChain)
+    || !junctionPath || !samePath(junctionPath, policy.installerBin)
+    || !junctionTarget || !samePath(junctionTarget, target)
+    || inspection.version !== version) {
+    return null;
+  }
+  return Object.freeze({ version, target });
+}
+
 function bindingFromInspection(
   candidate, inspection, policy, officialRoot, exclusions, allowedJunction,
-  expectedReparseChain, expectedLexicalCandidate,
+  expectedReparseChain, expectedLexicalCandidate, codexReleasePolicy,
 ) {
   if (!inspection || typeof inspection !== 'object' || Array.isArray(inspection)) return null;
   const inspectedPath = normalizeAbsolute(inspection.path);
   if (!inspectedPath) return null;
-  if (inspection.reparsePoint === false) {
+  const dynamicRelease = codexReleasePolicy
+    ? codexReleaseFromInspection(candidate, inspection, codexReleasePolicy, policy.executable)
+    : null;
+  if (codexReleasePolicy) {
+    if (inspection.reparsePoint !== true
+      || !dynamicRelease
+      || exclusions.some((root) => isWithin(root, inspectedPath))) return null;
+  } else if (inspection.reparsePoint === false) {
     if (expectedReparseChain.length !== 0 || !exactReparseChain(inspection.reparseChain, [])) return null;
     if (!samePath(candidate, inspectedPath)) return null;
     if (!candidateAllowed(
@@ -197,7 +235,7 @@ function bindingFromInspection(
     || inspection.volumeSerial.length === 0
     || typeof inspection.fileId !== 'string'
     || inspection.fileId.length === 0
-    || inspection.version !== policy.version
+    || inspection.version !== (dynamicRelease?.version || policy.version)
     || inspection.publisher !== policy.publisher
   ) {
     return null;
@@ -239,8 +277,10 @@ async function discoverSignedNativeCli({
   const reparsePolicy = resolveReparsePolicy(policy, environment);
   if (!reparsePolicy) throw new AgentError('CLI_NOT_INSTALLED');
   const { allowedJunction, expectedReparseChain } = reparsePolicy;
+  const codexReleasePolicy = resolveCodexReleasePolicy(policy, environment);
+  if (policy.releasePolicy && !codexReleasePolicy) throw new AgentError('CLI_NOT_INSTALLED');
   const expectedLexicalCandidate = path.win32.join(
-    allowedJunction?.path || officialRoot,
+    codexReleasePolicy?.installerBin || allowedJunction?.path || officialRoot,
     policy.executable,
   );
   if (exclusions.some((root) => isWithin(root, officialRoot))) {
@@ -251,6 +291,16 @@ async function discoverSignedNativeCli({
       allowedJunction.path,
       allowedJunction.target,
       ...expectedReparseChain.flatMap((entry) => [entry.path, entry.rawTarget]),
+    ];
+    if (exclusions.some((root) => heldPaths.some((heldPath) => isWithin(root, heldPath)))) {
+      throw new AgentError('CLI_NOT_INSTALLED');
+    }
+  }
+  if (codexReleasePolicy) {
+    const heldPaths = [
+      codexReleasePolicy.installerBin,
+      codexReleasePolicy.standaloneCurrent,
+      codexReleasePolicy.releaseRoot,
     ];
     if (exclusions.some((root) => heldPaths.some((heldPath) => isWithin(root, heldPath)))) {
       throw new AgentError('CLI_NOT_INSTALLED');
@@ -281,19 +331,24 @@ async function discoverSignedNativeCli({
     seen.add(key);
     let inspection;
     try {
-      inspection = await inspectCandidate(candidate, {
-        allowedJunction,
+      const inspectionOptions = {
         expectedPublisher: policy.publisher,
-        expectedReparseChain,
-        expectedVersion: policy.version,
         environment: sanitizedCoreEnvironment(environment),
-      });
+      };
+      if (codexReleasePolicy) {
+        inspectionOptions.codexReleasePolicy = codexReleasePolicy;
+      } else {
+        inspectionOptions.allowedJunction = allowedJunction;
+        inspectionOptions.expectedReparseChain = expectedReparseChain;
+        inspectionOptions.expectedVersion = policy.version;
+      }
+      inspection = await inspectCandidate(candidate, inspectionOptions);
     } catch {
       continue;
     }
     const binding = bindingFromInspection(
       candidate, inspection, policy, officialRoot, exclusions, allowedJunction,
-      expectedReparseChain, expectedLexicalCandidate,
+      expectedReparseChain, expectedLexicalCandidate, codexReleasePolicy,
     );
     if (binding) return binding;
   }
@@ -302,5 +357,6 @@ async function discoverSignedNativeCli({
 
 module.exports = {
   NATIVE_CLI_POLICY,
+  codexVersionAllowed,
   discoverSignedNativeCli,
 };
