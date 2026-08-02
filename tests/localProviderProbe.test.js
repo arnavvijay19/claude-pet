@@ -93,6 +93,14 @@ function deterministicSecrets() {
   };
 }
 
+function safeFeatureOutput(additions = []) {
+  return [...CODEX_KNOWN_0145_FEATURES.map((name) => ({
+    name, stage: 'stable', enabled: false,
+  })), ...additions]
+    .map(({ name, stage, enabled }) => `${name.padEnd(48)}${stage}  ${enabled}`)
+    .join('\n') + '\n';
+}
+
 async function tempRoot(t) {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-pet-local-probe-'));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
@@ -161,8 +169,8 @@ test('rejects changed canonical fixture bytes before spawning a provider CLI', a
   const fixtureRoot = await tempRoot(t);
   for (const name of [
     'codex-responses-fixtures.json',
-    'codex-0.145.0-code-mode-tools.json',
-    'codex-0.145.0-probe-config.toml',
+    'codex-required-code-mode-tools.json',
+    'codex-probe-config.toml',
   ]) {
     await fs.copyFile(path.join(sourceRoot, name), path.join(fixtureRoot, name));
   }
@@ -183,6 +191,211 @@ test('rejects changed canonical fixture bytes before spawning a provider CLI', a
     (error) => error.code === 'PERMISSION_PROFILE_UNAVAILABLE',
   );
   assert.equal(spawnCalls, 0);
+});
+
+test('uses one version-neutral Codex probe contract for every eligible binding version', async (t) => {
+  const fixtureRoot = path.join(__dirname, '..', 'resources', 'probes');
+  const probeResources = (await fs.readdir(fixtureRoot))
+    .filter((name) => name.startsWith('codex-') && (
+      name.includes('code-mode-tools') || name.includes('probe-config')
+    )).sort();
+  assert.deepEqual(probeResources, [
+    'codex-probe-config.toml',
+    'codex-required-code-mode-tools.json',
+  ]);
+
+  const specifications = [];
+  for (const version of ['0.145.0', '0.146.0', '0.200.1']) {
+    const result = await verifyNativeToolSurface({
+      provider: 'codex-cli',
+      purpose: 'compatibility',
+      cliBinding: { path: 'C:\\Program Files\\OpenAI\\Codex\\codex.exe', version },
+      workspacePath: 'Z:\\workspace',
+      fixtureRoot,
+      randomBytes: deterministicSecrets(),
+      spawn: async (spec) => {
+        specifications.push({
+          args: spec.args,
+          command: spec.command,
+          hasSignal: spec.signal instanceof AbortSignal,
+        });
+        if (spec.args.slice(-2).join(' ') === 'features list') {
+          return { exitCode: 0, stdout: safeFeatureOutput(), stderr: '' };
+        }
+        return { exitCode: 2, stdout: '', stderr: 'unsupported required contract' };
+      },
+    });
+    assert.deepEqual(result, { compatible: false });
+  }
+  assert.equal(specifications.length, 6);
+  assert.deepEqual(specifications.slice(0, 2), specifications.slice(2, 4));
+  assert.deepEqual(specifications.slice(0, 2), specifications.slice(4, 6));
+});
+
+test('live installed Codex completes the version-neutral account-free contract', {
+  skip: process.platform !== 'win32' || process.env.CLAUDE_PET_RUN_LIVE_CODEX_PROBE !== '1',
+  timeout: 60_000,
+}, async (t) => {
+  if (!process.env.LOCALAPPDATA) {
+    t.skip('LOCALAPPDATA is unavailable');
+    return;
+  }
+  const command = path.win32.join(
+    process.env.LOCALAPPDATA, 'Programs', 'OpenAI', 'Codex', 'bin', 'codex.exe',
+  );
+  try {
+    await fs.access(command);
+  } catch {
+    t.skip('Codex Desktop CLI is not installed');
+    return;
+  }
+  const report = await verifyNativeToolSurface({
+    provider: 'codex-cli',
+    purpose: 'compatibility',
+    cliBinding: { path: command, version: '0.146.0' },
+    workspacePath: 'C:\\Users\\Tester\\Desktop\\a',
+    fixtureRoot: path.join(__dirname, '..', 'resources', 'probes'),
+  });
+  const expected = {
+    provider: 'codex-cli',
+    controlRequests: 4,
+    childCanaryConnections: 1,
+    processExitCode: 0,
+    cleanup: true,
+    upgradeAttempts: 7,
+    scenarioTurns: 4,
+    blockedToolResults: 7,
+    credentialScrubbed: true,
+  };
+  assert.deepEqual(report, expected);
+});
+
+test('compatibility probes distinguish deterministic mismatch from retryable uncertainty', async (t) => {
+  const fixtureRoot = path.join(__dirname, '..', 'resources', 'probes');
+  const common = {
+    provider: 'codex-cli',
+    purpose: 'compatibility',
+    cliBinding: { path: 'C:\\codex.exe', version: '0.146.0' },
+    workspacePath: 'Z:\\workspace',
+    fixtureRoot,
+    randomBytes: deterministicSecrets(),
+  };
+  const incompatible = await verifyNativeToolSurface({
+    ...common,
+    spawn: async () => ({
+      exitCode: 0,
+      stdout: safeFeatureOutput([
+        { name: 'future_enabled_surface', stage: 'experimental', enabled: true },
+      ]),
+      stderr: '',
+    }),
+  });
+  assert.deepEqual(incompatible, { compatible: false });
+  assert.equal(Object.isFrozen(incompatible), true);
+
+  const missingRequiredFlag = await verifyNativeToolSurface({
+    ...common,
+    spawn: async () => ({ exitCode: 2, stdout: '', stderr: 'unknown required flag' }),
+  });
+  assert.deepEqual(missingRequiredFlag, { compatible: false });
+
+  await assert.rejects(
+    verifyNativeToolSurface({
+      ...common,
+      spawn: async () => { throw new Error('temporary spawn failure'); },
+    }),
+    (error) => error.name === 'LocalProviderProbeFailure'
+      && error.message === 'Local provider probe failed'
+      && error.kind === 'check-failed'
+      && Object.keys(error).sort().join(',') === 'kind,name',
+  );
+});
+
+test('compatibility probe infrastructure and cleanup uncertainty remain retryable', async (t) => {
+  const fixtureRoot = await tempRoot(t);
+  const input = {
+    cliBinding: { path: 'C:\\codex.exe', version: '0.146.0' },
+    workspacePath: 'Z:\\workspace',
+    fixtureRoot,
+  };
+  const bindFailure = createLocalProviderProbe({
+    provider: 'codex-cli',
+    purpose: 'compatibility',
+    fixtures: fixtures(),
+    randomBytes: deterministicSecrets(),
+    listen: () => { throw new Error('temporary bind failure'); },
+  });
+  await assert.rejects(
+    bindFailure.run(input),
+    (error) => error.name === 'LocalProviderProbeFailure' && error.kind === 'check-failed',
+  );
+
+  const cleanupRoot = await tempRoot(t);
+  const cleanupFailure = createLocalProviderProbe({
+    provider: 'codex-cli',
+    purpose: 'compatibility',
+    fixtures: fixtures(),
+    randomBytes: deterministicSecrets(),
+    temporaryRoot: cleanupRoot,
+    fileSystem: {
+      ...fs,
+      async rm() { throw new Error('temporary cleanup failure'); },
+    },
+    spawn: async () => { throw new Error('temporary spawn failure'); },
+  });
+  await assert.rejects(
+    cleanupFailure.run(input),
+    (error) => error.name === 'LocalProviderProbeFailure' && error.kind === 'check-failed',
+  );
+});
+
+test('compatibility probe classifies a healthy loopback contract violation as incompatible', async (t) => {
+  const fixtureRoot = await tempRoot(t);
+  const probe = createLocalProviderProbe({
+    provider: 'codex-cli',
+    purpose: 'compatibility',
+    fixtures: fixtures(),
+    randomBytes: deterministicSecrets(),
+    spawn: async (spec) => {
+      const config = await fs.readFile(path.join(spec.env.CODEX_HOME, 'config.toml'), 'utf8');
+      const controlBase = /openai_base_url = "([^"]+)"/.exec(config)[1];
+      await request({
+        url: `${controlBase}/responses`,
+        bearer: spec.env.CODEX_API_KEY,
+        body: JSON.stringify({ model: 'wrong', input: 'unexpected' }),
+      });
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+  await assert.rejects(
+    probe.run({
+      cliBinding: { path: 'C:\\codex.exe', version: '0.146.0' },
+      workspacePath: 'Z:\\workspace',
+      fixtureRoot,
+    }),
+    (error) => error.name === 'LocalProviderProbeFailure' && error.kind === 'incompatible',
+  );
+});
+
+test('permission probes preserve the existing public error for deterministic mismatch', async (t) => {
+  await assert.rejects(
+    verifyNativeToolSurface({
+      provider: 'codex-cli',
+      cliBinding: { path: 'C:\\codex.exe', version: '0.146.0' },
+      workspacePath: 'Z:\\workspace',
+      fixtureRoot: path.join(__dirname, '..', 'resources', 'probes'),
+      randomBytes: deterministicSecrets(),
+      spawn: async () => ({
+        exitCode: 0,
+        stdout: safeFeatureOutput([
+          { name: 'future_enabled_surface', stage: 'experimental', enabled: true },
+        ]),
+        stderr: '',
+      }),
+    }),
+    (error) => error.code === 'PERMISSION_PROFILE_UNAVAILABLE'
+      && !Object.hasOwn(error, 'kind'),
+  );
 });
 
 test('pins bounded request, event, transcript, and deadline limits', () => {
@@ -536,7 +749,8 @@ test('owns authenticated loopback endpoints and separates control traffic from c
     '--disable', 'browser_use_full_cdp_access', '--disable', 'code_mode_host',
     '--disable', 'computer_use', '--disable', 'hooks', '--disable', 'goals',
     '--disable', 'guardian_approval', '--disable', 'image_generation',
-    '--disable', 'in_app_browser', '--disable', 'memories', '--disable', 'multi_agent',
+    '--disable', 'in_app_browser', '--disable', 'memories', '--disable', 'in_app_updates',
+    '--disable', 'multi_agent',
     '--disable', 'plugins', '--disable', 'plugin_sharing', '--disable', 'remote_plugin',
     '--disable', 'skill_mcp_dependency_install', '--disable', 'skill_search',
     '--disable', 'tool_call_mcp_elicitation', '--disable', 'tool_suggest',

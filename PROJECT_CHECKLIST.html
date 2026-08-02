@@ -503,6 +503,20 @@
         action: 'Nothing technical is required. Open the packaged app only if you want to judge the final labels and visual balance.',
       },
       {
+        id: 'codex-compatibility-task-1',
+        title: 'Codex compatibility Task 1 — Verify future official CLI identities',
+        done: true,
+        explanation: 'Merged remotely through GitHub PR #2 at 3e4d1a6. Claude Pet now derives strict supported Codex versions from the official x64 release path and re-proves the signed publisher, canonical path, hash, file identity, and held CLI version without a per-version positive allowlist. Claude Code remains exact-version.',
+        action: 'Nothing. Static identity qualification is merged on GitHub; the local master checkout intentionally remains unchanged.',
+      },
+      {
+        id: 'codex-compatibility-task-2',
+        title: 'Codex compatibility Task 2 — Use one version-neutral probe contract',
+        done: true,
+        explanation: 'Implemented and verified on an isolated branch. Disabled future features are tolerated, unknown enabled capability still fails closed, in-app updating is explicitly disabled, bounded optional message IDs are accepted, and deterministic incompatibility is separated from retryable probe uncertainty. The current installed Codex completed the account-free loopback contract without a real credential or model endpoint.',
+        action: 'Publish and merge this isolated Task 2 PR, then implement the protected identity-bound compatibility evidence store in Task 3.',
+      },
+      {
         id: 'task-20',
         title: 'Optional Task 20 — Provision the dedicated WSL distro',
         done: false,

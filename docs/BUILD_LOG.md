@@ -945,3 +945,31 @@ link the note to it — this file is the inbox, not the archive.
   waits for explicit `providerAssigned: true` readiness rather than a Node `spawn` event that
   already occurred. No application code or WorkBuddy artifacts changed. NEXT: choose inline or
   subagent-driven execution and begin Task 1 in an isolated worktree.
+
+## 2026-08-02 — Codex CLI forward compatibility Tasks 1-2
+
+- GitHub PR #2 merged Task 1 remotely at `3e4d1a6` without changing the local `master` checkout.
+  Dynamic discovery now accepts strict official x64 Codex releases at or above `0.145.0`, derives
+  the version from the held release path, and re-proves the exact signed identity and held
+  `--version`; Claude Code's exact behavior is unchanged.
+- Task 2 witnessed five intended RED failures, then replaced the exact `0.145.0` feature registry
+  gate with a required-subset policy. Bounded disabled additions and removed historical disabled
+  entries are tolerated, while duplicate/malformed records and every unknown enabled capability
+  remain rejected. The app-owned config and tool-projection resources are now version-neutral.
+- The installed August 2026 CLI exposed two reviewed changes. `in_app_updates` is explicitly
+  disabled because it is a separate update/network surface. The removed `item_ids` compatibility
+  flag is allowed, and bounded unique optional message IDs are ignored only for envelope-key
+  comparison; tool schemas, collaboration controls, exec registry, event flow, and sentinels stay
+  exact. This matches the current official OpenAI Codex feature registry and removed-flag handling.
+- Compatibility probes now return frozen `{ compatible: false }` only for deterministic contract
+  mismatch. Bind, fixture, spawn, abort, temporary I/O, and cleanup uncertainty throw the internal
+  fixed-kind `check-failed`; the existing permission path still exposes only
+  `PERMISSION_PROFILE_UNAVAILABLE`. Caller cancellation is forwarded into the owned probe lifecycle.
+- A live account-free run completed the full current Codex loopback contract with synthetic
+  credentials and no real provider endpoint. Later loaded attempts reached the unchanged 30-second
+  deadline during WebSocket rejection/fallback, correctly producing retryable `check-failed`; the
+  live gate is therefore explicit opt-in rather than a flaky mandatory suite test.
+- Verification: required focused/adjacent suite passed 40 with one opt-in live skip; complete Node
+  suite passed 346 with one opt-in live skip; Python passed 3/3; `git diff --check` passed. No WSL,
+  provider sign-in, real model request, local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change
+  occurred. NEXT: publish and merge Task 2, then begin compatibility evidence-store Task 3.

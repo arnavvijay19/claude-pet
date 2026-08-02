@@ -77,10 +77,18 @@ function validateCodexEnvelope(body, fixture) {
       || !Array.isArray(body.input) || body.input.length < protocol.inputProjection.length) {
     throw new Error('Unexpected Codex Responses envelope');
   }
-  const projection = body.input.slice(0, protocol.inputProjection.length).map((item) => ({
+  const projectedItems = body.input.slice(0, protocol.inputProjection.length);
+  const projectedMessages = projectedItems.filter((item) => item?.type === 'message');
+  const identifiedMessages = projectedMessages.filter((item) => Object.hasOwn(item, 'id'));
+  if (identifiedMessages.some((item) => typeof item.id !== 'string'
+      || item.id.length === 0 || item.id.length > 256 || item.id.includes('\0'))
+      || new Set(identifiedMessages.map((item) => item.id)).size !== identifiedMessages.length) {
+    throw new Error('Unexpected Codex item identifier');
+  }
+  const projection = projectedItems.map((item) => ({
     type: item?.type,
     role: item?.role,
-    keys: keys(item),
+    keys: keys(item).filter((key) => key !== 'id'),
   }));
   if (!same(projection, protocol.inputProjection)) {
     throw new Error('Unexpected Codex input projection');

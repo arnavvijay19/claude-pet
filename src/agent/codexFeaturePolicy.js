@@ -6,7 +6,7 @@ const CODEX_DISABLED_FEATURES = Object.freeze([
   'apps', 'auth_elicitation', 'browser_use', 'browser_use_external',
   'browser_use_full_cdp_access', 'code_mode_host', 'computer_use', 'hooks',
   'goals', 'guardian_approval', 'image_generation', 'in_app_browser', 'memories',
-  'multi_agent', 'plugins', 'plugin_sharing', 'remote_plugin',
+  'in_app_updates', 'multi_agent', 'plugins', 'plugin_sharing', 'remote_plugin',
   'skill_mcp_dependency_install', 'skill_search', 'tool_call_mcp_elicitation',
   'tool_suggest', 'workspace_dependencies',
 ]);
@@ -42,7 +42,7 @@ const CODEX_KNOWN_0145_FEATURES = Object.freeze([
 
 const CODEX_SAFE_ENABLED_FEATURES = Object.freeze([
   'collaboration_modes', 'enable_request_compression', 'fast_mode', 'mentions_v2',
-  'personality', 'remote_compaction_v2', 'resize_all_images', 'secret_auth_storage',
+  'item_ids', 'personality', 'remote_compaction_v2', 'resize_all_images', 'secret_auth_storage',
   'shell_snapshot', 'shell_tool', 'sqlite', 'steer', 'terminal_resize_reflow',
   'tool_search_always_defer_mcp_tools', 'tui_app_server',
 ]);
@@ -78,16 +78,12 @@ function parseCodexFeatureList(output) {
 }
 
 function assertCodexFeaturePolicy(records) {
-  if (!Array.isArray(records) || records.length !== CODEX_KNOWN_0145_FEATURES.length) {
-    throw unavailable();
-  }
+  if (!Array.isArray(records) || records.length === 0) throw unavailable();
   const names = records.map((record) => record?.name);
-  if (new Set(names).size !== names.length
-      || names.some((name, index) => name !== CODEX_KNOWN_0145_FEATURES[index])) {
-    throw unavailable();
-  }
+  if (names.some((name) => typeof name !== 'string' || !name)
+      || new Set(names).size !== names.length) throw unavailable();
   for (const record of records) {
-    if (!record || typeof record.stage !== 'string' || !record.stage
+    if (typeof record.stage !== 'string' || !record.stage
         || typeof record.enabled !== 'boolean') throw unavailable();
     if (record.enabled && !CODEX_SAFE_ENABLED_FEATURES.includes(record.name)) throw unavailable();
     if (record.enabled && CODEX_DISABLED_FEATURES.includes(record.name)) throw unavailable();
