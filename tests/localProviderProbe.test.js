@@ -107,6 +107,77 @@ async function tempRoot(t) {
   return directory;
 }
 
+function canonicalCodexHeaders(url, bearer, body) {
+  return {
+    accept: 'text/event-stream',
+    authorization: `Bearer ${bearer}`,
+    'content-length': Buffer.byteLength(body),
+    'content-type': 'application/json',
+    host: new URL(url).host,
+    originator: 'codex_cli_rs',
+    'session-id': 'probe-session',
+    'thread-id': 'probe-thread',
+    'user-agent': 'codex_cli_rs/test',
+    version: '0.0.0-test',
+    'x-client-request-id': 'probe-request',
+    'x-codex-beta-features': '',
+    'x-codex-turn-metadata': '{}',
+    'x-codex-window-id': 'probe-window',
+    'x-openai-internal-codex-responses-lite': 'true',
+  };
+}
+
+function rejectUpgrade(url, bearer) {
+  return new Promise((resolve, reject) => {
+    const endpoint = new URL(url);
+    const socket = net.connect(Number(endpoint.port), endpoint.hostname, () => {
+      socket.write([
+        `GET ${endpoint.pathname} HTTP/1.1`,
+        `Host: ${endpoint.host}`,
+        'Connection: Upgrade',
+        'Upgrade: websocket',
+        `Authorization: Bearer ${bearer}`,
+        'Sec-WebSocket-Key: dGVzdC1wcm9iZQ==',
+        'Sec-WebSocket-Version: 13',
+        '',
+        '',
+      ].join('\r\n'));
+    });
+    socket.once('error', (error) => {
+      if (error.code === 'ECONNRESET') resolve();
+      else reject(error);
+    });
+    socket.once('close', resolve);
+    socket.setTimeout(1000, () => socket.destroy());
+  });
+}
+
+function canonicalCodexRequest(url, bearer, body) {
+  return new Promise((resolve, reject) => {
+    const endpoint = new URL(url);
+    const headers = canonicalCodexHeaders(url, bearer, body);
+    const socket = net.connect(Number(endpoint.port), endpoint.hostname, () => {
+      const lines = [
+        `POST ${endpoint.pathname} HTTP/1.0`,
+        ...Object.entries(headers).map(([name, value]) => `${name}: ${value}`),
+        '',
+        body,
+      ];
+      socket.end(lines.join('\r\n'));
+    });
+    const chunks = [];
+    socket.on('data', (chunk) => chunks.push(chunk));
+    socket.once('error', reject);
+    socket.once('close', () => {
+      const response = Buffer.concat(chunks).toString('utf8');
+      const match = /^HTTP\/\d\.\d (\d{3})/.exec(response);
+      if (!match) reject(new Error('Invalid canonical probe response'));
+      else resolve({ statusCode: Number(match[1]), body: response });
+    });
+    socket.setTimeout(2000, () => socket.destroy(new Error('Canonical request timed out')));
+  });
+}
+
 test('pins complete canonical protocol metadata and fixed scenario contracts', async () => {
   const root = path.join(__dirname, '..', 'resources', 'probes');
   const codexBytes = await fs.readFile(path.join(root, 'codex-responses-fixtures.json'));
@@ -204,32 +275,84 @@ test('uses one version-neutral Codex probe contract for every eligible binding v
     'codex-required-code-mode-tools.json',
   ]);
 
-  const specifications = [];
+  const canonicalFixtures = JSON.parse(await fs.readFile(
+    path.join(fixtureRoot, 'codex-responses-fixtures.json'), 'utf8',
+  ));
+  const evidence = [];
   for (const version of ['0.145.0', '0.146.0', '0.200.1']) {
-    const result = await verifyNativeToolSurface({
+    const temporaryRoot = await tempRoot(t);
+    let owner;
+    let turn = 0;
+    const scenarioHarnessFactory = ({ owner: nextOwner }) => {
+      owner = nextOwner;
+      return {
+        handle(body) {
+          assert.deepEqual(body, { turn });
+          turn += 1;
+          return {
+            statusCode: 200,
+            headers: { 'content-type': 'text/event-stream' },
+            body: 'data: [DONE]\n\n',
+          };
+        },
+        report() { return { complete: turn === 4, turns: turn, blockedToolResults: 7 }; },
+      };
+    };
+    const runEvidence = {};
+    const probe = createLocalProviderProbe({
       provider: 'codex-cli',
       purpose: 'compatibility',
-      cliBinding: { path: 'C:\\Program Files\\OpenAI\\Codex\\codex.exe', version },
-      workspacePath: 'Z:\\workspace',
-      fixtureRoot,
+      fixtures: canonicalFixtures,
       randomBytes: deterministicSecrets(),
+      temporaryRoot,
+      scenarioHarnessFactory,
       spawn: async (spec) => {
-        specifications.push({
-          args: spec.args,
-          command: spec.command,
-          hasSignal: spec.signal instanceof AbortSignal,
-        });
         if (spec.args.slice(-2).join(' ') === 'features list') {
           return { exitCode: 0, stdout: safeFeatureOutput(), stderr: '' };
         }
-        return { exitCode: 2, stdout: '', stderr: 'unsupported required contract' };
+        const config = await fs.readFile(path.join(spec.env.CODEX_HOME, 'config.toml'), 'utf8');
+        const controlBase = /openai_base_url = "([^"]+)"/.exec(config)[1];
+        const controlUrl = `${controlBase}/responses`;
+        runEvidence.spec = {
+          args: spec.args,
+          command: spec.command,
+          cwdOwned: path.relative(temporaryRoot, spec.cwd).startsWith('..') === false,
+          environmentKeys: Object.keys(spec.env).sort(),
+          hasSignal: spec.signal instanceof AbortSignal,
+          syntheticBearer: spec.env.CODEX_API_KEY,
+          renderedConfig: config.replace(controlBase, '__OWNER_CONTROL_BASE__'),
+        };
+        for (let index = 0; index < 7; index += 1) {
+          await rejectUpgrade(controlUrl, spec.env.CODEX_API_KEY);
+        }
+        for (let index = 0; index < 4; index += 1) {
+          const body = JSON.stringify({ turn: index });
+          const response = await canonicalCodexRequest(controlUrl, spec.env.CODEX_API_KEY, body);
+          assert.equal(response.statusCode, 200, response.body);
+        }
+        const canaryUrl = /http:\/\/127\.0\.0\.1:\d+\/[A-Za-z0-9_-]+/.exec(owner.codexExec)?.[0];
+        assert.equal(typeof canaryUrl, 'string');
+        await request({ url: canaryUrl, method: 'GET', body: '' });
+        await fs.writeFile(owner.outsideWrite, 'outside-write-ok', 'utf8');
+        await fs.writeFile(path.join(spec.cwd, 'codex-probe-applied.txt'), 'applied\n', 'utf8');
+        return { exitCode: 0, stdout: 'probe-complete', stderr: '' };
       },
     });
-    assert.deepEqual(result, { compatible: false });
+    const result = await probe.run({
+      cliBinding: { path: 'C:\\Program Files\\OpenAI\\Codex\\codex.exe', version },
+      workspacePath: 'Z:\\workspace',
+      fixtureRoot,
+    });
+    evidence.push({ result, spec: runEvidence.spec });
+    assert.deepEqual(await fs.readdir(temporaryRoot), []);
   }
-  assert.equal(specifications.length, 6);
-  assert.deepEqual(specifications.slice(0, 2), specifications.slice(2, 4));
-  assert.deepEqual(specifications.slice(0, 2), specifications.slice(4, 6));
+  assert.deepEqual(evidence[0], evidence[1]);
+  assert.deepEqual(evidence[0], evidence[2]);
+  assert.deepEqual(evidence[0].result, {
+    provider: 'codex-cli', controlRequests: 4, childCanaryConnections: 1,
+    processExitCode: 0, cleanup: true, upgradeAttempts: 7,
+    scenarioTurns: 4, blockedToolResults: 7, credentialScrubbed: true,
+  });
 });
 
 test('live installed Codex completes the version-neutral account-free contract', {
@@ -295,9 +418,41 @@ test('compatibility probes distinguish deterministic mismatch from retryable unc
 
   const missingRequiredFlag = await verifyNativeToolSurface({
     ...common,
-    spawn: async () => ({ exitCode: 2, stdout: '', stderr: 'unknown required flag' }),
+    spawn: async () => ({
+      exitCode: 2,
+      stdout: '',
+      stderr: "error: invalid value 'apps' for '--disable <FEATURE>': unknown feature 'apps'",
+    }),
   });
   assert.deepEqual(missingRequiredFlag, { compatible: false });
+
+  await assert.rejects(
+    verifyNativeToolSurface({
+      ...common,
+      spawn: async (spec) => (spec.args.slice(-2).join(' ') === 'features list'
+        ? { exitCode: 9, stdout: '', stderr: 'internal runtime panic' }
+        : { exitCode: 0, stdout: '', stderr: '' }),
+    }),
+    (error) => error.name === 'LocalProviderProbeFailure' && error.kind === 'check-failed',
+  );
+
+  const runFlagFailure = await verifyNativeToolSurface({
+    ...common,
+    spawn: async (spec) => (spec.args.slice(-2).join(' ') === 'features list'
+      ? { exitCode: 0, stdout: safeFeatureOutput(), stderr: '' }
+      : { exitCode: 2, stdout: '', stderr: "error: unexpected argument '--strict-config' found" }),
+  });
+  assert.deepEqual(runFlagFailure, { compatible: false });
+
+  await assert.rejects(
+    verifyNativeToolSurface({
+      ...common,
+      spawn: async (spec) => (spec.args.slice(-2).join(' ') === 'features list'
+        ? { exitCode: 0, stdout: safeFeatureOutput(), stderr: '' }
+        : { exitCode: 9, stdout: '', stderr: 'internal runtime panic' }),
+    }),
+    (error) => error.name === 'LocalProviderProbeFailure' && error.kind === 'check-failed',
+  );
 
   await assert.rejects(
     verifyNativeToolSurface({
@@ -309,6 +464,22 @@ test('compatibility probes distinguish deterministic mismatch from retryable unc
       && error.kind === 'check-failed'
       && Object.keys(error).sort().join(',') === 'kind,name',
   );
+});
+
+test('accepts only bounded unique optional Codex message identifiers', () => {
+  const messages = (ids) => ids.map((id) => ({
+    type: 'message', role: 'user', content: [], ...(id === undefined ? {} : { id }),
+  }));
+  assert.equal(providerHarness.assertOptionalCodexItemIdentifiers(messages([undefined, 'a', 'b'.repeat(256)])), true);
+  for (const invalid of [
+    messages(['']),
+    messages(['x'.repeat(257)]),
+    messages(['nul\0id']),
+    messages(['duplicate', 'duplicate']),
+    messages([7]),
+  ]) {
+    assert.throws(() => providerHarness.assertOptionalCodexItemIdentifiers(invalid), /identifier/);
+  }
 });
 
 test('compatibility probe infrastructure and cleanup uncertainty remain retryable', async (t) => {

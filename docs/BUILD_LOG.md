@@ -962,14 +962,24 @@ link the note to it — this file is the inbox, not the archive.
   comparison; tool schemas, collaboration controls, exec registry, event flow, and sentinels stay
   exact. This matches the current official OpenAI Codex feature registry and removed-flag handling.
 - Compatibility probes now return frozen `{ compatible: false }` only for deterministic contract
-  mismatch. Bind, fixture, spawn, abort, temporary I/O, and cleanup uncertainty throw the internal
-  fixed-kind `check-failed`; the existing permission path still exposes only
-  `PERMISSION_PROFILE_UNAVAILABLE`. Caller cancellation is forwarded into the owned probe lifecycle.
+  mismatch. Independent review caught that the first implementation treated every nonzero CLI exit
+  as deterministic; the corrected contract recognizes only a narrowly evidenced missing required
+  flag/feature diagnostic. Opaque crashes and other nonzero exits remain retryable `check-failed`,
+  alongside bind, fixture, spawn, abort, temporary I/O, and cleanup uncertainty. The existing
+  permission path still exposes only `PERMISSION_PROFILE_UNAVAILABLE`, and caller cancellation is
+  forwarded into the owned probe lifecycle.
+- Review remediation also replaced a superficial three-version spawn comparison with a complete
+  deterministic loopback lifecycle for `0.145.0`, `0.146.0`, and `0.200.1`: identical normalized
+  arguments, synthetic bearer, rendered app-owned config, authenticated control traffic, seven
+  rejected WebSocket upgrades, child canary, sentinel writes, complete scenario report, and cleanup.
+  Direct boundary cases now cover absent, 256-byte, empty, oversized, NUL-containing, non-string,
+  and duplicate optional message IDs.
 - A live account-free run completed the full current Codex loopback contract with synthetic
   credentials and no real provider endpoint. Later loaded attempts reached the unchanged 30-second
   deadline during WebSocket rejection/fallback, correctly producing retryable `check-failed`; the
   live gate is therefore explicit opt-in rather than a flaky mandatory suite test.
-- Verification: required focused/adjacent suite passed 40 with one opt-in live skip; complete Node
-  suite passed 346 with one opt-in live skip; Python passed 3/3; `git diff --check` passed. No WSL,
+- Verification after review remediation: required focused/adjacent suite passed 41 with one opt-in
+  live skip; complete Node suite passed 347 with one opt-in live skip; Python passed 3/3;
+  `git diff --check` passed. No WSL,
   provider sign-in, real model request, local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change
   occurred. NEXT: publish and merge Task 2, then begin compatibility evidence-store Task 3.

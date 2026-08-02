@@ -513,7 +513,7 @@
         id: 'codex-compatibility-task-2',
         title: 'Codex compatibility Task 2 — Use one version-neutral probe contract',
         done: true,
-        explanation: 'Implemented and verified on an isolated branch. Disabled future features are tolerated, unknown enabled capability still fails closed, in-app updating is explicitly disabled, bounded optional message IDs are accepted, and deterministic incompatibility is separated from retryable probe uncertainty. The current installed Codex completed the account-free loopback contract without a real credential or model endpoint.',
+        explanation: 'Implemented and verified on an isolated branch. Disabled future features are tolerated, unknown enabled capability still fails closed, in-app updating is explicitly disabled, and bounded optional message IDs are accepted. Review remediation ensures only an evidenced missing required flag or contract mismatch is deterministic; opaque nonzero exits remain retryable. A deterministic three-version matrix now completes identical loopback, bearer, control, upgrade, canary, sentinel, and cleanup behavior. The current installed Codex also completed the account-free loopback contract without a real credential or model endpoint.',
         action: 'Publish and merge this isolated Task 2 PR, then implement the protected identity-bound compatibility evidence store in Task 3.',
       },
       {

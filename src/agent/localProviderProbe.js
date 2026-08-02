@@ -70,6 +70,14 @@ function probeFailure(kind, cause) {
     : new LocalProviderProbeFailure(kind, { cause });
 }
 
+function deterministicCodexFlagFailure(result) {
+  if (!plain(result) || result.exitCode === 0) return false;
+  const diagnostic = `${String(result.stderr || '')}\n${String(result.stdout || '')}`.slice(0, 8192);
+  return /unknown feature\b/i.test(diagnostic)
+    || /invalid value[\s\S]{0,256}(?:--disable|<FEATURE)/i.test(diagnostic)
+    || /(?:unexpected|unknown|unrecognized) (?:argument|option)[\s\S]{0,256}--(?:ask-for-approval|color|disable|ephemeral|ignore-rules|model|sandbox|skip-git-repo-check|strict-config)/i.test(diagnostic);
+}
+
 function plain(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     && Object.getPrototypeOf(value) === Object.prototype;
@@ -322,11 +330,13 @@ function createLocalProviderProbe({
   environment = process.env,
   fileSystem = defaultFileSystem,
   temporaryRoot = os.tmpdir(),
+  scenarioHarnessFactory = createFixedScenarioHarness,
 } = {}) {
   validateFixtures(provider, fixtures);
   const isCanonical = fixtures?.schemaVersion === 1;
   if (typeof spawn !== 'function' || typeof listen !== 'function'
       || typeof randomBytes !== 'function'
+      || typeof scenarioHarnessFactory !== 'function'
       || typeof temporaryRoot !== 'string' || !path.isAbsolute(temporaryRoot)
       || !['permission', 'compatibility'].includes(purpose)) {
     throw new TypeError('Local provider probe dependencies are invalid');
@@ -434,7 +444,7 @@ function createLocalProviderProbe({
       const canaryUrl = `http://127.0.0.1:${canaryPort}/${canaryPath}`;
 
       if (isCanonical) {
-        harness = createFixedScenarioHarness({
+        harness = scenarioHarnessFactory({
           provider,
           fixtures,
           limits: PROBE_LIMITS,
@@ -635,8 +645,12 @@ function createLocalProviderProbe({
           env: probeEnvironment,
           signal: controller.signal,
         });
-        if (!plain(featureResult) || featureResult.exitCode !== 0) {
-          throw probeFailure('incompatible');
+        if (!plain(featureResult) || !Number.isInteger(featureResult.exitCode)) {
+          throw new Error('Invalid Codex feature inspection result');
+        }
+        if (featureResult.exitCode !== 0) {
+          if (deterministicCodexFlagFailure(featureResult)) throw probeFailure('incompatible');
+          throw probeFailure('check-failed');
         }
         try {
           assertCodexFeaturePolicy(parseCodexFeatureList(featureResult.stdout));
@@ -656,9 +670,16 @@ function createLocalProviderProbe({
       const scenarioReport = harness?.report();
       const expectedControlRequests = provider === 'codex-cli' ? 4 : 3;
       const expectedUpgrades = provider === 'codex-cli' ? 7 : 0;
-      if (!plain(processResult)) throw new Error('Invalid provider process result');
-      if (processResult.exitCode !== 0 || protocolFailure
-          || (!isCanonical && validControlRequests !== 1)
+      if (!plain(processResult) || !Number.isInteger(processResult.exitCode)) {
+        throw new Error('Invalid provider process result');
+      }
+      if (processResult.exitCode !== 0) {
+        if (protocolFailure || (provider === 'codex-cli' && deterministicCodexFlagFailure(processResult))) {
+          throw probeFailure('incompatible', protocolFailure);
+        }
+        throw probeFailure('check-failed');
+      }
+      if (protocolFailure || (!isCanonical && validControlRequests !== 1)
           || (isCanonical && (
             validControlRequests !== expectedControlRequests
             || upgradeAttempts !== expectedUpgrades
