@@ -4,7 +4,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const { discoverSignedNativeCli } = require('../src/agent/nativeCliDiscovery.js');
+const {
+  codexVersionAllowed,
+  discoverSignedNativeCli,
+} = require('../src/agent/nativeCliDiscovery.js');
 
 const BASE_ENVIRONMENT = Object.freeze({
   LOCALAPPDATA: 'C:\\Users\\Tester\\AppData\\Local',
@@ -38,6 +41,8 @@ const CODEX_JUNCTION = Object.freeze({
   target: 'C:\\Users\\Tester\\.codex\\packages\\standalone\\releases\\0.145.0-x86_64-pc-windows-msvc\\bin',
 });
 const CODEX_CURRENT = 'C:\\Users\\Tester\\.codex\\packages\\standalone\\current';
+const CODEX_RELEASE_ROOT = 'C:\\Users\\Tester\\.codex\\packages\\standalone\\releases';
+const CODEX_RELEASE_SUFFIX = '-x86_64-pc-windows-msvc';
 const CODEX_RELEASE = 'C:\\Users\\Tester\\.codex\\packages\\standalone\\releases\\0.145.0-x86_64-pc-windows-msvc';
 const CODEX_REPARSE_CHAIN = Object.freeze([
   Object.freeze({
@@ -51,6 +56,52 @@ const CODEX_REPARSE_CHAIN = Object.freeze([
     type: 'junction',
   }),
 ]);
+
+function codexRelease(version) {
+  const release = `${CODEX_RELEASE_ROOT}\\${version}${CODEX_RELEASE_SUFFIX}`;
+  const target = `${release}\\bin`;
+  return Object.freeze({
+    version,
+    release,
+    target,
+    canonical: `${target}\\codex.exe`,
+    chain: Object.freeze([
+      Object.freeze({
+        path: CODEX_JUNCTION.path,
+        rawTarget: `${CODEX_CURRENT}\\bin`,
+        type: 'junction',
+      }),
+      Object.freeze({
+        path: CODEX_CURRENT,
+        rawTarget: release,
+        type: 'junction',
+      }),
+    ]),
+  });
+}
+
+function expectedCodexReleasePolicy(overrides = {}) {
+  return {
+    minimumVersion: '0.145.0',
+    blockedVersions: [],
+    releaseRoot: CODEX_RELEASE_ROOT,
+    releaseSuffix: CODEX_RELEASE_SUFFIX,
+    installerBin: CODEX_JUNCTION.path,
+    standaloneCurrent: CODEX_CURRENT,
+    ...overrides,
+  };
+}
+
+function validDynamicCodexInspection(version, overrides = {}) {
+  const release = codexRelease(version);
+  return validInspection('codex-cli', PROVIDERS['codex-cli'].candidate, {
+    path: release.canonical,
+    reparseChain: release.chain,
+    version,
+    junctionTarget: release.target,
+    ...overrides,
+  });
+}
 
 function validInspection(provider, candidate, overrides = {}) {
   const policy = PROVIDERS[provider];
@@ -124,10 +175,51 @@ test('discoverSignedNativeCli returns an immutable exact signed binding for each
     assert.equal(resolverCalls[0].options.environment.SECRET_THAT_MUST_NOT_LEAK, undefined);
     assert.equal(inspectorCalls.length, 1);
     assert.equal(inspectorCalls[0].candidate, policy.candidate);
-    assert.deepEqual(
-      inspectorCalls[0].options.expectedReparseChain,
-      provider === 'codex-cli' ? CODEX_REPARSE_CHAIN : [],
-    );
+    if (provider === 'codex-cli') {
+      assert.deepEqual(inspectorCalls[0].options.codexReleasePolicy, expectedCodexReleasePolicy());
+      assert.equal(inspectorCalls[0].options.expectedVersion, undefined);
+      assert.equal(inspectorCalls[0].options.expectedReparseChain, undefined);
+    } else {
+      assert.equal(inspectorCalls[0].options.codexReleasePolicy, undefined);
+      assert.equal(inspectorCalls[0].options.expectedVersion, policy.version);
+      assert.deepEqual(inspectorCalls[0].options.expectedReparseChain, []);
+    }
+  }
+});
+
+test('Codex discovery binds supported dynamic release versions without a positive allowlist', async () => {
+  for (const version of ['0.145.0', '0.146.0', '0.200.1']) {
+    const release = codexRelease(version);
+    const binding = await discoverSignedNativeCli(discoveryOptions('codex-cli', {
+      inspectCandidate: async (candidate, options) => {
+        assert.equal(candidate, PROVIDERS['codex-cli'].candidate);
+        assert.deepEqual(options.codexReleasePolicy, expectedCodexReleasePolicy());
+        return validDynamicCodexInspection(version);
+      },
+    }));
+    assert.deepEqual(binding, {
+      path: release.canonical,
+      sha256: 'a'.repeat(64),
+      volumeSerial: '12345678',
+      fileId: '1122334455667788',
+      version,
+      publisher: 'OpenAI OpCo, LLC',
+    });
+  }
+});
+
+test('Codex version policy enforces strict semver, the floor, and only an emergency denylist', () => {
+  const policy = { minimumVersion: '0.145.0', blockedVersions: ['0.146.0'] };
+  assert.equal(codexVersionAllowed('0.145.0', policy), true);
+  assert.equal(codexVersionAllowed('0.146.0', policy), false);
+  assert.equal(codexVersionAllowed('0.200.1', policy), true);
+  for (const version of [
+    '0.144.9', 'v0.146.0', '0.146', '01.146.0',
+    '0.146.0-arm64-pc-windows-msvc',
+    '0.146.0-x86_64-pc-windows-msvc-extra',
+    '..\\0.146.0-x86_64-pc-windows-msvc',
+  ]) {
+    assert.equal(codexVersionAllowed(version, policy), false, version);
   }
 });
 
@@ -150,7 +242,7 @@ test('workspace-local first match is skipped without inspection and a later offi
   assert.deepEqual(inspected, [policy.candidate]);
 });
 
-test('only the exact pinned Codex launcher junction may bind its held canonical package target', async () => {
+test('only the strict Codex launcher junction shape may bind its held canonical package target', async () => {
   const provider = 'codex-cli';
   const lexicalCandidate = `${CODEX_JUNCTION.path}\\codex.exe`;
   const canonicalTarget = `${CODEX_JUNCTION.target}\\codex.exe`;
@@ -158,8 +250,7 @@ test('only the exact pinned Codex launcher junction may bind its held canonical 
     resolveCandidates: async () => [lexicalCandidate],
     inspectCandidate: async (candidate, options) => {
       assert.equal(candidate, lexicalCandidate);
-      assert.deepEqual(options.allowedJunction, CODEX_JUNCTION);
-      assert.deepEqual(options.expectedReparseChain, CODEX_REPARSE_CHAIN);
+      assert.deepEqual(options.codexReleasePolicy, expectedCodexReleasePolicy());
       return validInspection(provider, candidate, {
         path: canonicalTarget,
         reparsePoint: true,

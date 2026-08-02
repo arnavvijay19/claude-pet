@@ -20,6 +20,12 @@ const FACT_KEYS = Object.freeze([
 const REPARSE_ENTRY_KEYS = Object.freeze(['path', 'rawTarget', 'type']);
 const LEASE_LAUNCH_KEYS = Object.freeze(['args', 'command', 'options']);
 const SPAWN_OPTION_KEYS = Object.freeze(['cwd', 'env', 'shell', 'stdio', 'windowsHide']);
+const CODEX_RELEASE_POLICY_KEYS = Object.freeze([
+  'blockedVersions', 'installerBin', 'minimumVersion', 'releaseRoot',
+  'releaseSuffix', 'standaloneCurrent',
+]);
+const CODEX_RELEASE_SUFFIX = '-x86_64-pc-windows-msvc';
+const STRICT_SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 
 function commandFailed(error) {
   return error instanceof AgentError ? error : new AgentError('COMMAND_FAILED', { cause: error });
@@ -121,6 +127,82 @@ function sameReparseChain(first, second) {
   ));
 }
 
+function parseStrictVersion(value) {
+  const match = typeof value === 'string' ? STRICT_SEMVER.exec(value) : null;
+  return match ? match.slice(1).map(Number) : null;
+}
+
+function compareVersions(first, second) {
+  for (let index = 0; index < 3; index += 1) {
+    if (first[index] !== second[index]) return first[index] < second[index] ? -1 : 1;
+  }
+  return 0;
+}
+
+function codexVersionAllowed(value, {
+  minimumVersion,
+  blockedVersions = [],
+} = {}) {
+  const version = parseStrictVersion(value);
+  const minimum = parseStrictVersion(minimumVersion);
+  if (!version || !minimum || !Array.isArray(blockedVersions)
+    || blockedVersions.some((blocked) => !parseStrictVersion(blocked))) {
+    return false;
+  }
+  return compareVersions(version, minimum) >= 0 && !blockedVersions.includes(value);
+}
+
+function normalizeCodexReleasePolicy(raw) {
+  if (!exactOwnKeys(raw, CODEX_RELEASE_POLICY_KEYS)
+    || raw.releaseSuffix !== CODEX_RELEASE_SUFFIX
+    || !codexVersionAllowed(raw.minimumVersion, {
+      minimumVersion: raw.minimumVersion,
+      blockedVersions: raw.blockedVersions,
+    })
+    || !['releaseRoot', 'installerBin', 'standaloneCurrent'].every((key) => (
+      typeof raw[key] === 'string'
+      && path.win32.isAbsolute(raw[key])
+      && path.win32.normalize(raw[key]) === raw[key]
+    ))) {
+    return null;
+  }
+  return Object.freeze({
+    minimumVersion: raw.minimumVersion,
+    blockedVersions: Object.freeze([...raw.blockedVersions]),
+    releaseRoot: raw.releaseRoot,
+    releaseSuffix: raw.releaseSuffix,
+    installerBin: raw.installerBin,
+    standaloneCurrent: raw.standaloneCurrent,
+  });
+}
+
+function codexReleaseFromFacts(candidatePath, facts, policy) {
+  if (facts.reparseChain.length !== 2) return null;
+  const [installer, current] = facts.reparseChain;
+  const expectedLexicalCandidate = path.win32.join(policy.installerBin, 'codex.exe');
+  const expectedCurrentBin = path.win32.join(policy.standaloneCurrent, 'bin');
+  const release = current.rawTarget;
+  const releaseName = path.win32.basename(release);
+  if (!samePath(candidatePath, expectedLexicalCandidate)
+    || installer.type !== 'junction'
+    || current.type !== 'junction'
+    || !samePath(installer.path, policy.installerBin)
+    || !samePath(installer.rawTarget, expectedCurrentBin)
+    || !samePath(current.path, policy.standaloneCurrent)
+    || !samePath(path.win32.dirname(release), policy.releaseRoot)
+    || !releaseName.endsWith(policy.releaseSuffix)) {
+    return null;
+  }
+  const version = releaseName.slice(0, -policy.releaseSuffix.length);
+  const target = path.win32.join(release, 'bin');
+  if (!codexVersionAllowed(version, policy)
+    || !samePath(facts.path, path.win32.join(target, 'codex.exe'))
+    || !samePath(terminalPathFromReparseChain(candidatePath, facts.reparseChain), facts.path)) {
+    return null;
+  }
+  return Object.freeze({ version, target });
+}
+
 function normalizeFacts(raw) {
   const reparseChain = exactOwnKeys(raw, FACT_KEYS)
     ? normalizeReparseChain(raw.reparseChain)
@@ -154,7 +236,7 @@ function normalizeFacts(raw) {
 }
 
 function fileVersionMatches(fileVersion, cliVersion, publisher) {
-  return (fileVersion === '' && publisher === 'OpenAI OpCo, LLC' && cliVersion === '0.145.0')
+  return (fileVersion === '' && publisher === 'OpenAI OpCo, LLC')
     || fileVersion === cliVersion
     || fileVersion === `${cliVersion}.0`;
 }
@@ -475,18 +557,27 @@ async function inspectNativeCliCandidate(candidatePath, {
   expectedVersion,
   expectedReparseChain,
   allowedJunction = null,
+  codexReleasePolicy,
   environment = process.env,
 } = {}) {
   assertMainProcess();
-  const expectedChain = expectedChainFromOptions({
-    expectedReparseChain,
-    allowedJunction,
+  const dynamicPolicy = codexReleasePolicy === undefined
+    ? null
+    : normalizeCodexReleasePolicy(codexReleasePolicy);
+  const dynamicMode = codexReleasePolicy !== undefined;
+  const expectedChain = dynamicMode ? null : expectedChainFromOptions({
+    expectedReparseChain, allowedJunction,
   });
   if (!helper || typeof helper.open !== 'function'
     || !runner || typeof runner.capture !== 'function'
     || typeof expectedPublisher !== 'string' || expectedPublisher.length === 0
-    || typeof expectedVersion !== 'string' || expectedVersion.length === 0
-    || !expectedChain) {
+    || (dynamicMode && (!dynamicPolicy
+      || expectedVersion !== undefined
+      || expectedReparseChain !== undefined
+      || allowedJunction !== null))
+    || (!dynamicMode && (typeof expectedVersion !== 'string'
+      || expectedVersion.length === 0
+      || !expectedChain))) {
     throw new AgentError('CLI_NOT_INSTALLED');
   }
   let session;
@@ -495,18 +586,22 @@ async function inspectNativeCliCandidate(candidatePath, {
   try {
     session = await helper.open(candidatePath);
     const facts = normalizeFacts(session?.facts);
+    const dynamicRelease = dynamicPolicy
+      ? codexReleaseFromFacts(candidatePath, facts, dynamicPolicy)
+      : null;
+    const verifiedVersion = dynamicRelease?.version || expectedVersion;
     if (typeof session?.release !== 'function'
       || facts.regularFile !== true
-      || facts.reparsePoint !== (expectedChain.length > 0)
       || facts.signatureValid !== true
       || facts.publisher !== expectedPublisher
-      || !fileVersionMatches(facts.fileVersion, expectedVersion, expectedPublisher)
-      || !sameReparseChain(facts.reparseChain, expectedChain)
-      || (allowedJunction && !samePath(allowedJunction.target, path.win32.dirname(facts.path)))
-      || !samePath(
-        terminalPathFromReparseChain(candidatePath, facts.reparseChain),
-        facts.path,
-      )) {
+      || !fileVersionMatches(facts.fileVersion, verifiedVersion, expectedPublisher)
+      || (dynamicMode && !dynamicRelease)
+      || (!dynamicMode && (
+        facts.reparsePoint !== (expectedChain.length > 0)
+        || !sameReparseChain(facts.reparseChain, expectedChain)
+        || (allowedJunction && !samePath(allowedJunction.target, path.win32.dirname(facts.path)))
+        || !samePath(terminalPathFromReparseChain(candidatePath, facts.reparseChain), facts.path)
+      ))) {
       throw new AgentError('CLI_NOT_INSTALLED');
     }
     const versionResult = await runner.capture({
@@ -515,7 +610,7 @@ async function inspectNativeCliCandidate(candidatePath, {
       options: versionSpawnOptions(facts.path, environment),
       timeoutMs: DEFAULT_LAUNCH_TIMEOUT_MS,
     });
-    if (versionResult?.exitCode !== 0 || !reportsExactVersion(versionResult.stdout, expectedVersion)) {
+    if (versionResult?.exitCode !== 0 || !reportsExactVersion(versionResult.stdout, verifiedVersion)) {
       throw new AgentError('CLI_NOT_INSTALLED');
     }
     const publicInspection = {
@@ -526,13 +621,13 @@ async function inspectNativeCliCandidate(candidatePath, {
       sha256: facts.sha256,
       volumeSerial: facts.volumeSerial,
       fileId: facts.fileId,
-      version: expectedVersion,
+      version: verifiedVersion,
       publisher: facts.publisher,
       signatureValid: facts.signatureValid,
     };
     if (facts.reparseChain.length > 0) {
       publicInspection.junctionPath = facts.reparseChain[0].path;
-      publicInspection.junctionTarget = path.win32.dirname(facts.path);
+      publicInspection.junctionTarget = dynamicRelease?.target || path.win32.dirname(facts.path);
     }
     result = Object.freeze(publicInspection);
   } catch (error) {
@@ -748,6 +843,7 @@ async function openVerifiedNativeCliLaunchLease(binding, {
 }
 
 module.exports = {
+  codexVersionAllowed,
   createNativeCliInspectionHelper,
   createNativeCliLeaseRunner,
   inspectNativeCliCandidate,
