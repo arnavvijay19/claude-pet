@@ -11,6 +11,12 @@ const CODEX_DISABLED_FEATURES = Object.freeze([
   'tool_suggest', 'workspace_dependencies',
 ]);
 
+// These controls existed at the minimum supported protocol floor and must remain
+// visible and disabled. Later safety controls may be absent from older eligible CLIs.
+const CODEX_REQUIRED_DISABLED_FEATURES = Object.freeze(
+  CODEX_DISABLED_FEATURES.filter((name) => name !== 'in_app_updates'),
+);
+
 const CODEX_KNOWN_0145_FEATURES = Object.freeze([
   'apply_patch_freeform', 'apply_patch_streaming_events', 'apps', 'apps_mcp_path_override',
   'artifact', 'auth_elicitation', 'browser_use', 'browser_use_external',
@@ -88,6 +94,10 @@ function assertCodexFeaturePolicy(records) {
     if (record.enabled && !CODEX_SAFE_ENABLED_FEATURES.includes(record.name)) throw unavailable();
     if (record.enabled && CODEX_DISABLED_FEATURES.includes(record.name)) throw unavailable();
   }
+  const recordsByName = new Map(records.map((record) => [record.name, record]));
+  if (CODEX_REQUIRED_DISABLED_FEATURES.some((name) => (
+    recordsByName.get(name)?.enabled !== false
+  ))) throw unavailable();
   return true;
 }
 
@@ -118,6 +128,7 @@ function validateCodexCodeModeProjection(value) {
 module.exports = {
   CODEX_DISABLED_FEATURES,
   CODEX_KNOWN_0145_FEATURES,
+  CODEX_REQUIRED_DISABLED_FEATURES,
   CODEX_SAFE_ENABLED_FEATURES,
   CODE_MODE_PROJECTION,
   assertCodexFeaturePolicy,

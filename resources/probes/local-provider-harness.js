@@ -67,6 +67,9 @@ function validateFixtureShape(provider, fixture) {
 
 function assertOptionalCodexItemIdentifiers(items) {
   if (!Array.isArray(items)) throw new Error('Unexpected Codex item identifier');
+  if (items.some((item) => plain(item) && item.type !== 'message' && Object.hasOwn(item, 'id'))) {
+    throw new Error('Unexpected Codex item identifier');
+  }
   const messages = items.filter((item) => item?.type === 'message');
   const identified = messages.filter((item) => Object.hasOwn(item, 'id'));
   if (identified.some((item) => typeof item.id !== 'string'
@@ -94,7 +97,7 @@ function validateCodexEnvelope(body, fixture) {
   const projection = projectedItems.map((item) => ({
     type: item?.type,
     role: item?.role,
-    keys: keys(item).filter((key) => key !== 'id'),
+    keys: keys(item).filter((key) => item?.type !== 'message' || key !== 'id'),
   }));
   if (!same(projection, protocol.inputProjection)) {
     throw new Error('Unexpected Codex input projection');

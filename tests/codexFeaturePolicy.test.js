@@ -214,6 +214,10 @@ test('allows bounded disabled additions and removal of historical non-required d
   assert.doesNotThrow(() => assertCodexFeaturePolicy(
     current.filter(({ name }) => name !== 'artifact'),
   ));
+  assert.throws(
+    () => assertCodexFeaturePolicy(current.filter(({ name }) => name !== 'apps')),
+    (error) => error.code === 'PERMISSION_PROFILE_UNAVAILABLE',
+  );
 });
 
 test('pins the version-neutral GPT-5.6 code-mode projection as canonical UTF-8 with one LF', () => {

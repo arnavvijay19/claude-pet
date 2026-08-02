@@ -974,12 +974,19 @@ link the note to it — this file is the inbox, not the archive.
   rejected WebSocket upgrades, child canary, sentinel writes, complete scenario report, and cleanup.
   Direct boundary cases now cover absent, 256-byte, empty, oversized, NUL-containing, non-string,
   and duplicate optional message IDs.
+- Fresh-head review then found two additional fail-closed gaps. The feature policy now requires
+  every safety control present at the `0.145.0` protocol floor to remain listed and disabled while
+  still permitting removal of historical non-required entries; the later `in_app_updates` control
+  remains explicitly disabled without making its registry presence a false requirement for the
+  minimum version. Optional `id` keys are stripped only from message projections. An `id` on
+  `additional_tools` or any other projected item is rejected, including through the full envelope
+  validator rather than only the narrow identifier helper.
 - A live account-free run completed the full current Codex loopback contract with synthetic
   credentials and no real provider endpoint. Later loaded attempts reached the unchanged 30-second
   deadline during WebSocket rejection/fallback, correctly producing retryable `check-failed`; the
   live gate is therefore explicit opt-in rather than a flaky mandatory suite test.
-- Verification after review remediation: required focused/adjacent suite passed 41 with one opt-in
-  live skip; complete Node suite passed 347 with one opt-in live skip; Python passed 3/3;
+- Verification after review remediation: required focused/adjacent suite passed 42 with one opt-in
+  live skip; complete Node suite passed 348 with one opt-in live skip; Python passed 3/3;
   `git diff --check` passed. No WSL,
   provider sign-in, real model request, local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change
   occurred. NEXT: publish and merge Task 2, then begin compatibility evidence-store Task 3.

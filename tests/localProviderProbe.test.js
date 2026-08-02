@@ -477,9 +477,68 @@ test('accepts only bounded unique optional Codex message identifiers', () => {
     messages(['nul\0id']),
     messages(['duplicate', 'duplicate']),
     messages([7]),
+    [{ type: 'additional_tools', role: 'developer', tools: [], id: 'not-a-message-id' }],
   ]) {
     assert.throws(() => providerHarness.assertOptionalCodexItemIdentifiers(invalid), /identifier/);
   }
+});
+
+test('ignores optional ids only on message projections, never tool projections', () => {
+  const execDescription = '### apply_patch';
+  const collaborationDescription = 'fixed collaboration';
+  const collaborationParameters = { type: 'object', properties: {} };
+  const exec = {
+    name: 'exec', type: 'custom', description: execDescription,
+    format: { type: 'grammar', syntax: 'lark', definition: 'start: "ok"' },
+  };
+  const collaboration = {
+    name: 'collaboration', type: 'namespace', description: collaborationDescription,
+    tools: [{ name: 'spawn_agent', parameters: collaborationParameters }],
+  };
+  const fixture = {
+    protocol: {
+      bodyKeys: [
+        'include', 'input', 'model', 'parallel_tool_calls', 'store', 'stream', 'tool_choice',
+      ],
+      model: 'test-model', stream: true, store: false,
+      parallelToolCalls: false, toolChoice: 'auto', include: [], classicToolsForbidden: true,
+      inputProjection: [
+        { type: 'additional_tools', role: 'developer', keys: ['role', 'tools', 'type'] },
+        { type: 'message', role: 'user', keys: ['content', 'role', 'type'] },
+      ],
+      additionalTools: [
+        {
+          name: 'exec', type: 'custom', keys: ['description', 'format', 'name', 'type'],
+          descriptionSha256: providerHarness.sha256(execDescription),
+        },
+        {
+          name: 'collaboration', type: 'namespace', keys: ['description', 'name', 'tools', 'type'],
+          descriptionSha256: providerHarness.sha256(collaborationDescription),
+        },
+      ],
+      execGrammar: 'start: "ok"', execRegistry: ['apply_patch'],
+      collaborationTools: ['spawn_agent'],
+      collaborationSchemas: [{
+        name: 'spawn_agent', parametersSha256: providerHarness.sha256(collaborationParameters),
+      }],
+    },
+  };
+  const body = {
+    include: [],
+    input: [
+      { type: 'additional_tools', role: 'developer', tools: [exec, collaboration] },
+      { type: 'message', role: 'user', content: [], id: 'bounded-message-id' },
+    ],
+    model: 'test-model', parallel_tool_calls: false, store: false, stream: true, tool_choice: 'auto',
+  };
+  assert.doesNotThrow(() => providerHarness.validateCodexEnvelope(body, fixture));
+  assert.throws(
+    () => providerHarness.validateCodexEnvelope({
+      ...body,
+      input: [{ ...body.input[0], id: 'unexpected-tool-id' }, body.input[1]],
+    }, fixture),
+    /identifier|projection/,
+  );
 });
 
 test('compatibility probe infrastructure and cleanup uncertainty remain retryable', async (t) => {
