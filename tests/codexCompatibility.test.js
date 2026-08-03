@@ -107,6 +107,29 @@ test('shares one pending qualification for concurrent checks of one identity', a
   })));
 });
 
+test('does not requalify when a concurrent protected-store lookup resolves after the first qualification', async () => {
+  let releaseSecondRead;
+  let storeReads = 0;
+  let qualifications = 0;
+  const compatibility = createCodexCompatibility({
+    store: {
+      hasSuccessful: async () => {
+        storeReads += 1;
+        if (storeReads === 1) return false;
+        return new Promise((resolve) => { releaseSecondRead = () => resolve(false); });
+      },
+      rememberSuccessful: async () => true,
+    },
+    qualify: async () => { qualifications += 1; return true; },
+  });
+  const first = compatibility.ensureCompatible(BINDING);
+  const second = compatibility.ensureCompatible(BINDING);
+  await first;
+  releaseSecondRead();
+  assert.deepEqual(await second, { compatible: true, version: '0.146.0', cached: true });
+  assert.equal(qualifications, 1);
+});
+
 test('maps deterministic incompatibility to CLI_VERSION_UNSUPPORTED without storing evidence', async () => {
   const { store, calls } = storeHarness();
   const compatibility = createCodexCompatibility({ store, qualify: async () => false });

@@ -38,6 +38,7 @@ function createCodexCompatibility({ store, qualify, policyRevision = 1 } = {}) {
     } catch {
       throw new AgentError('CLI_COMPATIBILITY_CHECK_FAILED');
     }
+    if (successful.has(digest)) return result(binding.version, true);
     if (pending.has(digest)) return pending.get(digest);
     const qualification = (async () => {
       let qualified;
