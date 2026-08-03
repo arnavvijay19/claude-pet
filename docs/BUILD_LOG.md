@@ -1065,12 +1065,14 @@ link the note to it — this file is the inbox, not the archive.
 - Independent task review found that a qualified but signed-out native Codex status still reported
   `fullComputerAvailable: true`. Commit `a90436a` derives availability from the same authentication
   result and adds a witnessed signed-out regression; scoped re-review approved the fix with no new
-  breakage. Explicit compatibility-call signal assertions remain a deferred Minor for final-review
-  triage; production run paths do forward the supplied signal.
+  breakage. The final whole-branch reviewer ruled explicit compatibility-call signal assertions a
+  nonblocking test-strengthening Minor because production run paths forward the supplied signal;
+  Task 3 protected-key rewrapping remains out of this branch.
 - Fresh controller verification passed 37/37 focused Task 5 and adjacent executor tests, 388/388
   complete-suite Node tests with one intentional live-provider skip, and Python 3/3; three changed
   source syntax checks and `git diff --check` also passed. `npm install` still reports two high
   severity advisories in the existing dependency graph; Task 5 made no dependency change. No WSL,
   provider sign-in, live qualification, real model/provider request, user-workspace mutation, local
-  `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. NEXT: complete whole-branch review
-  and publish Task 5 as a new GitHub PR before Task 6 begins.
+  `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. A fresh whole-branch reviewer
+  approved `278a8c7..b1250ca` with no Critical or Important findings and declared the branch ready
+  to merge. NEXT: publish Task 5 as a new GitHub PR before Task 6 begins.
