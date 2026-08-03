@@ -7,6 +7,7 @@ const path = require('node:path');
 const SCHEMA_VERSION = 1;
 const DEFAULT_MAXIMUM_ENTRIES = 8;
 const MAXIMUM_ENCODED_BYTES = 64 * 1024;
+const OFFICIAL_PUBLISHER = 'OpenAI OpCo, LLC';
 const IDENTITY_KEYS = Object.freeze([
   'path', 'sha256', 'volumeSerial', 'fileId', 'version', 'publisher',
 ]);
@@ -48,7 +49,7 @@ function validateIdentity(identity) {
     && isNonEmptyString(identity.volumeSerial)
     && isNonEmptyString(identity.fileId)
     && typeof identity.version === 'string' && SEMVER.test(identity.version)
-    && isNonEmptyString(identity.publisher);
+    && identity.publisher === OFFICIAL_PUBLISHER;
 }
 
 function digestFor(identity, policyRevision) {
@@ -103,8 +104,10 @@ function createCodexCompatibilityStore({
 } = {}) {
   if (!isNonEmptyString(filePath) || !crypto || typeof crypto.isAvailable !== 'function'
       || typeof crypto.encrypt !== 'function' || typeof crypto.decrypt !== 'function'
-      || typeof clock !== 'function' || !Number.isSafeInteger(maximumEntries) || maximumEntries < 1
-      || !fileSystem || typeof fileSystem.readFile !== 'function' || typeof fileSystem.mkdir !== 'function'
+      || typeof clock !== 'function' || !Number.isSafeInteger(maximumEntries)
+      || maximumEntries < 1 || maximumEntries > DEFAULT_MAXIMUM_ENTRIES
+      || !fileSystem || typeof fileSystem.stat !== 'function' || typeof fileSystem.readFile !== 'function'
+      || typeof fileSystem.mkdir !== 'function'
       || typeof fileSystem.open !== 'function' || typeof fileSystem.rename !== 'function') {
     throw new TypeError('Codex compatibility store requires protected storage and a file path');
   }
@@ -120,6 +123,8 @@ function createCodexCompatibilityStore({
       state = emptyState();
       try {
         if (!await crypto.isAvailable()) return;
+        const details = await fileSystem.stat(filePath);
+        if (!Number.isSafeInteger(details.size) || details.size < 1 || details.size > MAXIMUM_ENCODED_BYTES) return;
         const encoded = await fileSystem.readFile(filePath, 'utf8');
         if (!isCanonicalBase64(encoded)) return;
         const decrypted = await crypto.decrypt(Buffer.from(encoded, 'base64'));
@@ -185,6 +190,11 @@ function createCodexCompatibilityStore({
     const digest = digestFor(identity, policyRevision);
     if (!digest) return false;
     await ready();
+    try {
+      if (!await crypto.isAvailable()) return false;
+    } catch {
+      return false;
+    }
     return state.entries.some((entry) => entry.digest === digest);
   }
 
@@ -223,6 +233,7 @@ function createCodexCompatibilityStore({
 module.exports = {
   DEFAULT_MAXIMUM_ENTRIES,
   MAXIMUM_ENCODED_BYTES,
+  OFFICIAL_PUBLISHER,
   SCHEMA_VERSION,
   createCodexCompatibilityStore,
 };

@@ -154,6 +154,57 @@ test('rejects malformed identities and policies instead of authorizing version-o
   assert.equal(await store.hasSuccessful(IDENTITY, 1), false);
 });
 
+test('rejects every publisher other than the exact official Codex publisher', async (t) => {
+  const { store } = await temporaryStore(t);
+  for (const publisher of [
+    'OpenAI',
+    'OpenAI OpCo, LLC ',
+    'OpenAI OpCo LLC',
+    'Other Publisher',
+  ]) {
+    assert.equal(await store.rememberSuccessful(changedIdentity('publisher', publisher), POLICY), false, publisher);
+    assert.equal(await store.hasSuccessful(changedIdentity('publisher', publisher), POLICY), false, publisher);
+  }
+});
+
+test('fails closed if protected storage becomes unavailable after evidence is initialized', async (t) => {
+  let available = true;
+  const crypto = availableCrypto({ isAvailable: async () => available });
+  const { store } = await temporaryStore(t, { crypto });
+  assert.equal(await store.rememberSuccessful(IDENTITY, POLICY), true);
+  available = false;
+  assert.equal(await store.hasSuccessful(IDENTITY, POLICY), false);
+});
+
+test('checks an oversized evidence file before reading it into memory', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const filePath = path.join(directory, 'codex-compatibility.evidence');
+  await fs.writeFile(filePath, 'a'.repeat(65537), 'utf8');
+  let readCalls = 0;
+  const fileSystem = {
+    ...fs,
+    readFile: async (...args) => {
+      readCalls += 1;
+      return fs.readFile(...args);
+    },
+  };
+  const store = createCodexCompatibilityStore({ filePath, crypto: availableCrypto(), fileSystem });
+  await store.initialize();
+  assert.equal(readCalls, 0);
+  assert.equal(await store.hasSuccessful(IDENTITY, POLICY), false);
+});
+
+test('rejects a maximum entry limit above the mandatory cap of eight', () => {
+  assert.throws(
+    () => createCodexCompatibilityStore({
+      filePath: 'C:\\evidence\\codex-compatibility.evidence',
+      crypto: availableCrypto(),
+      maximumEntries: 9,
+    }),
+    TypeError,
+  );
+});
+
 test('ignores corrupt protected evidence instead of authorizing it', async (t) => {
   const cases = [
     ['empty', '', availableCrypto()],
