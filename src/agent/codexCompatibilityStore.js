@@ -106,8 +106,7 @@ function createCodexCompatibilityStore({
       || typeof crypto.encrypt !== 'function' || typeof crypto.decrypt !== 'function'
       || typeof clock !== 'function' || !Number.isSafeInteger(maximumEntries)
       || maximumEntries < 1 || maximumEntries > DEFAULT_MAXIMUM_ENTRIES
-      || !fileSystem || typeof fileSystem.stat !== 'function' || typeof fileSystem.readFile !== 'function'
-      || typeof fileSystem.mkdir !== 'function'
+      || !fileSystem || typeof fileSystem.mkdir !== 'function'
       || typeof fileSystem.open !== 'function' || typeof fileSystem.rename !== 'function') {
     throw new TypeError('Codex compatibility store requires protected storage and a file path');
   }
@@ -117,15 +116,30 @@ function createCodexCompatibilityStore({
   let mutationTail = Promise.resolve();
   const temporaryPath = `${filePath}.tmp`;
 
+  async function readEncodedEvidence() {
+    const buffer = Buffer.alloc(MAXIMUM_ENCODED_BYTES + 1);
+    const handle = await fileSystem.open(filePath, 'r');
+    try {
+      const details = await handle.stat();
+      if (!details || !Number.isSafeInteger(details.size)
+          || details.size < 1 || details.size > MAXIMUM_ENCODED_BYTES) return null;
+      const result = await handle.read(buffer, 0, buffer.length, 0);
+      if (!result || !Number.isSafeInteger(result.bytesRead)
+          || result.bytesRead < 1 || result.bytesRead > MAXIMUM_ENCODED_BYTES
+          || buffer[MAXIMUM_ENCODED_BYTES] !== 0) return null;
+      return buffer.subarray(0, result.bytesRead).toString('utf8');
+    } finally {
+      await handle.close();
+    }
+  }
+
   function initialize() {
     if (initializePromise) return initializePromise;
     initializePromise = (async () => {
       state = emptyState();
       try {
         if (!await crypto.isAvailable()) return;
-        const details = await fileSystem.stat(filePath);
-        if (!Number.isSafeInteger(details.size) || details.size < 1 || details.size > MAXIMUM_ENCODED_BYTES) return;
-        const encoded = await fileSystem.readFile(filePath, 'utf8');
+        const encoded = await readEncodedEvidence();
         if (!isCanonicalBase64(encoded)) return;
         const decrypted = await crypto.decrypt(Buffer.from(encoded, 'base64'));
         if (!isPlainObject(decrypted) || typeof decrypted.value !== 'string'

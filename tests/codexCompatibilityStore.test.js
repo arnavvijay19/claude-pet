@@ -6,7 +6,10 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
 
-const { createCodexCompatibilityStore } = require('../src/agent/codexCompatibilityStore.js');
+const {
+  MAXIMUM_ENCODED_BYTES,
+  createCodexCompatibilityStore,
+} = require('../src/agent/codexCompatibilityStore.js');
 
 const IDENTITY = Object.freeze({
   path: 'C:\\Users\\Tester\\.codex\\packages\\standalone\\releases\\0.146.0-x86_64-pc-windows-msvc\\bin\\codex.exe',
@@ -191,6 +194,47 @@ test('checks an oversized evidence file before reading it into memory', async (t
   const store = createCodexCompatibilityStore({ filePath, crypto: availableCrypto(), fileSystem });
   await store.initialize();
   assert.equal(readCalls, 0);
+  assert.equal(await store.hasSuccessful(IDENTITY, POLICY), false);
+});
+
+test('bounds a raced evidence read through one opened handle and closes it', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const filePath = path.join(directory, 'codex-compatibility.evidence');
+  const oversized = Buffer.alloc(MAXIMUM_ENCODED_BYTES + 1, 'a');
+  let pathReadCalls = 0;
+  let handleStatCalls = 0;
+  let requestedLength = null;
+  let closeCalls = 0;
+  const fileSystem = {
+    ...fs,
+    stat: async () => ({ size: 4 }),
+    readFile: async () => {
+      pathReadCalls += 1;
+      return oversized.toString('utf8');
+    },
+    open: async (target, flags) => {
+      assert.equal(target, filePath);
+      assert.equal(flags, 'r');
+      return {
+        stat: async () => {
+          handleStatCalls += 1;
+          return { size: 4 };
+        },
+        read: async (buffer, offset, length) => {
+          requestedLength = length;
+          oversized.copy(buffer, offset, 0, length);
+          return { bytesRead: length, buffer };
+        },
+        close: async () => { closeCalls += 1; },
+      };
+    },
+  };
+  const store = createCodexCompatibilityStore({ filePath, crypto: availableCrypto(), fileSystem });
+  await store.initialize();
+  assert.equal(pathReadCalls, 0);
+  assert.equal(handleStatCalls, 1);
+  assert.equal(requestedLength, MAXIMUM_ENCODED_BYTES + 1);
+  assert.equal(closeCalls, 1);
   assert.equal(await store.hasSuccessful(IDENTITY, POLICY), false);
 });
 
