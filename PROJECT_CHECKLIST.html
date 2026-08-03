@@ -527,8 +527,15 @@
         id: 'codex-compatibility-task-4',
         title: 'Codex compatibility Task 4 — Qualify updated executables once',
         done: true,
-        explanation: 'Implemented, independently reviewed, and controller-verified on an isolated branch. One shared coordinator checks memory, protected evidence, and one deduplicated account-free qualification per exact identity. Deterministic incompatibility and retryable check failures receive separate fixed public errors. The qualifier uses and removes an app-owned temporary workspace, requires all explicit loopback success facts, and exposes only a bounded diagnostic with no path, hash, file ID, environment, bearer, raw output, credential, or cause.',
-        action: 'Publish and merge the isolated Task 4 PR on GitHub, then inject the shared coordinator into both Codex executors and runtime initialization in Task 5. The local master checkout intentionally remains unchanged.',
+        explanation: 'Merged remotely through GitHub PR #5 at 278a8c7. One shared coordinator checks memory, protected evidence, and one deduplicated account-free qualification per exact identity. Deterministic incompatibility and retryable check failures receive separate fixed public errors. The qualifier uses and removes an app-owned temporary workspace, requires all explicit loopback success facts, and exposes only a bounded diagnostic with no path, hash, file ID, environment, bearer, raw output, credential, or cause.',
+        action: 'Nothing. The shared compatibility coordinator is merged on GitHub; the local master checkout intentionally remains unchanged.',
+      },
+      {
+        id: 'codex-compatibility-task-5',
+        title: 'Codex compatibility Task 5 — Gate every Codex operation',
+        done: true,
+        explanation: 'Implemented, independently reviewed, and controller-verified on an isolated branch. One runtime-owned protected store and coordinator are initialized with the other durable stores and shared by both Codex executors. Status, setup, permission verification, and run rediscover and qualify their exact executable before authentication or launch. Deterministic incompatibility is reported separately from retryable checking failure, signed-out native Codex is not advertised as available, test mode stays account-free, and Claude behavior is unchanged.',
+        action: 'Publish and merge the isolated Task 5 PR on GitHub, then order manager preflight and renderer feedback correctly in Task 6. The local master checkout intentionally remains unchanged.',
       },
       {
         id: 'task-20',

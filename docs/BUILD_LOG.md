@@ -1049,3 +1049,28 @@ link the note to it — this file is the inbox, not the archive.
   `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. A fresh whole-branch reviewer then approved
   `cb9fca7..ead7157` with no Critical, Important, or Minor findings and independently confirmed the
   focused/full test results. NEXT: publish Task 4 as a new GitHub PR before Task 5 begins.
+
+## 2026-08-03 — Codex CLI forward compatibility Task 5
+
+- GitHub PR #5 merged Task 4 remotely at `278a8c7` without changing the local `master` checkout.
+  Task 5 began from that exact remote merge in isolated branch
+  `codex/codex-compat-runtime-task-5`.
+- Commit `daf8a93` creates one runtime-owned compatibility store at
+  `codex-compatibility.json`, one account-free qualifier rooted at
+  `codex-compatibility-probe`, and one shared coordinator injected into both Codex executors.
+  Runtime initialization awaits the protected store with connections and sessions. Status, setup,
+  permission verification, and run rediscover and qualify their exact executable before
+  authentication or provider launch; test mode performs no live qualification and Claude behavior
+  is unchanged.
+- Independent task review found that a qualified but signed-out native Codex status still reported
+  `fullComputerAvailable: true`. Commit `a90436a` derives availability from the same authentication
+  result and adds a witnessed signed-out regression; scoped re-review approved the fix with no new
+  breakage. Explicit compatibility-call signal assertions remain a deferred Minor for final-review
+  triage; production run paths do forward the supplied signal.
+- Fresh controller verification passed 37/37 focused Task 5 and adjacent executor tests, 388/388
+  complete-suite Node tests with one intentional live-provider skip, and Python 3/3; three changed
+  source syntax checks and `git diff --check` also passed. `npm install` still reports two high
+  severity advisories in the existing dependency graph; Task 5 made no dependency change. No WSL,
+  provider sign-in, live qualification, real model/provider request, user-workspace mutation, local
+  `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. NEXT: complete whole-branch review
+  and publish Task 5 as a new GitHub PR before Task 6 begins.
