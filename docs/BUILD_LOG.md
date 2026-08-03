@@ -990,3 +990,36 @@ link the note to it — this file is the inbox, not the archive.
   `git diff --check` passed. No WSL,
   provider sign-in, real model request, local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change
   occurred. NEXT: publish and merge Task 2, then begin compatibility evidence-store Task 3.
+
+## 2026-08-02 — Codex CLI forward compatibility Task 3
+
+- GitHub PR #3 merged Task 2 remotely at `3366a03` without changing the local `master` checkout.
+  Task 3 then began from that exact remote merge in the isolated
+  `codex/codex-compat-evidence-store-task-3` worktree.
+- The protected compatibility store keys success to the exact normalized executable path, SHA-256,
+  volume serial, file ID, semantic version, exact `OpenAI OpCo, LLC` publisher, and policy revision.
+  Persisted state contains only a bounded digest and qualification timestamp; version alone can
+  never authorize a future executable.
+- Evidence is encrypted through the supplied protected-storage boundary, canonical-base64 encoded,
+  limited to 64 KiB before reading/decoding, capped at eight entries, and committed through a
+  sibling `wx` temporary file plus atomic rename. Corrupt state initializes empty, and unavailable
+  protected storage, encryption failure, or persistence failure returns false without plaintext or
+  memory-only authorization.
+- Independent review found four fail-closed/boundedness gaps in the first commit: arbitrary
+  publishers, lookup after protected storage became unavailable, a post-read file-size check, and a
+  caller-bypassable entry cap. Commit `25daede` corrects all four; scoped re-review approved every
+  finding with no new breakage. The stale-temporary-file recovery suggestion remains a non-blocking
+  final-review question because the required `wx` behavior already fails safely.
+- Whole-branch review then found that statting a path before an unbounded path read left a
+  time-of-check/time-of-use allocation gap. Commit `2c5939b` instead opens one handle and uses one
+  fixed 64-KiB-plus-one buffer. Controller inspection caught that a single handle read can legally
+  be short; regression commit `a039a63` now loops within that same fixed buffer until EOF or the cap,
+  so a valid-looking prefix cannot hide raced trailing bytes. The reviewer explicitly cleared stale
+  sibling-temp recovery as non-blocking under the required fail-closed `wx` behavior. Re-encryption
+  on protected-storage key rotation remains deferred as a Minor outside the Task 3 requirements.
+- Fresh controller verification on final head passed 49/49 focused/adjacent Node tests, 363
+  complete-suite Node tests with one intentional live-Codex skip, and Python 3/3; `node --check`
+  and `git diff --check` also passed. No WSL, provider sign-in, real model request, local `master`,
+  `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. Scoped re-review approved the bounded-read
+  finding with no new Critical or Important breakage. NEXT: publish Task 3 as a GitHub PR before
+  Task 4 begins.

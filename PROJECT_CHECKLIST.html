@@ -513,8 +513,15 @@
         id: 'codex-compatibility-task-2',
         title: 'Codex compatibility Task 2 — Use one version-neutral probe contract',
         done: true,
-        explanation: 'Implemented and verified on an isolated branch. Disabled future features are tolerated, but every safety control required at the minimum protocol floor must remain present and disabled; unknown enabled capability still fails closed and in-app updating is explicitly disabled. Bounded optional IDs are accepted only on message projections. Review remediation ensures only an evidenced missing required flag or contract mismatch is deterministic; opaque nonzero exits remain retryable. A deterministic three-version matrix completes identical loopback, bearer, control, upgrade, canary, sentinel, and cleanup behavior. The current installed Codex also completed the account-free loopback contract without a real credential or model endpoint.',
-        action: 'Publish and merge this isolated Task 2 PR, then implement the protected identity-bound compatibility evidence store in Task 3.',
+        explanation: 'Merged remotely through GitHub PR #3 at 3366a03. Disabled future features are tolerated, but every safety control required at the minimum protocol floor must remain present and disabled; unknown enabled capability still fails closed and in-app updating is explicitly disabled. Bounded optional IDs are accepted only on message projections. Review remediation ensures only an evidenced missing required flag or contract mismatch is deterministic; opaque nonzero exits remain retryable. A deterministic three-version matrix completes identical loopback, bearer, control, upgrade, canary, sentinel, and cleanup behavior. The current installed Codex also completed the account-free loopback contract without a real credential or model endpoint.',
+        action: 'Nothing. The version-neutral probe contract is merged on GitHub; the local master checkout intentionally remains unchanged.',
+      },
+      {
+        id: 'codex-compatibility-task-3',
+        title: 'Codex compatibility Task 3 — Cache qualified identities safely',
+        done: true,
+        explanation: 'Implemented and independently reviewed on an isolated branch. Successful compatibility evidence is keyed to the exact six-part official Codex executable identity plus policy revision, encrypted with protected storage, bounded to eight digest-only entries, and written atomically. Invalid identities, a non-OpenAI publisher, corrupt or oversized evidence, unavailable protected storage, encryption failure, and persistence failure all fail closed without a plaintext or memory-only authorization fallback.',
+        action: 'Publish and merge the isolated Task 3 PR on GitHub, then connect the store to the compatibility coordinator in Task 4. The local master checkout intentionally remains unchanged.',
       },
       {
         id: 'task-20',
