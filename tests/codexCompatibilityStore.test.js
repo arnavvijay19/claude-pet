@@ -10,6 +10,7 @@ const path = require('node:path');
 const {
   MAXIMUM_ENCODED_BYTES,
   createCodexCompatibilityStore,
+  digestFor,
 } = require('../src/agent/codexCompatibilityStore.js');
 
 const IDENTITY = Object.freeze({
@@ -91,6 +92,21 @@ test('normalizes Windows path casing without creating a second identity record',
   assert.equal(await store.rememberSuccessful(differentlyCased, POLICY), true);
   assert.equal(await store.hasSuccessful(differentlyCased, POLICY), true);
   assert.equal((await decryptedState(filePath)).entries.length, 1);
+});
+
+test('exports the pure normalized identity digest used by protected evidence', () => {
+  const expected = cryptoModule.createHash('sha256').update(JSON.stringify({
+    policyRevision: POLICY,
+    path: IDENTITY.path.toLowerCase(),
+    sha256: IDENTITY.sha256,
+    volumeSerial: IDENTITY.volumeSerial,
+    fileId: IDENTITY.fileId,
+    version: IDENTITY.version,
+    publisher: IDENTITY.publisher,
+  }), 'utf8').digest('hex');
+  assert.equal(digestFor(IDENTITY, POLICY), expected);
+  assert.equal(digestFor({ ...IDENTITY, path: IDENTITY.path.toUpperCase() }, POLICY), expected);
+  assert.equal(digestFor({ version: IDENTITY.version }, POLICY), null);
 });
 
 test('persists only bounded digest evidence and does not expose a cache record', async (t) => {

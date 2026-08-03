@@ -352,6 +352,7 @@ test('uses one version-neutral Codex probe contract for every eligible binding v
     provider: 'codex-cli', controlRequests: 4, childCanaryConnections: 1,
     processExitCode: 0, cleanup: true, upgradeAttempts: 7,
     scenarioTurns: 4, blockedToolResults: 7, credentialScrubbed: true,
+    available: true, allowed: true,
   });
 });
 

@@ -257,4 +257,5 @@ module.exports = {
   OFFICIAL_PUBLISHER,
   SCHEMA_VERSION,
   createCodexCompatibilityStore,
+  digestFor,
 };

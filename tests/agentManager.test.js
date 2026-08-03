@@ -84,6 +84,33 @@ test('publishes stable allowlisted public errors for every code', () => {
   }
 });
 
+test('publishes compatibility failures without diagnostic internals', () => {
+  const cases = [
+    ['CLI_VERSION_UNSUPPORTED', {
+      code: 'CLI_VERSION_UNSUPPORTED',
+      message: 'This Codex update is not compatible with Claude Pet yet.',
+      action: 'Update Claude Pet or install a compatible Codex version.',
+      requestId: null,
+    }],
+    ['CLI_COMPATIBILITY_CHECK_FAILED', {
+      code: 'CLI_COMPATIBILITY_CHECK_FAILED',
+      message: 'Claude Pet could not finish checking this Codex update.',
+      action: 'Retry the compatibility check.',
+      requestId: null,
+    }],
+  ];
+  for (const [code, expected] of cases) {
+    const publicError = toPublicError(new AgentError(code, {
+      cause: new Error('C:\\private\\codex.exe hash=abc raw-output=secret'),
+    }));
+    assert.deepEqual(publicError, expected);
+    const serialized = JSON.stringify(publicError);
+    for (const forbidden of ['path', 'hash', 'raw', 'cause', 'C:\\private', 'secret']) {
+      assert.equal(serialized.toLowerCase().includes(forbidden.toLowerCase()), false, forbidden);
+    }
+  }
+});
+
 test('returns AGENT_REQUIRED when no connection is selected', async () => {
   const { manager } = harness({ connection: null });
   await assert.rejects(manager.runGoal('hello'), (error) => error.code === 'AGENT_REQUIRED');

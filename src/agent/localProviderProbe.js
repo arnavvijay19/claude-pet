@@ -711,6 +711,7 @@ function createLocalProviderProbe({
           blockedToolResults: scenarioReport.blockedToolResults,
           credentialScrubbed: true,
         } : {}),
+        ...(purpose === 'compatibility' ? { available: true, allowed: true } : {}),
       };
     } catch (error) {
       failure = probeFailure('check-failed', error);
