@@ -144,7 +144,7 @@ test('disables every known model-visible or non-local Codex surface with exact a
     'apps', 'auth_elicitation', 'browser_use', 'browser_use_external',
     'browser_use_full_cdp_access', 'code_mode_host', 'computer_use', 'hooks',
     'goals', 'guardian_approval', 'image_generation', 'in_app_browser', 'memories',
-    'multi_agent', 'plugins', 'plugin_sharing', 'remote_plugin',
+    'in_app_updates', 'multi_agent', 'plugins', 'plugin_sharing', 'remote_plugin',
     'skill_mcp_dependency_install', 'skill_search', 'tool_call_mcp_elicitation',
     'tool_suggest', 'workspace_dependencies',
   ]);
@@ -161,15 +161,18 @@ test('fails closed on enabled risky, unknown, malformed, or duplicate feature ou
       ? { ...record, enabled: false }
       : record);
   assert.doesNotThrow(() => assertCodexFeaturePolicy(base));
-  assert.deepEqual(
-    base.filter(({ enabled }) => enabled).map(({ name }) => name),
-    CODEX_SAFE_ENABLED_FEATURES,
+  assert.equal(
+    base.filter(({ enabled }) => enabled)
+      .every(({ name }) => CODEX_SAFE_ENABLED_FEATURES.includes(name)),
+    true,
   );
   for (const mutation of [
     [...base.filter(({ name }) => name !== 'apps'), { name: 'apps', stage: 'stable', enabled: true }],
     [...base, { name: 'future_remote_browser', stage: 'stable', enabled: true }],
-    [...base, { name: 'future_disabled_surface', stage: 'stable', enabled: false }],
     [...base, base[0]],
+    [...base, { name: '', stage: 'stable', enabled: false }],
+    [...base, { name: 'malformed', stage: '', enabled: false }],
+    [...base, { name: 'malformed', stage: 'stable', enabled: 'false' }],
   ]) {
     assert.throws(
       () => assertCodexFeaturePolicy(mutation),
@@ -182,8 +185,43 @@ test('fails closed on enabled risky, unknown, malformed, or duplicate feature ou
   );
 });
 
-test('pins the independent GPT-5.6 code-mode projection as canonical UTF-8 with one LF', () => {
-  const fixturePath = path.join(__dirname, '..', 'resources', 'probes', 'codex-0.145.0-code-mode-tools.json');
+test('accepts the current removed item-id no-op while explicitly disabling in-app updates', () => {
+  const current = parseCodexFeatureList(COMPLETE_0145_FEATURE_LIST)
+    .map((record) => CODEX_DISABLED_FEATURES.includes(record.name)
+      ? { ...record, enabled: false }
+      : record)
+    .map((record) => record.name === 'item_ids' ? { ...record, enabled: true } : record);
+  current.push({ name: 'in_app_updates', stage: 'stable', enabled: false });
+  assert.doesNotThrow(() => assertCodexFeaturePolicy(current));
+  assert.equal(CODEX_SAFE_ENABLED_FEATURES.includes('item_ids'), true);
+  assert.deepEqual(
+    codexFeatureArgs().filter((value, index, args) => (
+      value === '--disable' && args[index + 1] === 'in_app_updates'
+    )),
+    ['--disable'],
+  );
+});
+
+test('allows bounded disabled additions and removal of historical non-required disabled features', () => {
+  const current = parseCodexFeatureList(COMPLETE_0145_FEATURE_LIST)
+    .map((record) => CODEX_DISABLED_FEATURES.includes(record.name)
+      ? { ...record, enabled: false }
+      : record);
+  assert.doesNotThrow(() => assertCodexFeaturePolicy([
+    ...current,
+    { name: 'future_disabled_surface', stage: 'experimental', enabled: false },
+  ]));
+  assert.doesNotThrow(() => assertCodexFeaturePolicy(
+    current.filter(({ name }) => name !== 'artifact'),
+  ));
+  assert.throws(
+    () => assertCodexFeaturePolicy(current.filter(({ name }) => name !== 'apps')),
+    (error) => error.code === 'PERMISSION_PROFILE_UNAVAILABLE',
+  );
+});
+
+test('pins the version-neutral GPT-5.6 code-mode projection as canonical UTF-8 with one LF', () => {
+  const fixturePath = path.join(__dirname, '..', 'resources', 'probes', 'codex-required-code-mode-tools.json');
   const expected = `{\n  "additionalTools": [\n    { "name": "exec", "type": "custom" },\n    { "name": "wait", "type": "function" },\n    { "name": "request_user_input", "type": "function" },\n    { "name": "collaboration", "type": "namespace" }\n  ],\n  "collaborationTools": [\n    "followup_task",\n    "interrupt_agent",\n    "list_agents",\n    "send_message",\n    "spawn_agent",\n    "wait_agent"\n  ],\n  "execRegistry": [\n    "apply_patch",\n    "shell_command",\n    "update_plan",\n    "view_image"\n  ]\n}\n`;
   const bytes = fs.readFileSync(fixturePath);
   assert.equal(bytes.toString('utf8'), expected);

@@ -65,6 +65,21 @@ function validateFixtureShape(provider, fixture) {
   return fixture;
 }
 
+function assertOptionalCodexItemIdentifiers(items) {
+  if (!Array.isArray(items)) throw new Error('Unexpected Codex item identifier');
+  if (items.some((item) => plain(item) && item.type !== 'message' && Object.hasOwn(item, 'id'))) {
+    throw new Error('Unexpected Codex item identifier');
+  }
+  const messages = items.filter((item) => item?.type === 'message');
+  const identified = messages.filter((item) => Object.hasOwn(item, 'id'));
+  if (identified.some((item) => typeof item.id !== 'string'
+      || item.id.length === 0 || item.id.length > 256 || item.id.includes('\0'))
+      || new Set(identified.map((item) => item.id)).size !== identified.length) {
+    throw new Error('Unexpected Codex item identifier');
+  }
+  return true;
+}
+
 function validateCodexEnvelope(body, fixture) {
   const protocol = fixture.protocol;
   if (!plain(body) || !same(keys(body), protocol.bodyKeys)
@@ -77,10 +92,12 @@ function validateCodexEnvelope(body, fixture) {
       || !Array.isArray(body.input) || body.input.length < protocol.inputProjection.length) {
     throw new Error('Unexpected Codex Responses envelope');
   }
-  const projection = body.input.slice(0, protocol.inputProjection.length).map((item) => ({
+  const projectedItems = body.input.slice(0, protocol.inputProjection.length);
+  assertOptionalCodexItemIdentifiers(projectedItems);
+  const projection = projectedItems.map((item) => ({
     type: item?.type,
     role: item?.role,
-    keys: keys(item),
+    keys: keys(item).filter((key) => item?.type !== 'message' || key !== 'id'),
   }));
   if (!same(projection, protocol.inputProjection)) {
     throw new Error('Unexpected Codex input projection');
@@ -489,6 +506,7 @@ module.exports = {
   FIXTURE_SCHEMA_VERSION,
   assertClaudeToolResults,
   assertCodexFailClosedResults,
+  assertOptionalCodexItemIdentifiers,
   createFixedScenarioHarness,
   formalExecRegistry,
   sha256,

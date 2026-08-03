@@ -34,6 +34,14 @@ const PROBE_LIMITS = Object.freeze({
   deadlineMs: 30_000,
 });
 
+class LocalProviderProbeFailure extends Error {
+  constructor(kind, options = {}) {
+    super('Local provider probe failed', options.cause ? { cause: options.cause } : undefined);
+    this.name = 'LocalProviderProbeFailure';
+    this.kind = kind === 'incompatible' ? 'incompatible' : 'check-failed';
+  }
+}
+
 const FIXTURE_SHA256 = Object.freeze({
   'codex-cli': 'def11e55005d2506beafa7535c331562f02f73a1bb654a761086a929914ff2d7',
   'claude-code-cli': 'd9bf3d2be500b5c4d6d9fae43dfe0ca51467b64802ec94ca8fef8c43862ccf82',
@@ -54,6 +62,20 @@ const PROBE_ENVIRONMENT_ALLOWLIST = Object.freeze(new Set([
 
 function unavailable(cause) {
   return new AgentError('PERMISSION_PROFILE_UNAVAILABLE', { cause });
+}
+
+function probeFailure(kind, cause) {
+  return cause instanceof LocalProviderProbeFailure
+    ? cause
+    : new LocalProviderProbeFailure(kind, { cause });
+}
+
+function deterministicCodexFlagFailure(result) {
+  if (!plain(result) || result.exitCode === 0) return false;
+  const diagnostic = `${String(result.stderr || '')}\n${String(result.stdout || '')}`.slice(0, 8192);
+  return /unknown feature\b/i.test(diagnostic)
+    || /invalid value[\s\S]{0,256}(?:--disable|<FEATURE)/i.test(diagnostic)
+    || /(?:unexpected|unknown|unrecognized) (?:argument|option)[\s\S]{0,256}--(?:ask-for-approval|color|disable|ephemeral|ignore-rules|model|sandbox|skip-git-repo-check|strict-config)/i.test(diagnostic);
 }
 
 function plain(value) {
@@ -301,18 +323,22 @@ function validateFixtures(provider, fixtures) {
 function createLocalProviderProbe({
   provider,
   fixtures,
+  purpose = 'permission',
   spawn = defaultSpawn,
   listen = (handler) => http.createServer(handler),
   randomBytes,
   environment = process.env,
   fileSystem = defaultFileSystem,
   temporaryRoot = os.tmpdir(),
+  scenarioHarnessFactory = createFixedScenarioHarness,
 } = {}) {
   validateFixtures(provider, fixtures);
   const isCanonical = fixtures?.schemaVersion === 1;
   if (typeof spawn !== 'function' || typeof listen !== 'function'
       || typeof randomBytes !== 'function'
-      || typeof temporaryRoot !== 'string' || !path.isAbsolute(temporaryRoot)) {
+      || typeof scenarioHarnessFactory !== 'function'
+      || typeof temporaryRoot !== 'string' || !path.isAbsolute(temporaryRoot)
+      || !['permission', 'compatibility'].includes(purpose)) {
     throw new TypeError('Local provider probe dependencies are invalid');
   }
 
@@ -322,12 +348,14 @@ function createLocalProviderProbe({
       || !plain(input.cliBinding) || typeof input.cliBinding.path !== 'string'
       || typeof input.workspacePath !== 'string' || typeof input.fixtureRoot !== 'string'
       || (Object.hasOwn(input, 'signal') && !(input.signal instanceof AbortSignal))) {
-      throw unavailable();
+      throw purpose === 'compatibility' ? probeFailure('check-failed') : unavailable();
     }
     let ownerDirectory = null;
     let controlServer = null;
     let canaryServer = null;
     let cleanupError = null;
+    let failure = null;
+    let result = null;
     const controller = new AbortController();
     const forwardAbort = () => controller.abort(abortReason(input.signal));
     if (input.signal?.aborted) forwardAbort();
@@ -416,7 +444,7 @@ function createLocalProviderProbe({
       const canaryUrl = `http://127.0.0.1:${canaryPort}/${canaryPath}`;
 
       if (isCanonical) {
-        harness = createFixedScenarioHarness({
+        harness = scenarioHarnessFactory({
           provider,
           fixtures,
           limits: PROBE_LIMITS,
@@ -539,7 +567,7 @@ function createLocalProviderProbe({
         let config = `model_provider = "openai"\nopenai_base_url = "${controlOrigin}/${controlPath}/v1"\n`;
         if (isCanonical) {
           const template = await fileSystem.readFile(
-            path.join(input.fixtureRoot, 'codex-0.145.0-probe-config.toml'), 'utf8',
+            path.join(input.fixtureRoot, 'codex-probe-config.toml'), 'utf8',
           );
           if (template !== 'model_provider = "openai"\nopenai_base_url = "__OWNER_CONTROL_ORIGIN__/__CONTROL_PATH__/v1"\n') {
             throw new Error('Codex probe config bytes changed');
@@ -549,7 +577,7 @@ function createLocalProviderProbe({
             __CONTROL_PATH__: controlPath,
           });
           const projection = validateCodexCodeModeProjection(JSON.parse(await fileSystem.readFile(
-            path.join(input.fixtureRoot, 'codex-0.145.0-code-mode-tools.json'), 'utf8',
+            path.join(input.fixtureRoot, 'codex-required-code-mode-tools.json'), 'utf8',
           )));
           if (!equalJson(projection.execRegistry, fixtures.protocol.execRegistry)
               || !equalJson(projection.collaborationTools, fixtures.protocol.collaborationTools)
@@ -617,10 +645,18 @@ function createLocalProviderProbe({
           env: probeEnvironment,
           signal: controller.signal,
         });
-        if (!plain(featureResult) || featureResult.exitCode !== 0) {
-          throw new Error('Codex feature policy check failed');
+        if (!plain(featureResult) || !Number.isInteger(featureResult.exitCode)) {
+          throw new Error('Invalid Codex feature inspection result');
         }
-        assertCodexFeaturePolicy(parseCodexFeatureList(featureResult.stdout));
+        if (featureResult.exitCode !== 0) {
+          if (deterministicCodexFlagFailure(featureResult)) throw probeFailure('incompatible');
+          throw probeFailure('check-failed');
+        }
+        try {
+          assertCodexFeaturePolicy(parseCodexFeatureList(featureResult.stdout));
+        } catch (error) {
+          throw probeFailure('incompatible', error);
+        }
       }
 
       const processResult = await spawn({
@@ -634,8 +670,16 @@ function createLocalProviderProbe({
       const scenarioReport = harness?.report();
       const expectedControlRequests = provider === 'codex-cli' ? 4 : 3;
       const expectedUpgrades = provider === 'codex-cli' ? 7 : 0;
-      if (!plain(processResult) || processResult.exitCode !== 0 || protocolFailure
-          || (!isCanonical && validControlRequests !== 1)
+      if (!plain(processResult) || !Number.isInteger(processResult.exitCode)) {
+        throw new Error('Invalid provider process result');
+      }
+      if (processResult.exitCode !== 0) {
+        if (protocolFailure || (provider === 'codex-cli' && deterministicCodexFlagFailure(processResult))) {
+          throw probeFailure('incompatible', protocolFailure);
+        }
+        throw probeFailure('check-failed');
+      }
+      if (protocolFailure || (!isCanonical && validControlRequests !== 1)
           || (isCanonical && (
             validControlRequests !== expectedControlRequests
             || upgradeAttempts !== expectedUpgrades
@@ -643,7 +687,7 @@ function createLocalProviderProbe({
             || scenarioReport?.complete !== true
             || !String(processResult.stdout).includes(fixtures.scenario.finalText)
           ))) {
-        throw protocolFailure || new Error('Local provider probe failed');
+        throw probeFailure('incompatible', protocolFailure);
       }
       if (isCanonical) {
         const expectedOutsideWrite = provider === 'codex-cli' ? 'outside-write-ok' : 'after\n';
@@ -652,10 +696,10 @@ function createLocalProviderProbe({
               && await fileSystem.readFile(appliedSentinel, 'utf8') !== 'applied\n')
             || await exists(fileSystem, hookSentinel)
             || await exists(fileSystem, pluginSentinel)) {
-          throw new Error('Local provider probe sentinel validation failed');
+          throw probeFailure('incompatible');
         }
       }
-      return {
+      result = {
         provider,
         controlRequests: validControlRequests,
         childCanaryConnections: validCanaryConnections,
@@ -669,7 +713,7 @@ function createLocalProviderProbe({
         } : {}),
       };
     } catch (error) {
-      throw error instanceof AgentError ? error : unavailable(error);
+      failure = probeFailure('check-failed', error);
     } finally {
       clearTimeout(deadline);
       input.signal?.removeEventListener('abort', forwardAbort);
@@ -678,8 +722,12 @@ function createLocalProviderProbe({
       if (ownerDirectory) {
         try { await fileSystem.rm(ownerDirectory, { recursive: true, force: true }); } catch (error) { cleanupError ||= error; }
       }
-      if (cleanupError) throw unavailable(cleanupError);
+      if (cleanupError) failure = probeFailure('check-failed', cleanupError);
     }
+    if (failure) {
+      throw purpose === 'compatibility' ? failure : unavailable(failure);
+    }
+    return result;
   }
 
   return Object.freeze({ run });
@@ -704,19 +752,42 @@ async function loadFixtures(provider, fixtureRoot, fileSystem = defaultFileSyste
 
 async function verifyNativeToolSurface({
   provider,
+  purpose = 'permission',
   cliBinding,
   workspacePath,
   fixtureRoot,
+  signal,
   spawn,
   randomBytes = require('node:crypto').randomBytes,
   environment = process.env,
   fileSystem = defaultFileSystem,
 } = {}) {
-  const fixtures = await loadFixtures(provider, fixtureRoot, fileSystem);
+  if (!['permission', 'compatibility'].includes(purpose)) throw unavailable();
+  let fixtures;
+  try {
+    fixtures = await loadFixtures(provider, fixtureRoot, fileSystem);
+  } catch (error) {
+    if (purpose === 'compatibility') throw probeFailure('check-failed', error);
+    throw error;
+  }
   const probe = createLocalProviderProbe({
-    provider, fixtures, spawn, randomBytes, environment, fileSystem,
+    provider, purpose, fixtures, spawn, randomBytes, environment, fileSystem,
   });
-  return probe.run({ cliBinding, workspacePath, fixtureRoot });
+  try {
+    return await probe.run({
+      cliBinding,
+      workspacePath,
+      fixtureRoot,
+      ...(signal === undefined ? {} : { signal }),
+    });
+  } catch (error) {
+    if (purpose === 'compatibility'
+      && error instanceof LocalProviderProbeFailure
+      && error.kind === 'incompatible') {
+      return Object.freeze({ compatible: false });
+    }
+    throw error;
+  }
 }
 
 module.exports = {

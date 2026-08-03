@@ -945,3 +945,48 @@ link the note to it — this file is the inbox, not the archive.
   waits for explicit `providerAssigned: true` readiness rather than a Node `spawn` event that
   already occurred. No application code or WorkBuddy artifacts changed. NEXT: choose inline or
   subagent-driven execution and begin Task 1 in an isolated worktree.
+
+## 2026-08-02 — Codex CLI forward compatibility Tasks 1-2
+
+- GitHub PR #2 merged Task 1 remotely at `3e4d1a6` without changing the local `master` checkout.
+  Dynamic discovery now accepts strict official x64 Codex releases at or above `0.145.0`, derives
+  the version from the held release path, and re-proves the exact signed identity and held
+  `--version`; Claude Code's exact behavior is unchanged.
+- Task 2 witnessed five intended RED failures, then replaced the exact `0.145.0` feature registry
+  gate with a required-subset policy. Bounded disabled additions and removed historical disabled
+  entries are tolerated, while duplicate/malformed records and every unknown enabled capability
+  remain rejected. The app-owned config and tool-projection resources are now version-neutral.
+- The installed August 2026 CLI exposed two reviewed changes. `in_app_updates` is explicitly
+  disabled because it is a separate update/network surface. The removed `item_ids` compatibility
+  flag is allowed, and bounded unique optional message IDs are ignored only for envelope-key
+  comparison; tool schemas, collaboration controls, exec registry, event flow, and sentinels stay
+  exact. This matches the current official OpenAI Codex feature registry and removed-flag handling.
+- Compatibility probes now return frozen `{ compatible: false }` only for deterministic contract
+  mismatch. Independent review caught that the first implementation treated every nonzero CLI exit
+  as deterministic; the corrected contract recognizes only a narrowly evidenced missing required
+  flag/feature diagnostic. Opaque crashes and other nonzero exits remain retryable `check-failed`,
+  alongside bind, fixture, spawn, abort, temporary I/O, and cleanup uncertainty. The existing
+  permission path still exposes only `PERMISSION_PROFILE_UNAVAILABLE`, and caller cancellation is
+  forwarded into the owned probe lifecycle.
+- Review remediation also replaced a superficial three-version spawn comparison with a complete
+  deterministic loopback lifecycle for `0.145.0`, `0.146.0`, and `0.200.1`: identical normalized
+  arguments, synthetic bearer, rendered app-owned config, authenticated control traffic, seven
+  rejected WebSocket upgrades, child canary, sentinel writes, complete scenario report, and cleanup.
+  Direct boundary cases now cover absent, 256-byte, empty, oversized, NUL-containing, non-string,
+  and duplicate optional message IDs.
+- Fresh-head review then found two additional fail-closed gaps. The feature policy now requires
+  every safety control present at the `0.145.0` protocol floor to remain listed and disabled while
+  still permitting removal of historical non-required entries; the later `in_app_updates` control
+  remains explicitly disabled without making its registry presence a false requirement for the
+  minimum version. Optional `id` keys are stripped only from message projections. An `id` on
+  `additional_tools` or any other projected item is rejected, including through the full envelope
+  validator rather than only the narrow identifier helper.
+- A live account-free run completed the full current Codex loopback contract with synthetic
+  credentials and no real provider endpoint. Later loaded attempts reached the unchanged 30-second
+  deadline during WebSocket rejection/fallback, correctly producing retryable `check-failed`; the
+  live gate is therefore explicit opt-in rather than a flaky mandatory suite test.
+- Verification after review remediation: required focused/adjacent suite passed 42 with one opt-in
+  live skip; complete Node suite passed 348 with one opt-in live skip; Python passed 3/3;
+  `git diff --check` passed. No WSL,
+  provider sign-in, real model request, local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change
+  occurred. NEXT: publish and merge Task 2, then begin compatibility evidence-store Task 3.
