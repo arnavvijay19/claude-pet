@@ -1023,3 +1023,29 @@ link the note to it — this file is the inbox, not the archive.
   `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. Scoped re-review approved the bounded-read
   finding with no new Critical or Important breakage. NEXT: publish Task 3 as a GitHub PR before
   Task 4 begins.
+
+## 2026-08-03 — Codex CLI forward compatibility Task 4
+
+- GitHub PR #4 merged Task 3 remotely at `cb9fca7` without changing the local `master` checkout.
+  Task 4 began from that exact remote merge in isolated branch
+  `codex/codex-compat-coordinator-task-4`.
+- Commit `a1279c5` adds the shared coordinator, account-free qualifier, bounded diagnostic, and two
+  fixed public compatibility errors. Exact identities share protected and in-process success,
+  deterministic incompatibility never persists, retryable infrastructure uncertainty remains
+  retryable, and a protected-write failure grants only current-process memory success.
+- The plan required positive `available` and `allowed` probe facts that Task 2 did not emit. The
+  necessary bridge adds those two exact booleans only to healthy compatibility-purpose probe output;
+  permission-purpose behavior is unchanged. Qualification also requires cleanup and credential
+  scrubbing, uses an app-owned temporary workspace, and removes it on every outcome.
+- Independent review reproduced a delayed protected-store race that could start a second probe after
+  the first caller had already qualified and cleared the pending promise. Commit `4db62c9` adds a
+  witnessed regression and rechecks memory success after the awaited store lookup; scoped re-review
+  approved the fix with no new breakage.
+- Fresh controller verification passed 61/61 focused Task 4/probe tests with one intentional live
+  skip, 379/379 complete-suite Node tests with one intentional live skip, and Python 3/3; five
+  changed-source syntax checks and `git diff --check` also passed. `npm install` reported two high
+  severity advisories in the existing dependency graph; Task 4 made no dependency change. No WSL,
+  provider sign-in, real model/provider request, user-workspace mutation, local `master`,
+  `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. A fresh whole-branch reviewer then approved
+  `cb9fca7..ead7157` with no Critical, Important, or Minor findings and independently confirmed the
+  focused/full test results. NEXT: publish Task 4 as a new GitHub PR before Task 5 begins.

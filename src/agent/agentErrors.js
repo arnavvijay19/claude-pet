@@ -30,6 +30,8 @@ const ERROR_CODES = Object.freeze([
   'ATTACHMENT_CHANGED',
   'ATTACHMENT_CANCELLED',
   'ATTACHMENT_CONFIRMATION_EXPIRED',
+  'CLI_VERSION_UNSUPPORTED',
+  'CLI_COMPATIBILITY_CHECK_FAILED',
 ]);
 
 const PUBLIC_ERROR_BY_CODE = Object.freeze({
@@ -62,6 +64,8 @@ const PUBLIC_ERROR_BY_CODE = Object.freeze({
   ATTACHMENT_CHANGED: Object.freeze({ message: 'The attached file changed before it could be used.', action: 'Attach the file again.' }),
   ATTACHMENT_CANCELLED: Object.freeze({ message: 'The file attachment was cancelled.', action: 'Attach the file again when ready.' }),
   ATTACHMENT_CONFIRMATION_EXPIRED: Object.freeze({ message: 'The file attachment confirmation expired.', action: 'Attach the file again.' }),
+  CLI_VERSION_UNSUPPORTED: Object.freeze({ message: 'This Codex update is not compatible with Claude Pet yet.', action: 'Update Claude Pet or install a compatible Codex version.' }),
+  CLI_COMPATIBILITY_CHECK_FAILED: Object.freeze({ message: 'Claude Pet could not finish checking this Codex update.', action: 'Retry the compatibility check.' }),
 });
 
 class AgentError extends Error {
