@@ -137,7 +137,8 @@ function createCodexNativeFullComputerExecutor({
         const login = await withLease(binding, (launchLease) => runner.capture({
           command: binding.path, launchLease, args: ['login', 'status'], env: environment, timeoutMs: 5000,
         }));
-        return { installed: true, compatible: true, authenticated: login?.exitCode === 0, fullComputerAvailable: true };
+        const authenticated = login?.exitCode === 0;
+        return { installed: true, compatible: true, authenticated, fullComputerAvailable: authenticated };
       } catch (error) {
         if (error instanceof AgentError && error.code === 'CLI_VERSION_UNSUPPORTED') {
           return { installed: true, compatible: false, authenticated: false, fullComputerAvailable: false };

@@ -173,6 +173,22 @@ test('native Codex status qualifies a 0.146.0 binding and distinguishes unsuppor
   await assert.rejects(retryable.getStatus(connection('codex-cli')), { code: 'CLI_COMPATIBILITY_CHECK_FAILED' });
 });
 
+test('native Codex status does not advertise Full Computer when qualified login is signed out', async () => {
+  // Catches an authenticated false status that incorrectly leaves Full Computer available.
+  const runner = fakeRunner('codex-cli', CODEX_BINDING);
+  runner.capture = async (spec) => {
+    runner.calls.push({ method: 'capture', spec });
+    return { exitCode: 1, stdout: '', stderr: '' };
+  };
+  const executor = createCodexNativeFullComputerExecutor({
+    runner, codexHome: 'Z:\\pet\\native-codex', fixtureRoot: 'Z:\\fixtures',
+    ...dependencies('codex-cli', CODEX_BINDING),
+  });
+  assert.deepEqual(await executor.getStatus(connection('codex-cli')), {
+    installed: true, compatible: true, authenticated: false, fullComputerAvailable: false,
+  });
+});
+
 test('Codex qualifies each full-computer setup, permission, and run operation on a freshly held executable', async () => {
   const runner = fakeRunner('codex-cli', CODEX_BINDING);
   const deps = dependencies('codex-cli', CODEX_BINDING);
