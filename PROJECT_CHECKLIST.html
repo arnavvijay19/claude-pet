@@ -520,8 +520,15 @@
         id: 'codex-compatibility-task-3',
         title: 'Codex compatibility Task 3 — Cache qualified identities safely',
         done: true,
-        explanation: 'Implemented and independently reviewed on an isolated branch. Successful compatibility evidence is keyed to the exact six-part official Codex executable identity plus policy revision, encrypted with protected storage, bounded to eight digest-only entries, and written atomically. Invalid identities, a non-OpenAI publisher, corrupt or oversized evidence, unavailable protected storage, encryption failure, and persistence failure all fail closed without a plaintext or memory-only authorization fallback.',
-        action: 'Publish and merge the isolated Task 3 PR on GitHub, then connect the store to the compatibility coordinator in Task 4. The local master checkout intentionally remains unchanged.',
+        explanation: 'Merged remotely through GitHub PR #4 at cb9fca7. Successful compatibility evidence is keyed to the exact six-part official Codex executable identity plus policy revision, encrypted with protected storage, bounded to eight digest-only entries, and written atomically. Invalid identities, a non-OpenAI publisher, corrupt or oversized evidence, unavailable protected storage, encryption failure, and persistence failure all fail closed without a plaintext authorization fallback.',
+        action: 'Nothing. The protected identity cache is merged on GitHub; the local master checkout intentionally remains unchanged.',
+      },
+      {
+        id: 'codex-compatibility-task-4',
+        title: 'Codex compatibility Task 4 — Qualify updated executables once',
+        done: true,
+        explanation: 'Implemented, independently reviewed, and controller-verified on an isolated branch. One shared coordinator checks memory, protected evidence, and one deduplicated account-free qualification per exact identity. Deterministic incompatibility and retryable check failures receive separate fixed public errors. The qualifier uses and removes an app-owned temporary workspace, requires all explicit loopback success facts, and exposes only a bounded diagnostic with no path, hash, file ID, environment, bearer, raw output, credential, or cause.',
+        action: 'Publish and merge the isolated Task 4 PR on GitHub, then inject the shared coordinator into both Codex executors and runtime initialization in Task 5. The local master checkout intentionally remains unchanged.',
       },
       {
         id: 'task-20',
