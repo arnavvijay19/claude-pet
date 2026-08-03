@@ -1020,5 +1020,6 @@ link the note to it — this file is the inbox, not the archive.
 - Fresh controller verification on final head passed 49/49 focused/adjacent Node tests, 363
   complete-suite Node tests with one intentional live-Codex skip, and Python 3/3; `node --check`
   and `git diff --check` also passed. No WSL, provider sign-in, real model request, local `master`,
-  `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. NEXT: obtain the scoped re-review verdict
-  and publish Task 3 as a GitHub PR before Task 4 begins.
+  `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. Scoped re-review approved the bounded-read
+  finding with no new Critical or Important breakage. NEXT: publish Task 3 as a GitHub PR before
+  Task 4 begins.
