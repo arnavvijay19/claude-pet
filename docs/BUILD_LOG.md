@@ -1017,8 +1017,8 @@ link the note to it — this file is the inbox, not the archive.
   so a valid-looking prefix cannot hide raced trailing bytes. The reviewer explicitly cleared stale
   sibling-temp recovery as non-blocking under the required fail-closed `wx` behavior. Re-encryption
   on protected-storage key rotation remains deferred as a Minor outside the Task 3 requirements.
-- Implementer verification after the final bounded-read correction passed 49/49 focused/adjacent
-  Node tests and 363 complete-suite Node tests with one intentional live-Codex skip; `node --check`
-  and `git diff --check` passed. No WSL, provider sign-in, real model request, local `master`,
-  `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. NEXT: controller reruns final verification,
-  obtains the scoped re-review verdict, and publishes Task 3 as a GitHub PR before Task 4 begins.
+- Fresh controller verification on final head passed 49/49 focused/adjacent Node tests, 363
+  complete-suite Node tests with one intentional live-Codex skip, and Python 3/3; `node --check`
+  and `git diff --check` also passed. No WSL, provider sign-in, real model request, local `master`,
+  `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. NEXT: obtain the scoped re-review verdict
+  and publish Task 3 as a GitHub PR before Task 4 begins.
