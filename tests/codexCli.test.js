@@ -44,23 +44,71 @@ function nativeCliDependencies() {
   return {
     discoverSignedNativeCli: async () => TEST_BINDING,
     openVerifiedNativeCliLaunchLease: async () => ({ cleanup: async () => {} }),
+    ensureCodexCompatibility: async () => ({ compatible: true, version: TEST_BINDING.version, cached: false }),
   };
 }
 
-test('exports the exact Codex registry and rejects a version or unlisted model before execution', async () => {
+test('requires the runtime-owned compatibility coordinator', () => {
+  // Catches a production executor that silently bypasses qualification.
+  assert.throws(
+    () => createCodexCliExecutor({ runner: fakeRunner(), codexHome: 'Z:\\pet-codex', ...nativeCliDependencies(), ensureCodexCompatibility: undefined }),
+    /compatibility coordinator/,
+  );
+});
+
+test('exports the Codex registry and reports deterministic incompatibility without signing in', async () => {
   assert.equal(MINIMUM_CODEX_VERSION, '0.144.6');
   assert.deepEqual(MODEL_IDS, ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna']);
   assert.deepEqual(EFFORTS, ['none', 'low', 'medium', 'high', 'xhigh', 'max']);
-  const runner = fakeRunner({ capture: async () => ({ exitCode: 0, stdout: 'codex-cli 0.144.5', stderr: '' }) });
-  const executor = createCodexCliExecutor({ runner, codexHome: 'Z:\\pet-codex', ...nativeCliDependencies() });
-  assert.deepEqual(await executor.getStatus(connection()), { installed: true, authenticated: false, workspaceAvailable: false });
+  const runner = fakeRunner();
+  const executor = createCodexCliExecutor({
+    runner, codexHome: 'Z:\\pet-codex', ...nativeCliDependencies(),
+    ensureCodexCompatibility: async () => { throw new AgentError('CLI_VERSION_UNSUPPORTED'); },
+  });
+  assert.deepEqual(await executor.getStatus(connection()), {
+    installed: true, compatible: false, authenticated: false, workspaceAvailable: false,
+  });
+  assert.equal(runner.calls.length, 0);
   await assert.rejects(executor.runGoal(runRequest({ goal: 'do not run', model: 'not-listed' }), () => {}, new AbortController().signal), { code: 'MODEL_UNAVAILABLE' });
 
   const missing = createCodexCliExecutor({
     runner: fakeRunner(), codexHome: 'Z:\\pet-codex',
     discoverSignedNativeCli: async () => { throw new AgentError('CLI_NOT_INSTALLED'); },
+    ensureCodexCompatibility: async () => ({ compatible: true }),
   });
   assert.deepEqual(await missing.getStatus(connection()), { installed: false, authenticated: false, workspaceAvailable: false });
+
+  const unsafe = createCodexCliExecutor({
+    runner: fakeRunner(), codexHome: 'Z:\\pet-codex',
+    discoverSignedNativeCli: async () => ({ ...TEST_BINDING, path: 'relative\\codex.exe' }),
+    ensureCodexCompatibility: async () => ({ compatible: true }),
+  });
+  assert.deepEqual(await unsafe.getStatus(connection()), { installed: false, authenticated: false, workspaceAvailable: false });
+});
+
+test('qualifies the freshly discovered 0.146.0 binding before status authentication and surfaces retryable failures', async () => {
+  // Catches version pinning, qualifying a stale identity, or treating retryable failures as signed out.
+  const binding = { ...TEST_BINDING, version: '0.146.0', fileId: 'file-146' };
+  const qualified = [];
+  const executor = createCodexCliExecutor({
+    runner: fakeRunner(), codexHome: 'Z:\\pet-codex',
+    discoverSignedNativeCli: async () => binding,
+    openVerifiedNativeCliLaunchLease: async () => ({ cleanup: async () => {} }),
+    ensureCodexCompatibility: async (value) => {
+      qualified.push(value);
+      return { compatible: true, version: value.version, cached: false };
+    },
+  });
+  assert.deepEqual(await executor.getStatus(connection()), {
+    installed: true, compatible: true, authenticated: true, workspaceAvailable: true,
+  });
+  assert.deepEqual(qualified, [binding]);
+
+  const retryable = createCodexCliExecutor({
+    runner: fakeRunner(), codexHome: 'Z:\\pet-codex', ...nativeCliDependencies(),
+    ensureCodexCompatibility: async () => { throw new AgentError('CLI_COMPATIBILITY_CHECK_FAILED'); },
+  });
+  await assert.rejects(retryable.getStatus(connection()), { code: 'CLI_COMPATIBILITY_CHECK_FAILED' });
 });
 
 test('uses only the dedicated home, exact hermetic exec arguments, and the last agent message', async () => {
@@ -95,7 +143,7 @@ test('maps permission denials and nonzero or malformed stream output without exp
   await assert.rejects(executor.runGoal(runRequest({ goal: 'x' }), () => {}, new AbortController().signal), { code: 'PERMISSION_BLOCKED' });
 });
 
-test('binds every Codex status, login, and run child to a freshly leased discovered executable', async () => {
+test('qualifies every Codex status, setup, permission, and run operation using its freshly discovered executable', async () => {
   const binding = Object.freeze({
     path: 'C:\\Program Files\\OpenAI\\Codex\\codex.exe', sha256: 'a'.repeat(64),
     volumeSerial: 'volume-1', fileId: 'file-1', version: '0.145.0', publisher: 'OpenAI OpCo, LLC',
@@ -103,6 +151,7 @@ test('binds every Codex status, login, and run child to a freshly leased discove
   const discovered = [];
   const openedLeases = [];
   const cleanedLeases = [];
+  const qualified = [];
   const runner = fakeRunner({
     capture: async (spec) => {
       assert.equal(spec.command, binding.path);
@@ -137,12 +186,17 @@ test('binds every Codex status, login, and run child to a freshly leased discove
     },
     writeProfile: async () => 'Z:\\pet-codex\\config.toml',
     probePermissionProfile: async () => ({ available: true, allowed: true }),
+    ensureCodexCompatibility: async (input, options) => {
+      qualified.push({ input, options });
+      return { compatible: true, version: input.version, cached: false };
+    },
   });
 
   assert.deepEqual(await executor.getStatus(connection()), {
-    installed: true, authenticated: false, workspaceAvailable: false,
+    installed: true, compatible: true, authenticated: false, workspaceAvailable: false,
   });
   assert.deepEqual(await executor.beginSetup(connection()), { started: true });
+  assert.deepEqual(await executor.verifyPermissionProfile(connection()), { available: true, allowed: true });
   assert.deepEqual(
     await executor.runGoal(runRequest(), () => {}, new AbortController().signal),
     { text: 'leased run', changedFiles: [] },
@@ -151,10 +205,33 @@ test('binds every Codex status, login, and run child to a freshly leased discove
     { provider: 'codex-cli', workspacePath: 'Z:\\workspace' },
     { provider: 'codex-cli', workspacePath: 'Z:\\workspace' },
     { provider: 'codex-cli', workspacePath: 'Z:\\workspace' },
+    { provider: 'codex-cli', workspacePath: 'Z:\\workspace' },
   ]);
-  assert.equal(openedLeases.length, 5);
-  assert.equal(new Set(openedLeases).size, 5);
+  assert.deepEqual(qualified.map(({ input }) => input), [binding, binding, binding, binding]);
+  assert.equal(openedLeases.length, 3);
+  assert.equal(new Set(openedLeases).size, 3);
   assert.deepEqual(cleanedLeases, openedLeases);
+});
+
+test('does not reuse a status binding for a later Codex run', async () => {
+  // Catches a time-of-check/time-of-use bug that launches a binding qualified on an earlier status call.
+  const first = { ...TEST_BINDING, version: '0.145.0', fileId: 'status-file' };
+  const second = { ...TEST_BINDING, version: '0.146.0', fileId: 'run-file' };
+  const qualified = [];
+  let discoveries = 0;
+  const executor = createCodexCliExecutor({
+    runner: fakeRunner(), codexHome: 'Z:\\pet-codex',
+    discoverSignedNativeCli: async () => (++discoveries === 1 ? first : second),
+    openVerifiedNativeCliLaunchLease: async () => ({ cleanup: async () => {} }),
+    ensureCodexCompatibility: async (binding) => {
+      qualified.push(binding);
+      return { compatible: true, version: binding.version, cached: false };
+    },
+    writeProfile: async () => 'config',
+  });
+  await executor.getStatus(connection());
+  await executor.runGoal(runRequest(), () => {}, new AbortController().signal);
+  assert.deepEqual(qualified, [first, second]);
 });
 
 test('fails a successful Codex run when cleanup fails but preserves the command error', async () => {
@@ -176,6 +253,7 @@ test('fails a successful Codex run when cleanup fails but preserves the command 
       cleanup: async () => { cleanupCalls += 1; throw new Error('cleanup failed'); },
     }),
     writeProfile: async () => 'Z:\\pet-codex\\config.toml',
+    ensureCodexCompatibility: async () => ({ compatible: true }),
   });
   await assert.rejects(executor.runGoal(runRequest(), () => {}, new AbortController().signal), { code: 'COMMAND_FAILED' });
   assert.equal(cleanupCalls, 1);
@@ -188,6 +266,7 @@ test('fails a successful Codex run when cleanup fails but preserves the command 
       cleanup: async () => { cleanupCalls += 1; throw new Error('cleanup failed'); },
     }),
     writeProfile: async () => 'Z:\\pet-codex\\config.toml',
+    ensureCodexCompatibility: async () => ({ compatible: true }),
   });
   await assert.rejects(preserving.runGoal(runRequest(), () => {}, new AbortController().signal), { code: 'PERMISSION_BLOCKED' });
   assert.equal(cleanupCalls, 2);
@@ -198,6 +277,7 @@ test('rejects a relative Codex workspace before native discovery', async () => {
   const executor = createCodexCliExecutor({
     runner: fakeRunner(), codexHome: 'Z:\\pet-codex',
     discoverSignedNativeCli: async () => { discoveries += 1; return TEST_BINDING; },
+    ensureCodexCompatibility: async () => ({ compatible: true }),
   });
   const relativeConnection = connection({ workspacePath: 'relative-workspace' });
   assert.deepEqual(await executor.getStatus(relativeConnection), {
