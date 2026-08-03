@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const cryptoModule = require('node:crypto');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
@@ -236,6 +237,57 @@ test('bounds a raced evidence read through one opened handle and closes it', asy
   assert.equal(requestedLength, MAXIMUM_ENCODED_BYTES + 1);
   assert.equal(closeCalls, 1);
   assert.equal(await store.hasSuccessful(IDENTITY, POLICY), false);
+});
+
+test('does not authorize a valid short-read prefix when later bytes race into evidence', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const filePath = path.join(directory, 'codex-compatibility.evidence');
+  const digest = cryptoModule.createHash('sha256').update(JSON.stringify({
+    policyRevision: POLICY,
+    path: IDENTITY.path.toLowerCase(),
+    sha256: IDENTITY.sha256,
+    volumeSerial: IDENTITY.volumeSerial,
+    fileId: IDENTITY.fileId,
+    version: IDENTITY.version,
+    publisher: IDENTITY.publisher,
+  }), 'utf8').digest('hex');
+  const validPrefix = Buffer.from(JSON.stringify({
+    schemaVersion: 1,
+    entries: [{ digest, qualifiedAt: '2026-08-02T12:34:56.789Z' }],
+  }), 'utf8').toString('base64');
+  assert.equal(Buffer.from(validPrefix, 'base64').toString('base64'), validPrefix);
+
+  const chunks = [Buffer.from(validPrefix, 'utf8'), Buffer.from('X', 'utf8'), Buffer.alloc(0)];
+  const readRequests = [];
+  let closeCalls = 0;
+  const fileSystem = {
+    ...fs,
+    open: async () => ({
+      stat: async () => ({ size: validPrefix.length }),
+      read: async (buffer, offset, length, position) => {
+        assert.ok(offset >= 0 && length >= 0 && offset + length <= MAXIMUM_ENCODED_BYTES + 1);
+        assert.equal(position, offset);
+        const chunk = chunks.shift();
+        assert.ok(chunk, 'must stop after the zero-byte EOF read');
+        assert.ok(chunk.length <= length);
+        chunk.copy(buffer, offset);
+        readRequests.push({ offset, length, position, bytesRead: chunk.length });
+        return { bytesRead: chunk.length, buffer };
+      },
+      close: async () => { closeCalls += 1; },
+    }),
+  };
+
+  const store = createCodexCompatibilityStore({ filePath, crypto: availableCrypto(), fileSystem });
+  await store.initialize();
+  assert.equal(await store.hasSuccessful(IDENTITY, POLICY), false);
+  assert.equal(readRequests.length, 3);
+  assert.deepEqual(readRequests.map(({ offset, position }) => ({ offset, position })), [
+    { offset: 0, position: 0 },
+    { offset: validPrefix.length, position: validPrefix.length },
+    { offset: validPrefix.length + 1, position: validPrefix.length + 1 },
+  ]);
+  assert.equal(closeCalls, 1);
 });
 
 test('rejects a maximum entry limit above the mandatory cap of eight', () => {

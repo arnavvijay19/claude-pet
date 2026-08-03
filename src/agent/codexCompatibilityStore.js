@@ -123,11 +123,18 @@ function createCodexCompatibilityStore({
       const details = await handle.stat();
       if (!details || !Number.isSafeInteger(details.size)
           || details.size < 1 || details.size > MAXIMUM_ENCODED_BYTES) return null;
-      const result = await handle.read(buffer, 0, buffer.length, 0);
-      if (!result || !Number.isSafeInteger(result.bytesRead)
-          || result.bytesRead < 1 || result.bytesRead > MAXIMUM_ENCODED_BYTES
+      let totalBytesRead = 0;
+      while (totalBytesRead < buffer.length) {
+        const remaining = buffer.length - totalBytesRead;
+        const result = await handle.read(buffer, totalBytesRead, remaining, totalBytesRead);
+        if (!result || !Number.isSafeInteger(result.bytesRead)
+            || result.bytesRead < 0 || result.bytesRead > remaining) return null;
+        if (result.bytesRead === 0) break;
+        totalBytesRead += result.bytesRead;
+      }
+      if (totalBytesRead < 1 || totalBytesRead > MAXIMUM_ENCODED_BYTES
           || buffer[MAXIMUM_ENCODED_BYTES] !== 0) return null;
-      return buffer.subarray(0, result.bytesRead).toString('utf8');
+      return buffer.subarray(0, totalBytesRead).toString('utf8');
     } finally {
       await handle.close();
     }
