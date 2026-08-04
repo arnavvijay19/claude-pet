@@ -1101,3 +1101,48 @@ link the note to it — this file is the inbox, not the archive.
   local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. Fresh whole-branch review
   found only that this heading initially used GitHub's next-day UTC date instead of the local build
   date; this update corrects it. NEXT: publish Task 6 as a new GitHub PR before Task 7 begins.
+
+## 2026-08-04 - Codex CLI forward compatibility Task 7
+
+- TDD repaired the documented `node scripts/diagnose-codex-compatibility.js` entrypoint. Under
+  Node, `require('electron')` is the Electron executable path rather than the Electron API, so the
+  previous `app.whenReady()` access failed before qualification. The first real-boundary test RED
+  was `npm.cmd test -- tests/codexCompatibilityDiagnostic.test.js` (2 passed, 1 failed: documented
+  Node diagnostic exited 1). A first relaunch attempt passed a JavaScript file where Electron
+  expects an app directory and therefore started Electron's default app; it was bounded, cleaned,
+  and replaced with an owned temporary Electron app/profile wrapper. GREEN was the same command:
+  3/3 passed, including the real Node-to-Electron entrypoint in 29.5 seconds. The wrapper removes
+  only its temporary profile, bounds its owned Electron child to 60 seconds, clears inherited
+  `ELECTRON_RUN_AS_NODE`, and forces Electron to exit after either outcome.
+- Live, account-free identity evidence: `where.exe codex.exe`, `codex --version`,
+  `npm.cmd test -- tests/nativeCliLaunchLease.test.js`, and
+  `node scripts/diagnose-codex-compatibility.js` reported official Codex `0.146.0`; the lease suite
+  passed 17/17. The bounded diagnostic reported publisher `OpenAI OpCo, LLC`, verified static
+  identity, compatible loopback contract, no real credential, no real model request, and cleanup.
+  `docs/evidence/codex-compatibility-account-free.json` records only that bounded contract,
+  policy revision 1, and its UTC test timestamp.
+- Focused compatibility matrix: 143 passed, 0 failed, 1 intentional live-installed-Codex skip.
+  Complete verification: Node 393 passed, 0 failed, 1 intentional skip; Python 3/3 passed;
+  `git diff --check` passed. The initial fresh `package:win` and `verify:package` count was 165
+  files and 367398380 bytes; its development-artifact exclusion claim is superseded by the final
+  package-integrity correction below.
+- Packaged Codex status QA with a saved Full Computer connection, real sign-in/model smoke, public
+  signing/reputation, enterprise-policy validation, and future Windows Job Object lifecycle work
+  were not run in this task and remain visibly incomplete. No WSL, provider sign-in, real model
+  request, user-workspace mutation, local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change
+  occurred.
+- Final Task 7 package-integrity correction closed a controller-verified gap: `.superpowers`,
+  `.github`, `.gitattributes`, and `.gitignore` are now both packager-excluded and verifier-forbidden.
+  TDD RED was 12 passing and 2 failing policy tests; GREEN was 14/14. A fresh package contains 159
+  files / 367390918 bytes, verifies cleanly, and has none of those four paths. That verification
+  passed 402/402 Node tests with one intentional skip; Python passed 3/3.
+- Final review fixed the timeout failure path without weakening cleanup safety: if verified process-
+  tree termination rejects before the Electron child closes, the diagnostic now rejects promptly
+  with the fixed generic error and retains the profile because exit was not confirmed. If that child
+  later confirms exit, one delayed idempotent cleanup removes the retained profile. The first TDD
+  RED was 7 passing and 1 failing relaunch test (`pending` instead of `rejected`); the cleanup RED
+  then failed 0/1 because no removal followed close. GREEN was 9/9. Focused diagnostic/process-tree
+  verification passed 16/16, and the standalone account-free diagnostic again reported compatible
+  official Codex `0.146.0`. Final Node verification passed 404/404 with one intentional skip; Python
+  passed 3/3; the fresh package remained 159 files / 367390918 bytes with the forbidden-path scan
+  clean.

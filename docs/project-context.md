@@ -85,11 +85,17 @@ Simple or Comprehensive form.
   complete real matrix. Workspace read/write, hostile-project isolation, hook isolation, outside-write
   denial, and cleanup passed; outside reads and child network still escaped. Native Windows therefore
   remains unavailable as Workspace-safe.
-- The genuine Codex 0.145.0 install uses an exact ordered two-junction chain: installer `bin` to
-  standalone `current\\bin`, then standalone `current` to the pinned versioned release. It has no PE
-  version metadata. Task 13 allows only those two raw targets and proves the version via the signed,
-  hash/file-ID-bound canonical executable's held-path `--version`; all other reparse targets remain
-  rejected. Claude's installed executable is non-reparse and has PE version 2.1.217.0.
+- Codex accepts only strict official x64 release identities at or above the `0.145.0` protocol
+  floor. Discovery permits the exact ordered installer `bin` to standalone `current\\bin` to
+  versioned-release junction chain, holds the canonical executable, and re-proves the exact signed
+  publisher, path, hash, file identity, and held `--version`; all other reparse targets remain
+  rejected. Each changed exact identity receives account-free loopback behavioral qualification.
+  Successful qualification is cached only against that complete identity and the policy revision;
+  deterministic contract mismatch is incompatible, while infrastructure uncertainty remains
+  retryable with fixed public feedback. The loopback proof has no real credential or model request,
+  but is not an OS/network sandbox and does not prove the absence of unrelated telemetry or future
+  vulnerabilities. Provider lifecycle ownership is not yet a Windows Job Object boundary. Claude's
+  installed executable remains non-reparse with PE version 2.1.217.0.
 - A 2026-07-26 account-free Codex 0.145.0 loopback probe corrected the approved tail before
   implementation: GPT-5.6 uses a developer `input[type=additional_tools]` code-mode envelope, not a
   classic five-tool array. The exact top-level/nested registries are now pinned, and Task 14 plus

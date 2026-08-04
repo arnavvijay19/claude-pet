@@ -2,9 +2,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { spawn } = require('node:child_process');
+const { EventEmitter } = require('node:events');
+const { PassThrough } = require('node:stream');
+const path = require('node:path');
 
 const {
   main,
+  relaunchThroughElectron,
   runCodexCompatibilityDiagnostic,
 } = require('../scripts/diagnose-codex-compatibility.js');
 
@@ -15,6 +20,280 @@ const BINDING = Object.freeze({
   fileId: 'private-file-id',
   version: '0.146.0',
   publisher: 'OpenAI OpCo, LLC',
+});
+
+function runDocumentedDiagnostic() {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['scripts/diagnose-codex-compatibility.js'], {
+      cwd: path.join(__dirname, '..'),
+      windowsHide: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.once('error', reject);
+    child.once('close', (code, signal) => resolve({ code, signal, stdout, stderr }));
+  });
+}
+
+function electronChild(pid = 4321) {
+  const child = new EventEmitter();
+  child.pid = pid;
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  return child;
+}
+
+function ownedFileSystem(events) {
+  return {
+    mkdtemp: async () => 'C:\\Temp\\claude-pet-codex-compatibility-owned',
+    mkdir: async () => {},
+    writeFile: async () => {},
+    rm: async (target) => { events.push(`remove:${target}`); },
+  };
+}
+
+test('relaunch discards failing Electron child diagnostics instead of publishing them', async () => {
+  // Catches forwarding raw Electron stdout/stderr into this public bounded diagnostic.
+  const events = [];
+  const output = [];
+  const child = electronChild();
+  await assert.rejects(relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem: ownedFileSystem(events),
+    spawnProcess: () => {
+      queueMicrotask(() => {
+        child.stdout.end('C:\\private\\codex.exe bearer raw-child-output');
+        child.stderr.end('C:\\private\\electron-failure');
+        child.emit('close', 1, null);
+      });
+      return child;
+    },
+    writeOutput: (value) => output.push(value),
+  }));
+  assert.deepEqual(output, []);
+  assert.deepEqual(events, ['remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
+});
+
+test('relaunch rejects an oversized child chunk without concatenating it', async () => {
+  // Catches copying an unbounded chunk before the output cap can reject it.
+  const events = [];
+  const child = electronChild();
+  const oversized = Buffer.alloc(1024 * 1024, 'x');
+  const originalConcat = Buffer.concat;
+  let concatCalls = 0;
+  Buffer.concat = (...args) => {
+    concatCalls += 1;
+    return originalConcat(...args);
+  };
+  try {
+    await assert.rejects(relaunchThroughElectron('C:\\tools\\electron.exe', {
+      fileSystem: ownedFileSystem(events),
+      spawnProcess: () => {
+        queueMicrotask(() => {
+          child.stdout.end(oversized);
+          child.stderr.end();
+          child.emit('close', 1, null);
+        });
+        return child;
+      },
+      writeOutput: () => { throw new Error('oversized output must not be published'); },
+    }));
+    assert.equal(concatCalls, 0);
+    assert.deepEqual(events, ['remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
+  } finally {
+    Buffer.concat = originalConcat;
+  }
+});
+
+test('relaunch timeout terminates the owned Electron process tree before removing its profile', async () => {
+  // Catches timeout cleanup that kills only Electron's root process and races profile removal.
+  const events = [];
+  const output = [];
+  const child = electronChild(9876);
+  await assert.rejects(relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem: ownedFileSystem(events),
+    spawnProcess: () => child,
+    terminateProcessTree: async (spec) => {
+      events.push(`terminate:${spec.pid}:${spec.execFile}`);
+      child.stdout.end('{"publisher":"OpenAI OpCo, LLC","version":"0.146.0","staticIdentity":"verified","compatibility":"compatible","providerEndpoint":"loopback","realCredentialUsed":false,"realModelRequestUsed":false,"cleanup":true}\n');
+      child.stderr.end();
+      child.emit('close', 0, null);
+      return true;
+    },
+    timeoutMs: 1,
+    writeOutput: (value) => output.push(value),
+  }));
+  assert.deepEqual(events, [
+    'terminate:9876:C:\\tools\\electron.exe',
+    'remove:C:\\Temp\\claude-pet-codex-compatibility-owned',
+  ]);
+  assert.deepEqual(output, []);
+});
+
+test('relaunch waits for deferred tree termination before removing its profile', async () => {
+  // Catches root-close cleanup racing a still-running verified tree terminator.
+  const events = [];
+  const child = electronChild(7654);
+  let resolveTermination;
+  let started;
+  const terminationStarted = new Promise((resolve) => { started = resolve; });
+  const pending = relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem: ownedFileSystem(events),
+    spawnProcess: () => child,
+    terminateProcessTree: () => {
+      events.push('terminate');
+      started();
+      return new Promise((resolve) => { resolveTermination = resolve; });
+    },
+    timeoutMs: 1,
+    writeOutput: () => {},
+  });
+  await terminationStarted;
+  child.stdout.end('{"publisher":"OpenAI OpCo, LLC","version":"0.146.0","staticIdentity":"verified","compatibility":"compatible","providerEndpoint":"loopback","realCredentialUsed":false,"realModelRequestUsed":false,"cleanup":true}\n');
+  child.stderr.end();
+  child.emit('close', 0, null);
+  await Promise.resolve();
+  const eventsBeforeTermination = [...events];
+  resolveTermination(true);
+  await assert.rejects(pending);
+  assert.deepEqual(eventsBeforeTermination, ['terminate']);
+  assert.deepEqual(events, ['terminate', 'remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
+});
+
+test('relaunch rejects promptly when tree termination fails and the child never closes', async () => {
+  // Catches suppressing a verified tree-termination failure while waiting forever for close.
+  const events = [];
+  const child = electronChild(8765);
+  const pending = relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem: ownedFileSystem(events),
+    spawnProcess: () => child,
+    terminateProcessTree: async () => {
+      events.push('terminate');
+      throw new Error('private termination details');
+    },
+    timeoutMs: 1,
+    writeOutput: () => { throw new Error('failed termination must not publish output'); },
+  });
+  const outcome = await Promise.race([
+    pending.then(
+      () => ({ state: 'resolved' }),
+      (error) => ({ state: 'rejected', error }),
+    ),
+    new Promise((resolve) => setTimeout(() => resolve({ state: 'pending' }), 100)),
+  ]);
+  assert.equal(outcome.state, 'rejected');
+  assert.equal(outcome.error.message, 'Electron compatibility diagnostic did not complete');
+  assert.deepEqual(events, ['terminate']);
+});
+
+test('relaunch removes the retained profile only after the failed-termination child closes', async () => {
+  // Catches leaking the retained profile after a later confirmed child exit.
+  const events = [];
+  const child = electronChild(8766);
+  const pending = relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem: ownedFileSystem(events),
+    spawnProcess: () => child,
+    terminateProcessTree: async () => {
+      events.push('terminate');
+      throw new Error('private termination details');
+    },
+    timeoutMs: 1,
+    writeOutput: () => {},
+  });
+  await assert.rejects(
+    pending,
+    /Electron compatibility diagnostic did not complete/,
+  );
+  assert.deepEqual(events, ['terminate']);
+  child.stdout.end();
+  child.stderr.end();
+  child.emit('close', 1, null);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(events, [
+    'terminate',
+    'remove:C:\\Temp\\claude-pet-codex-compatibility-owned',
+  ]);
+});
+
+test('relaunch removes its owned profile when temporary app setup fails', async () => {
+  // Catches a pre-spawn setup error leaking the only owned temporary root.
+  const events = [];
+  const fileSystem = {
+    ...ownedFileSystem(events),
+    writeFile: async () => { throw new Error('setup failed'); },
+  };
+  await assert.rejects(relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem,
+    spawnProcess: () => { throw new Error('spawn must not run'); },
+  }));
+  assert.deepEqual(events, ['remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
+});
+
+test('relaunch removes its owned profile when Electron spawn throws synchronously', async () => {
+  // Catches a pre-child spawn failure leaking the only owned temporary root.
+  const events = [];
+  await assert.rejects(relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem: ownedFileSystem(events),
+    spawnProcess: () => { throw new Error('spawn failed'); },
+  }));
+  assert.deepEqual(events, ['remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
+});
+
+test('relaunch omits inherited Node and Electron customization variables', async () => {
+  // Catches passing inherited customization into the account-free Electron diagnostic.
+  const events = [];
+  const output = [];
+  const child = electronChild();
+  const originalNodeOptions = process.env.NODE_OPTIONS;
+  const originalElectronLogging = process.env.ELECTRON_ENABLE_LOGGING;
+  process.env.NODE_OPTIONS = '--require C:\\private\\instrumentation.js';
+  process.env.ELECTRON_ENABLE_LOGGING = '1';
+  try {
+    let spawnOptions;
+    await relaunchThroughElectron('C:\\tools\\electron.exe', {
+      fileSystem: ownedFileSystem(events),
+      spawnProcess: (_command, _args, options) => {
+        spawnOptions = options;
+        queueMicrotask(() => {
+          child.stdout.end('{"publisher":"OpenAI OpCo, LLC","version":"0.146.0","staticIdentity":"verified","compatibility":"compatible","providerEndpoint":"loopback","realCredentialUsed":false,"realModelRequestUsed":false,"cleanup":true}\n');
+          child.stderr.end();
+          child.emit('close', 0, null);
+        });
+        return child;
+      },
+      writeOutput: (value) => output.push(value),
+    });
+    assert.equal(Object.hasOwn(spawnOptions.env, 'NODE_OPTIONS'), false);
+    assert.equal(Object.hasOwn(spawnOptions.env, 'ELECTRON_ENABLE_LOGGING'), false);
+    assert.equal(Object.hasOwn(spawnOptions.env, 'ELECTRON_RUN_AS_NODE'), false);
+    assert.deepEqual(output, ['{"publisher":"OpenAI OpCo, LLC","version":"0.146.0","staticIdentity":"verified","compatibility":"compatible","providerEndpoint":"loopback","realCredentialUsed":false,"realModelRequestUsed":false,"cleanup":true}\n']);
+  } finally {
+    if (originalNodeOptions === undefined) delete process.env.NODE_OPTIONS;
+    else process.env.NODE_OPTIONS = originalNodeOptions;
+    if (originalElectronLogging === undefined) delete process.env.ELECTRON_ENABLE_LOGGING;
+    else process.env.ELECTRON_ENABLE_LOGGING = originalElectronLogging;
+  }
+});
+
+test('documented Node diagnostic completes the real Electron entrypoint boundary', { timeout: 90_000 }, async () => {
+  // Catches a Node-launched entrypoint that treats Electron's executable-path export as its API.
+  const result = await runDocumentedDiagnostic();
+  assert.equal(result.signal, null);
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    publisher: 'OpenAI OpCo, LLC',
+    version: '0.146.0',
+    staticIdentity: 'verified',
+    compatibility: 'compatible',
+    providerEndpoint: 'loopback',
+    realCredentialUsed: false,
+    realModelRequestUsed: false,
+    cleanup: true,
+  });
 });
 
 test('imports a diagnostic module without running it and exposes an explicit main', () => {
