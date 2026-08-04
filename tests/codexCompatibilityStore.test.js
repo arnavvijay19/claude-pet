@@ -353,6 +353,18 @@ test('ignores a partial sibling temporary file', async (t) => {
   assert.equal(await store.hasSuccessful(IDENTITY, POLICY), false);
 });
 
+test('replaces a stale sibling temporary file when recording new evidence', async (t) => {
+  const directory = await temporaryDirectory(t);
+  const filePath = path.join(directory, 'codex-compatibility.evidence');
+  await fs.writeFile(`${filePath}.tmp`, 'partially-written-plaintext', 'utf8');
+  const store = createCodexCompatibilityStore({ filePath, crypto: availableCrypto() });
+  await store.initialize();
+
+  assert.equal(await store.rememberSuccessful(IDENTITY, POLICY), true);
+  assert.equal(await store.hasSuccessful(IDENTITY, POLICY), true);
+  await assert.rejects(fs.access(`${filePath}.tmp`));
+});
+
 test('fails closed when protected storage is unavailable or encryption fails', async (t) => {
   for (const crypto of [
     availableCrypto({ isAvailable: async () => false }),

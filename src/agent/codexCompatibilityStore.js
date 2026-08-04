@@ -183,6 +183,13 @@ function createCodexCompatibilityStore({
       const encoded = encrypted.toString('base64');
       if (!isCanonicalBase64(encoded)) return false;
       await fileSystem.mkdir(path.dirname(filePath), { recursive: true });
+      if (typeof fileSystem.unlink === 'function') {
+        try {
+          await fileSystem.unlink(temporaryPath);
+        } catch (error) {
+          if (!error || error.code !== 'ENOENT') return false;
+        }
+      }
       const handle = await fileSystem.open(temporaryPath, 'wx');
       temporaryCreated = true;
       try {
