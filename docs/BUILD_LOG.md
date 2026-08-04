@@ -1077,7 +1077,7 @@ link the note to it — this file is the inbox, not the archive.
   approved `278a8c7..b1250ca` with no Critical or Important findings and declared the branch ready
   to merge. NEXT: publish Task 5 as a new GitHub PR before Task 6 begins.
 
-## 2026-08-04 — Codex CLI forward compatibility Task 6
+## 2026-08-03 — Codex CLI forward compatibility Task 6
 
 - GitHub PR #6 merged Task 5 remotely at `eb1332b` without changing the local `master` checkout.
   Task 6 began from that exact remote merge in isolated branch
@@ -1098,5 +1098,6 @@ link the note to it — this file is the inbox, not the archive.
   source syntax checks and `git diff --check` also passed. `npm install` still reports two high
   severity advisories in the existing dependency graph; Task 6 made no dependency change. No WSL,
   provider sign-in, live qualification, real model/provider request, user-workspace mutation,
-  local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. NEXT: run the fresh
-  whole-branch review and publish Task 6 as a new GitHub PR before Task 7 begins.
+  local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. Fresh whole-branch review
+  found only that this heading initially used GitHub's next-day UTC date instead of the local build
+  date; this update corrects it. NEXT: publish Task 6 as a new GitHub PR before Task 7 begins.
