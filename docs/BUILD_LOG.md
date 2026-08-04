@@ -1134,5 +1134,15 @@ link the note to it — this file is the inbox, not the archive.
 - Final Task 7 package-integrity correction closed a controller-verified gap: `.superpowers`,
   `.github`, `.gitattributes`, and `.gitignore` are now both packager-excluded and verifier-forbidden.
   TDD RED was 12 passing and 2 failing policy tests; GREEN was 14/14. A fresh package contains 159
-  files / 367390918 bytes, verifies cleanly, and has none of those four paths. Final Node verification
-  passed 402/402 with one intentional skip; Python passed 3/3.
+  files / 367390918 bytes, verifies cleanly, and has none of those four paths. That verification
+  passed 402/402 Node tests with one intentional skip; Python passed 3/3.
+- Final review fixed the timeout failure path without weakening cleanup safety: if verified process-
+  tree termination rejects before the Electron child closes, the diagnostic now rejects promptly
+  with the fixed generic error and retains the profile because exit was not confirmed. If that child
+  later confirms exit, one delayed idempotent cleanup removes the retained profile. The first TDD
+  RED was 7 passing and 1 failing relaunch test (`pending` instead of `rejected`); the cleanup RED
+  then failed 0/1 because no removal followed close. GREEN was 9/9. Focused diagnostic/process-tree
+  verification passed 16/16, and the standalone account-free diagnostic again reported compatible
+  official Codex `0.146.0`. Final Node verification passed 404/404 with one intentional skip; Python
+  passed 3/3; the fresh package remained 159 files / 367390918 bytes with the forbidden-path scan
+  clean.

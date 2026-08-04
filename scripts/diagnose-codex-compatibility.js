@@ -70,8 +70,15 @@ async function relaunchThroughElectron(electronPath, {
   const profilePath = await fileSystem.mkdtemp(path.join(os.tmpdir(), 'claude-pet-codex-compatibility-'));
   let childSpawned = false;
   let childClosed = false;
+  let childExitConfirmed = false;
   let terminationRequired = false;
   let terminationComplete = false;
+  let cleanupAfterConfirmedExit = false;
+  let profileRemoval = null;
+  const removeProfile = () => {
+    if (!profileRemoval) profileRemoval = fileSystem.rm(profilePath, { recursive: true, force: true });
+    return profileRemoval;
+  };
   try {
     const appPath = path.join(profilePath, 'app');
     await fileSystem.mkdir(appPath);
@@ -116,7 +123,11 @@ async function relaunchThroughElectron(electronPath, {
         termination = Promise.resolve().then(
           () => terminateProcessTree({ pid: child.pid, execFile: electronPath }),
         );
-        termination.catch(() => {});
+        termination.catch(() => {
+          cleanupAfterConfirmedExit = true;
+          if (childExitConfirmed) void removeProfile().catch(() => {});
+          reject(new Error('Electron compatibility diagnostic did not complete'));
+        });
       }, timeoutMs);
       const finish = () => {
         clearTimeout(timeout);
@@ -131,6 +142,8 @@ async function relaunchThroughElectron(electronPath, {
       child.once('close', (code, signal) => {
         finish();
         childClosed = true;
+        childExitConfirmed = true;
+        if (cleanupAfterConfirmedExit) void removeProfile().catch(() => {});
         resolve({ code, signal, outputExceeded, timedOut, termination, stdout: stdout.toString('utf8'), stderr: stderr.toString('utf8') });
       });
     });
@@ -149,7 +162,7 @@ async function relaunchThroughElectron(electronPath, {
     writeOutput(output);
   } finally {
     if (!childSpawned || (childClosed && (!terminationRequired || terminationComplete))) {
-      await fileSystem.rm(profilePath, { recursive: true, force: true });
+      await removeProfile();
     }
   }
 }

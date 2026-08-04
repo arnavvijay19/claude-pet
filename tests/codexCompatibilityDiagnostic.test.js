@@ -164,6 +164,61 @@ test('relaunch waits for deferred tree termination before removing its profile',
   assert.deepEqual(events, ['terminate', 'remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
 });
 
+test('relaunch rejects promptly when tree termination fails and the child never closes', async () => {
+  // Catches suppressing a verified tree-termination failure while waiting forever for close.
+  const events = [];
+  const child = electronChild(8765);
+  const pending = relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem: ownedFileSystem(events),
+    spawnProcess: () => child,
+    terminateProcessTree: async () => {
+      events.push('terminate');
+      throw new Error('private termination details');
+    },
+    timeoutMs: 1,
+    writeOutput: () => { throw new Error('failed termination must not publish output'); },
+  });
+  const outcome = await Promise.race([
+    pending.then(
+      () => ({ state: 'resolved' }),
+      (error) => ({ state: 'rejected', error }),
+    ),
+    new Promise((resolve) => setTimeout(() => resolve({ state: 'pending' }), 100)),
+  ]);
+  assert.equal(outcome.state, 'rejected');
+  assert.equal(outcome.error.message, 'Electron compatibility diagnostic did not complete');
+  assert.deepEqual(events, ['terminate']);
+});
+
+test('relaunch removes the retained profile only after the failed-termination child closes', async () => {
+  // Catches leaking the retained profile after a later confirmed child exit.
+  const events = [];
+  const child = electronChild(8766);
+  const pending = relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem: ownedFileSystem(events),
+    spawnProcess: () => child,
+    terminateProcessTree: async () => {
+      events.push('terminate');
+      throw new Error('private termination details');
+    },
+    timeoutMs: 1,
+    writeOutput: () => {},
+  });
+  await assert.rejects(
+    pending,
+    /Electron compatibility diagnostic did not complete/,
+  );
+  assert.deepEqual(events, ['terminate']);
+  child.stdout.end();
+  child.stderr.end();
+  child.emit('close', 1, null);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(events, [
+    'terminate',
+    'remove:C:\\Temp\\claude-pet-codex-compatibility-owned',
+  ]);
+});
+
 test('relaunch removes its owned profile when temporary app setup fails', async () => {
   // Catches a pre-spawn setup error leaking the only owned temporary root.
   const events = [];
