@@ -9,6 +9,29 @@ test('rejects runtime state, development trees, source maps, and secret-shaped t
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test('rejects development metadata that must not ship in a Windows package', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pet-package-development-metadata-'));
+  try {
+    for (const relativePath of [
+      '.superpowers/sdd/task-7-report.md',
+      '.github/workflows/ci.yml',
+      '.gitattributes',
+      '.gitignore',
+    ]) {
+      const full = path.join(root, relativePath);
+      fs.mkdirSync(path.dirname(full), { recursive: true });
+      fs.writeFileSync(full, 'development-only');
+      assert.throws(() => verifyPackage(root), /development-tree/, relativePath);
+      fs.rmSync(full, { force: true });
+      for (let directory = path.dirname(full); directory !== root; directory = path.dirname(directory)) {
+        fs.rmdirSync(directory);
+      }
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('allows only the explicit account-free probe bearer sentinel', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pet-package-fixture-'));
   try { fs.writeFileSync(path.join(root, 'fixture.json'), 'Bearer __OWNER_BEARER__'); assert.deepEqual(verifyPackage(root), { files: 1, bytes: 23 }); } finally { fs.rmSync(root, { recursive: true, force: true }); }

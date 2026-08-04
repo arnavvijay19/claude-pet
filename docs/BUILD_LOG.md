@@ -1123,11 +1123,16 @@ link the note to it — this file is the inbox, not the archive.
   policy revision 1, and its UTC test timestamp.
 - Focused compatibility matrix: 143 passed, 0 failed, 1 intentional live-installed-Codex skip.
   Complete verification: Node 393 passed, 0 failed, 1 intentional skip; Python 3/3 passed;
-  `git diff --check` passed. Fresh `package:win` rebuilt the Windows package and `verify:package`
-  passed with 165 files and 367398380 bytes. Compatibility source/resources were included while
-  docs, tests, scripts, review artifacts, and development-only trees were excluded.
+  `git diff --check` passed. The initial fresh `package:win` and `verify:package` count was 165
+  files and 367398380 bytes; its development-artifact exclusion claim is superseded by the final
+  package-integrity correction below.
 - Packaged Codex status QA with a saved Full Computer connection, real sign-in/model smoke, public
   signing/reputation, enterprise-policy validation, and future Windows Job Object lifecycle work
   were not run in this task and remain visibly incomplete. No WSL, provider sign-in, real model
   request, user-workspace mutation, local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change
   occurred.
+- Final Task 7 package-integrity correction closed a controller-verified gap: `.superpowers`,
+  `.github`, `.gitattributes`, and `.gitignore` are now both packager-excluded and verifier-forbidden.
+  TDD RED was 12 passing and 2 failing policy tests; GREEN was 14/14. A fresh package contains 159
+  files / 367390918 bytes, verifies cleanly, and has none of those four paths. Final Node verification
+  passed 402/402 with one intentional skip; Python passed 3/3.

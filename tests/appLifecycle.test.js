@@ -182,3 +182,21 @@ test('packaging excludes local review and WorkBuddy-only paths', () => {
   assert.match(manifest.scripts['package:win'], /\\\.workbuddy-ai/);
   assert.match(manifest.scripts['package:win'], /LOCAL_PR\\\.html/);
 });
+
+test('package ignore rules exclude development metadata from the app root', () => {
+  // Catches new review or repository metadata shipping in a fresh Windows package.
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+  const rules = [...manifest.scripts['package:win'].matchAll(/--ignore="([^"]+)"/g)]
+    .map((match) => new RegExp(match[1]));
+  for (const relativePath of [
+    '.superpowers/sdd/task-7-report.md',
+    '.github/workflows/ci.yml',
+    '.gitattributes',
+    '.gitignore',
+  ]) {
+    assert.ok(
+      rules.some((rule) => rule.test(`/${relativePath}`)),
+      `package:win must exclude ${relativePath}`,
+    );
+  }
+});
