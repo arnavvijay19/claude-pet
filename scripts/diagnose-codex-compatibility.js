@@ -7,8 +7,16 @@ const path = require('node:path');
 
 const { createCodexCompatibility, createCodexCompatibilityQualifier } = require('../src/agent/codexCompatibility.js');
 const { createCodexCompatibilityStore } = require('../src/agent/codexCompatibilityStore.js');
+const { minimalEnvironment } = require('../src/agent/cliRunner.js');
 const { discoverSignedNativeCli } = require('../src/agent/nativeCliDiscovery.js');
 const { createSafeStorageCrypto } = require('../src/agent/safeStorageCrypto.js');
+const { terminateWindowsProcessTree } = require('../src/agent/windowsProcessTree.js');
+
+const MAXIMUM_CHILD_OUTPUT_BYTES = 64 * 1024;
+const BOUNDED_DIAGNOSTIC_KEYS = Object.freeze([
+  'publisher', 'version', 'staticIdentity', 'compatibility', 'providerEndpoint',
+  'realCredentialUsed', 'realModelRequestUsed', 'cleanup',
+]);
 
 async function runCodexCompatibilityDiagnostic({ discover, ensureCompatible, workspacePath } = {}) {
   if (typeof discover !== 'function' || typeof ensureCompatible !== 'function'
@@ -35,15 +43,39 @@ async function runCodexCompatibilityDiagnostic({ discover, ensureCompatible, wor
   });
 }
 
-async function relaunchThroughElectron(electronPath) {
-  const profilePath = await fs.mkdtemp(path.join(os.tmpdir(), 'claude-pet-codex-compatibility-'));
+function boundedDiagnosticOutput(output) {
+  if (typeof output !== 'string' || Buffer.byteLength(output, 'utf8') > MAXIMUM_CHILD_OUTPUT_BYTES) {
+    return null;
+  }
+  let report;
+  try { report = JSON.parse(output); } catch { return null; }
+  if (!report || Object.getPrototypeOf(report) !== Object.prototype
+      || Object.keys(report).length !== BOUNDED_DIAGNOSTIC_KEYS.length
+      || !BOUNDED_DIAGNOSTIC_KEYS.every((key) => Object.hasOwn(report, key))
+      || report.publisher !== 'OpenAI OpCo, LLC'
+      || typeof report.version !== 'string' || report.version.length === 0
+      || report.staticIdentity !== 'verified' || report.compatibility !== 'compatible'
+      || report.providerEndpoint !== 'loopback' || report.realCredentialUsed !== false
+      || report.realModelRequestUsed !== false || report.cleanup !== true) return null;
+  return `${JSON.stringify(report)}\n`;
+}
+
+async function relaunchThroughElectron(electronPath, {
+  fileSystem = fs,
+  spawnProcess = spawn,
+  terminateProcessTree = terminateWindowsProcessTree,
+  timeoutMs = 60_000,
+  writeOutput = (value) => process.stdout.write(value),
+} = {}) {
+  const profilePath = await fileSystem.mkdtemp(path.join(os.tmpdir(), 'claude-pet-codex-compatibility-'));
+  let childClosed = false;
   try {
     const appPath = path.join(profilePath, 'app');
-    await fs.mkdir(appPath);
-    await fs.writeFile(path.join(appPath, 'package.json'), JSON.stringify({
+    await fileSystem.mkdir(appPath);
+    await fileSystem.writeFile(path.join(appPath, 'package.json'), JSON.stringify({
       name: 'claude-pet-codex-compatibility-diagnostic', main: 'main.js', private: true,
     }), 'utf8');
-    await fs.writeFile(path.join(appPath, 'main.js'), [
+    await fileSystem.writeFile(path.join(appPath, 'main.js'), [
       "'use strict';",
       `require(${JSON.stringify(__filename)}).main().catch(() => {`,
       "  process.stderr.write('Codex compatibility diagnostic failed.\\n');",
@@ -51,31 +83,55 @@ async function relaunchThroughElectron(electronPath) {
       '});',
       '',
     ].join('\n'), 'utf8');
-    const environment = { ...process.env };
-    delete environment.ELECTRON_RUN_AS_NODE;
     const exit = await new Promise((resolve, reject) => {
-      const child = spawn(electronPath, [`--user-data-dir=${profilePath}`, appPath], {
-        env: environment,
+      const child = spawnProcess(electronPath, [`--user-data-dir=${profilePath}`, appPath], {
+        env: minimalEnvironment(),
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       });
-      child.stdout.pipe(process.stdout);
-      child.stderr.pipe(process.stderr);
-      const timeout = setTimeout(() => child.kill(), 60_000);
-      child.once('error', (error) => {
+      let stdout = Buffer.alloc(0);
+      let stderr = Buffer.alloc(0);
+      let outputExceeded = false;
+      let timedOut = false;
+      const capture = (current, chunk) => {
+        const next = Buffer.concat([current, Buffer.from(chunk)]);
+        if (next.length > MAXIMUM_CHILD_OUTPUT_BYTES) {
+          outputExceeded = true;
+          return current;
+        }
+        return next;
+      };
+      const onStdout = (chunk) => { stdout = capture(stdout, chunk); };
+      const onStderr = (chunk) => { stderr = capture(stderr, chunk); };
+      child.stdout?.on?.('data', onStdout);
+      child.stderr?.on?.('data', onStderr);
+      const timeout = setTimeout(() => {
+        timedOut = true;
+        void terminateProcessTree({ pid: child.pid, execFile: electronPath }).catch(() => {});
+      }, timeoutMs);
+      const finish = () => {
         clearTimeout(timeout);
+        child.stdout?.removeListener?.('data', onStdout);
+        child.stderr?.removeListener?.('data', onStderr);
+      };
+      child.once('error', (error) => {
+        finish();
+        childClosed = true;
         reject(error);
       });
       child.once('close', (code, signal) => {
-        clearTimeout(timeout);
-        resolve({ code, signal });
+        finish();
+        childClosed = true;
+        resolve({ code, signal, outputExceeded, timedOut, stdout: stdout.toString('utf8'), stderr: stderr.toString('utf8') });
       });
     });
-    if (exit.code !== 0 || exit.signal !== null) {
+    const output = exit.outputExceeded ? null : boundedDiagnosticOutput(exit.stdout);
+    if (exit.code !== 0 || exit.signal !== null || exit.timedOut || !output) {
       throw new Error('Electron compatibility diagnostic did not complete');
     }
+    writeOutput(output);
   } finally {
-    await fs.rm(profilePath, { recursive: true, force: true });
+    if (childClosed) await fileSystem.rm(profilePath, { recursive: true, force: true });
   }
 }
 
@@ -112,7 +168,7 @@ async function main() {
   }
 }
 
-module.exports = { main, runCodexCompatibilityDiagnostic };
+module.exports = { main, relaunchThroughElectron, runCodexCompatibilityDiagnostic };
 
 if (require.main === module) {
   main().catch(() => {
