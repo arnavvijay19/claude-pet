@@ -1,0 +1,12 @@
+{
+  "publisher": "OpenAI OpCo, LLC",
+  "version": "0.146.0",
+  "staticIdentity": "verified",
+  "compatibility": "compatible",
+  "providerEndpoint": "loopback",
+  "realCredentialUsed": false,
+  "realModelRequestUsed": false,
+  "cleanup": true,
+  "policyRevision": 1,
+  "testedAt": "2026-08-04T04:49:56.640Z"
+}
