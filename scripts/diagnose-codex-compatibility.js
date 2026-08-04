@@ -68,7 +68,10 @@ async function relaunchThroughElectron(electronPath, {
   writeOutput = (value) => process.stdout.write(value),
 } = {}) {
   const profilePath = await fileSystem.mkdtemp(path.join(os.tmpdir(), 'claude-pet-codex-compatibility-'));
+  let childSpawned = false;
   let childClosed = false;
+  let terminationRequired = false;
+  let terminationComplete = false;
   try {
     const appPath = path.join(profilePath, 'app');
     await fileSystem.mkdir(appPath);
@@ -89,17 +92,19 @@ async function relaunchThroughElectron(electronPath, {
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       });
+      childSpawned = true;
       let stdout = Buffer.alloc(0);
       let stderr = Buffer.alloc(0);
       let outputExceeded = false;
       let timedOut = false;
+      let termination = null;
       const capture = (current, chunk) => {
-        const next = Buffer.concat([current, Buffer.from(chunk)]);
-        if (next.length > MAXIMUM_CHILD_OUTPUT_BYTES) {
+        const chunkBytes = Buffer.isBuffer(chunk) ? chunk.length : Buffer.byteLength(chunk, 'utf8');
+        if (chunkBytes > MAXIMUM_CHILD_OUTPUT_BYTES - current.length) {
           outputExceeded = true;
           return current;
         }
-        return next;
+        return Buffer.concat([current, Buffer.from(chunk)]);
       };
       const onStdout = (chunk) => { stdout = capture(stdout, chunk); };
       const onStderr = (chunk) => { stderr = capture(stderr, chunk); };
@@ -107,7 +112,11 @@ async function relaunchThroughElectron(electronPath, {
       child.stderr?.on?.('data', onStderr);
       const timeout = setTimeout(() => {
         timedOut = true;
-        void terminateProcessTree({ pid: child.pid, execFile: electronPath }).catch(() => {});
+        terminationRequired = true;
+        termination = Promise.resolve().then(
+          () => terminateProcessTree({ pid: child.pid, execFile: electronPath }),
+        );
+        termination.catch(() => {});
       }, timeoutMs);
       const finish = () => {
         clearTimeout(timeout);
@@ -122,16 +131,26 @@ async function relaunchThroughElectron(electronPath, {
       child.once('close', (code, signal) => {
         finish();
         childClosed = true;
-        resolve({ code, signal, outputExceeded, timedOut, stdout: stdout.toString('utf8'), stderr: stderr.toString('utf8') });
+        resolve({ code, signal, outputExceeded, timedOut, termination, stdout: stdout.toString('utf8'), stderr: stderr.toString('utf8') });
       });
     });
+    if (exit.termination) {
+      try {
+        await exit.termination;
+        terminationComplete = true;
+      } catch {
+        throw new Error('Electron compatibility diagnostic did not complete');
+      }
+    }
     const output = exit.outputExceeded ? null : boundedDiagnosticOutput(exit.stdout);
     if (exit.code !== 0 || exit.signal !== null || exit.timedOut || !output) {
       throw new Error('Electron compatibility diagnostic did not complete');
     }
     writeOutput(output);
   } finally {
-    if (childClosed) await fileSystem.rm(profilePath, { recursive: true, force: true });
+    if (!childSpawned || (childClosed && (!terminationRequired || terminationComplete))) {
+      await fileSystem.rm(profilePath, { recursive: true, force: true });
+    }
   }
 }
 

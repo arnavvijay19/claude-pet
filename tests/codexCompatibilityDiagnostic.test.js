@@ -78,6 +78,37 @@ test('relaunch discards failing Electron child diagnostics instead of publishing
   assert.deepEqual(events, ['remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
 });
 
+test('relaunch rejects an oversized child chunk without concatenating it', async () => {
+  // Catches copying an unbounded chunk before the output cap can reject it.
+  const events = [];
+  const child = electronChild();
+  const oversized = Buffer.alloc(1024 * 1024, 'x');
+  const originalConcat = Buffer.concat;
+  let concatCalls = 0;
+  Buffer.concat = (...args) => {
+    concatCalls += 1;
+    return originalConcat(...args);
+  };
+  try {
+    await assert.rejects(relaunchThroughElectron('C:\\tools\\electron.exe', {
+      fileSystem: ownedFileSystem(events),
+      spawnProcess: () => {
+        queueMicrotask(() => {
+          child.stdout.end(oversized);
+          child.stderr.end();
+          child.emit('close', 1, null);
+        });
+        return child;
+      },
+      writeOutput: () => { throw new Error('oversized output must not be published'); },
+    }));
+    assert.equal(concatCalls, 0);
+    assert.deepEqual(events, ['remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
+  } finally {
+    Buffer.concat = originalConcat;
+  }
+});
+
 test('relaunch timeout terminates the owned Electron process tree before removing its profile', async () => {
   // Catches timeout cleanup that kills only Electron's root process and races profile removal.
   const events = [];
@@ -101,6 +132,60 @@ test('relaunch timeout terminates the owned Electron process tree before removin
     'remove:C:\\Temp\\claude-pet-codex-compatibility-owned',
   ]);
   assert.deepEqual(output, []);
+});
+
+test('relaunch waits for deferred tree termination before removing its profile', async () => {
+  // Catches root-close cleanup racing a still-running verified tree terminator.
+  const events = [];
+  const child = electronChild(7654);
+  let resolveTermination;
+  let started;
+  const terminationStarted = new Promise((resolve) => { started = resolve; });
+  const pending = relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem: ownedFileSystem(events),
+    spawnProcess: () => child,
+    terminateProcessTree: () => {
+      events.push('terminate');
+      started();
+      return new Promise((resolve) => { resolveTermination = resolve; });
+    },
+    timeoutMs: 1,
+    writeOutput: () => {},
+  });
+  await terminationStarted;
+  child.stdout.end('{"publisher":"OpenAI OpCo, LLC","version":"0.146.0","staticIdentity":"verified","compatibility":"compatible","providerEndpoint":"loopback","realCredentialUsed":false,"realModelRequestUsed":false,"cleanup":true}\n');
+  child.stderr.end();
+  child.emit('close', 0, null);
+  await Promise.resolve();
+  const eventsBeforeTermination = [...events];
+  resolveTermination(true);
+  await assert.rejects(pending);
+  assert.deepEqual(eventsBeforeTermination, ['terminate']);
+  assert.deepEqual(events, ['terminate', 'remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
+});
+
+test('relaunch removes its owned profile when temporary app setup fails', async () => {
+  // Catches a pre-spawn setup error leaking the only owned temporary root.
+  const events = [];
+  const fileSystem = {
+    ...ownedFileSystem(events),
+    writeFile: async () => { throw new Error('setup failed'); },
+  };
+  await assert.rejects(relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem,
+    spawnProcess: () => { throw new Error('spawn must not run'); },
+  }));
+  assert.deepEqual(events, ['remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
+});
+
+test('relaunch removes its owned profile when Electron spawn throws synchronously', async () => {
+  // Catches a pre-child spawn failure leaking the only owned temporary root.
+  const events = [];
+  await assert.rejects(relaunchThroughElectron('C:\\tools\\electron.exe', {
+    fileSystem: ownedFileSystem(events),
+    spawnProcess: () => { throw new Error('spawn failed'); },
+  }));
+  assert.deepEqual(events, ['remove:C:\\Temp\\claude-pet-codex-compatibility-owned']);
 });
 
 test('relaunch omits inherited Node and Electron customization variables', async () => {
