@@ -1146,3 +1146,24 @@ link the note to it — this file is the inbox, not the archive.
   official Codex `0.146.0`. Final Node verification passed 404/404 with one intentional skip; Python
   passed 3/3; the fresh package remained 159 files / 367390918 bytes with the forbidden-path scan
   clean.
+
+## 2026-08-04 - WorkBuddy post-merge review
+
+- **Source: WorkBuddy.** Fast-forwarded the local `master` checkout from `36cdf34` through the eight
+  merged Codex forward-compatibility pull requests to GitHub `origin/master` at `840d0a5`, then
+  reviewed the compatibility coordinator, protected evidence store, signed native CLI discovery,
+  launch leases, account-free diagnostic, package exclusions, and their regression coverage.
+- WorkBuddy review found that an interrupted evidence write could leave the app-owned sibling
+  `codex-compatibility.json.tmp` file behind. Because subsequent writes intentionally use exclusive
+  `wx` creation, that stale file caused every later protected-evidence write to return false. Runtime
+  authorization still failed safely, but successful Codex qualification could not persist across app
+  restarts and would be repeated unnecessarily.
+- Commit `883e95a` (`fix: recover stale Codex evidence writes`) removes only that known app-owned
+  sibling temporary file before exclusive creation, fails closed if an unexpected unlink error
+  occurs, and preserves the existing encrypted atomic-replacement flow. A regression test proves a
+  stale partial temporary file is replaced, new evidence is stored, and the sibling file is gone.
+- WorkBuddy validation built the Windows provider helper successfully, passed the focused Codex
+  compatibility matrix with 112 passing and one intentional live skip before the added regression,
+  then passed the post-fix complete Node suite with 405 passing, zero failing, and one intentional
+  skip. `git diff --check` passed. The fix was committed and pushed to `origin/master`; local and
+  remote `master` both resolved to `883e95a` at verification time.
