@@ -7,7 +7,7 @@ const { discoverSignedNativeCli } = require('../nativeCliDiscovery.js');
 const { openVerifiedNativeCliLaunchLease } = require('../nativeCliLaunchLease.js');
 const { PROFILE_NAME, probeCodexWorkspace, writeCodexProfile } = require('../codexPermissionProfile.js');
 const { mapCodexEvent } = require('../codexEventMapper.js');
-const { EFFORTS, MINIMUM_CODEX_VERSION, MODEL_IDS, listCodexModels, meetsMinimumVersion } = require('./codexModels.js');
+const { EFFORTS, MINIMUM_CODEX_VERSION, MODEL_IDS, listCodexModels } = require('./codexModels.js');
 
 function validConnection(connection) {
   return connection && connection.permissionProfile === 'workspace'
@@ -30,8 +30,10 @@ function createCodexCliExecutor({
   discoverSignedNativeCli: discover = discoverSignedNativeCli,
   openVerifiedNativeCliLaunchLease: openLease = openVerifiedNativeCliLaunchLease,
   writeProfile = writeCodexProfile, probePermissionProfile = probeCodexWorkspace,
+  ensureCodexCompatibility,
 } = {}) {
   if (typeof codexHome !== 'string' || !codexHome) throw new TypeError('Codex executor requires a dedicated CODEX_HOME.');
+  if (typeof ensureCodexCompatibility !== 'function') throw new TypeError('Codex executor requires a runtime compatibility coordinator.');
   const environment = Object.freeze({ CODEX_HOME: codexHome });
 
   async function discoverBinding(connection) {
@@ -66,16 +68,10 @@ function createCodexCliExecutor({
     }
   }
 
-  async function installedVersion(binding) {
-    try {
-      const result = await withFreshLease(binding, (launchLease) => runner.capture({
-        command: binding.path, launchLease, args: ['--version'], env: environment, timeoutMs: 5000,
-      }));
-      return result?.exitCode === 0 && meetsMinimumVersion(result.stdout);
-    } catch (error) {
-      if (error instanceof AgentError && error.code === 'CLI_NOT_INSTALLED') throw error;
-      return false;
-    }
+  async function compatibleBinding(connection, signal) {
+    const binding = await discoverBinding(connection);
+    await ensureCodexCompatibility(binding, { signal });
+    return binding;
   }
 
   async function prepareProfile(connection) {
@@ -87,20 +83,24 @@ function createCodexCliExecutor({
     async getStatus(connection) {
       let binding;
       try { binding = await discoverBinding(connection); } catch { return { installed: false, authenticated: false, workspaceAvailable: false }; }
-      let installed;
-      try { installed = await installedVersion(binding); } catch { return { installed: true, authenticated: false, workspaceAvailable: false }; }
-      if (!installed) return { installed: true, authenticated: false, workspaceAvailable: false };
+      try {
+        await ensureCodexCompatibility(binding, { signal: undefined });
+      } catch (error) {
+        if (error instanceof AgentError && error.code === 'CLI_VERSION_UNSUPPORTED') {
+          return { installed: true, compatible: false, authenticated: false, workspaceAvailable: false };
+        }
+        throw error;
+      }
       try {
         const login = await withFreshLease(binding, (launchLease) => runner.capture({
           command: binding.path, launchLease, args: ['login', 'status'], env: environment, timeoutMs: 5000,
         }));
         const authenticated = login?.exitCode === 0;
-        return { installed: true, authenticated, workspaceAvailable: authenticated };
-      } catch { return { installed: true, authenticated: false, workspaceAvailable: false }; }
+        return { installed: true, compatible: true, authenticated, workspaceAvailable: authenticated };
+      } catch { return { installed: true, compatible: true, authenticated: false, workspaceAvailable: false }; }
     },
     async beginSetup(connection) {
-      const binding = await discoverBinding(connection);
-      if (!await installedVersion(binding)) throw new AgentError('CLI_NOT_INSTALLED');
+      const binding = await compatibleBinding(connection);
       await withFreshLease(binding, (launchLease) => runner.launch({
         command: binding.path, launchLease, args: ['login'], env: environment, visible: true,
       }));
@@ -111,7 +111,7 @@ function createCodexCliExecutor({
     async verifyPermissionProfile(connection) {
       await prepareProfile(connection);
       try {
-        const binding = await discoverBinding(connection);
+        const binding = await compatibleBinding(connection);
         return await probePermissionProfile({
           runner, cliBinding: binding, codexHome, workspacePath: connection.workspacePath,
           openVerifiedNativeCliLaunchLease: openLease,
@@ -123,7 +123,7 @@ function createCodexCliExecutor({
       if (!MODEL_IDS.includes(request.model)) throw new AgentError('MODEL_UNAVAILABLE');
       if (request.effort !== null && !EFFORTS.includes(request.effort)) throw new AgentError('UNSUPPORTED_OPTION');
       await prepareProfile({ workspacePath: request.workspace, permissionProfile: request.permissionProfile });
-      const binding = await discoverBinding({ workspacePath: request.workspace, permissionProfile: request.permissionProfile });
+      const binding = await compatibleBinding({ workspacePath: request.workspace, permissionProfile: request.permissionProfile }, signal);
       let responseText = null;
       const changedFiles = [];
       try {

@@ -11,9 +11,7 @@ const { mapCodexEvent } = require('../codexEventMapper.js');
 const { verifyNativeToolSurface: defaultVerifyNativeToolSurface } = require('../localProviderProbe.js');
 const { discoverSignedNativeCli: defaultDiscoverSignedNativeCli } = require('../nativeCliDiscovery.js');
 const { openVerifiedNativeCliLaunchLease: defaultOpenLease } = require('../nativeCliLaunchLease.js');
-const { EFFORTS, MODEL_IDS, listCodexModels, parseVersion } = require('./codexModels.js');
-
-const CODEX_FULL_COMPUTER_VERSION = '0.145.0';
+const { EFFORTS, MODEL_IDS, listCodexModels } = require('./codexModels.js');
 
 function launchFailure(cause) {
   return new AgentError('NATIVE_FULL_COMPUTER_LAUNCH_FAILED', { cause });
@@ -78,11 +76,13 @@ function createCodexNativeFullComputerExecutor({
   openVerifiedNativeCliLaunchLease = defaultOpenLease,
   verifyNativeToolSurface = defaultVerifyNativeToolSurface,
   writeFullComputerConfig = writeNativeCodexConfig,
+  ensureCodexCompatibility,
 } = {}) {
   if (typeof codexHome !== 'string' || !codexHome
       || typeof fixtureRoot !== 'string' || !fixtureRoot) {
     throw new TypeError('Native Codex executor requires dedicated home and probe fixtures.');
   }
+  if (typeof ensureCodexCompatibility !== 'function') throw new TypeError('Native Codex executor requires a runtime compatibility coordinator.');
   const environment = Object.freeze({ CODEX_HOME: codexHome });
 
   async function discover(connection) {
@@ -115,16 +115,10 @@ function createCodexNativeFullComputerExecutor({
     }
   }
 
-  async function exactVersion(binding) {
-    const result = await withLease(binding, (launchLease) => runner.capture({
-      command: binding.path,
-      launchLease,
-      args: ['--version'],
-      env: environment,
-      timeoutMs: 5000,
-    }));
-    const version = parseVersion(result?.stdout);
-    return result?.exitCode === 0 && version?.join('.') === CODEX_FULL_COMPUTER_VERSION;
+  async function compatibleBinding(connection, signal) {
+    const binding = await discover(connection);
+    await ensureCodexCompatibility(binding, { signal });
+    return binding;
   }
 
   async function prepare(connection) {
@@ -139,18 +133,22 @@ function createCodexNativeFullComputerExecutor({
       let binding;
       try { binding = await discover(connection); } catch { return { installed: false, authenticated: false, fullComputerAvailable: false }; }
       try {
-        if (!await exactVersion(binding)) return { installed: false, authenticated: false, fullComputerAvailable: false };
+        await ensureCodexCompatibility(binding, { signal: undefined });
         const login = await withLease(binding, (launchLease) => runner.capture({
           command: binding.path, launchLease, args: ['login', 'status'], env: environment, timeoutMs: 5000,
         }));
-        return { installed: true, authenticated: login?.exitCode === 0, fullComputerAvailable: true };
-      } catch {
-        return { installed: true, authenticated: false, fullComputerAvailable: false };
+        const authenticated = login?.exitCode === 0;
+        return { installed: true, compatible: true, authenticated, fullComputerAvailable: authenticated };
+      } catch (error) {
+        if (error instanceof AgentError && error.code === 'CLI_VERSION_UNSUPPORTED') {
+          return { installed: true, compatible: false, authenticated: false, fullComputerAvailable: false };
+        }
+        if (error instanceof AgentError && error.code === 'CLI_COMPATIBILITY_CHECK_FAILED') throw error;
+        return { installed: true, compatible: true, authenticated: false, fullComputerAvailable: false };
       }
     },
     async beginSetup(connection) {
-      const binding = await discover(connection);
-      if (!await exactVersion(binding)) throw new AgentError('CLI_NOT_INSTALLED');
+      const binding = await compatibleBinding(connection);
       await withLease(binding, (launchLease) => runner.launch({
         command: binding.path, launchLease, args: ['login'], env: environment, visible: true,
       }));
@@ -166,8 +164,7 @@ function createCodexNativeFullComputerExecutor({
     },
     async verifyPermissionProfile(connection) {
       await prepare(connection);
-      const binding = await discover(connection);
-      if (!await exactVersion(binding)) throw new AgentError('CLI_NOT_INSTALLED');
+      const binding = await compatibleBinding(connection);
       return verifyNativeToolSurface({
         provider: 'codex-cli', cliBinding: binding,
         workspacePath: connection.workspacePath, fixtureRoot,
@@ -182,11 +179,10 @@ function createCodexNativeFullComputerExecutor({
         executorType: 'codex-cli', workspacePath: request.workspace,
         permissionProfile: run.permissionProfile, fullAccessConfirmed: run.fullAccessConfirmed,
       });
-      const binding = await discover({
+      const binding = await compatibleBinding({
         executorType: 'codex-cli', workspacePath: request.workspace,
         permissionProfile: run.permissionProfile, fullAccessConfirmed: run.fullAccessConfirmed,
-      });
-      if (!await exactVersion(binding)) throw new AgentError('CLI_NOT_INSTALLED');
+      }, signal);
       let responseText = null;
       const changedFiles = [];
       try {
@@ -224,7 +220,6 @@ function createCodexNativeFullComputerExecutor({
 }
 
 module.exports = {
-  CODEX_FULL_COMPUTER_VERSION,
   createCodexNativeFullComputerExecutor,
   writeNativeCodexConfig,
 };

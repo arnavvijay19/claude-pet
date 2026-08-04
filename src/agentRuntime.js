@@ -11,6 +11,11 @@ const { createClaudeCodeCliExecutor } = require('./agent/executors/claudeCodeCli
 const { createCodexNativeFullComputerExecutor } = require('./agent/executors/codexNativeFullComputer.js');
 const { createClaudeNativeFullComputerExecutor } = require('./agent/executors/claudeNativeFullComputer.js');
 const { AgentError } = require('./agent/agentErrors.js');
+const { createCodexCompatibilityStore: defaultCreateCodexCompatibilityStore } = require('./agent/codexCompatibilityStore.js');
+const {
+  createCodexCompatibility: defaultCreateCodexCompatibility,
+  createCodexCompatibilityQualifier: defaultCreateCodexCompatibilityQualifier,
+} = require('./agent/codexCompatibility.js');
 
 function shouldEnableTestExecutor({ isPackaged, nodeEnv, value } = {}) {
   return isPackaged !== true && nodeEnv === 'test' && value === '1';
@@ -69,17 +74,35 @@ function createAbortableDelayGate({ delayMs = 3000, setTimeoutFn = setTimeout, c
   });
 }
 
-function createAgentRuntime({ userDataPath, crypto, randomId, testExecutorEnabled = false, confirmProviderSwitch }) {
+function createAgentRuntime({ userDataPath, crypto, randomId, testExecutorEnabled = false, confirmProviderSwitch, dependencies = {} }) {
+  const createCodexCompatibilityStore = dependencies.createCodexCompatibilityStore || defaultCreateCodexCompatibilityStore;
+  const createCodexCompatibility = dependencies.createCodexCompatibility || defaultCreateCodexCompatibility;
+  const createCodexCompatibilityQualifier = dependencies.createCodexCompatibilityQualifier || defaultCreateCodexCompatibilityQualifier;
+  const createRuntimeCodexCliExecutor = dependencies.createCodexCliExecutor || createCodexCliExecutor;
+  const createRuntimeNativeCodexExecutor = dependencies.createCodexNativeFullComputerExecutor || createCodexNativeFullComputerExecutor;
   const store = createConnectionStore({ filePath: path.join(userDataPath, 'connections.json'), crypto, randomId });
   const sessions = createSessionStore({ filePath: path.join(userDataPath, 'sessions.json'), crypto, randomId, clock: () => new Date().toISOString() });
   const activity = createActivityStore();
+  const fixtureRoot = path.join(__dirname, '..', 'resources', 'probes');
+  const codexCompatibilityStore = createCodexCompatibilityStore({
+    filePath: path.join(userDataPath, 'codex-compatibility.json'), crypto,
+  });
+  const qualifyCodexCompatibility = createCodexCompatibilityQualifier({
+    compatibilityRoot: path.join(userDataPath, 'codex-compatibility-probe'), fixtureRoot,
+  });
+  const codexCompatibility = createCodexCompatibility({
+    store: codexCompatibilityStore, qualify: qualifyCodexCompatibility,
+  });
+  const ensureCodexCompatibility = codexCompatibility.ensureCompatible.bind(codexCompatibility);
   const codexExecutor = testExecutorEnabled
     ? createDeterministicCodexExecutor()
-    : createCodexCliExecutor({ codexHome: path.join(userDataPath, 'codex-home') });
+    : createRuntimeCodexCliExecutor({
+      codexHome: path.join(userDataPath, 'codex-home'), ensureCodexCompatibility,
+    });
   const claudeExecutor = createClaudeCodeCliExecutor({ claudeConfigDir: path.join(userDataPath, 'claude-config') });
-  const fixtureRoot = path.join(__dirname, '..', 'resources', 'probes');
-  const nativeCodexExecutor = createCodexNativeFullComputerExecutor({
+  const nativeCodexExecutor = createRuntimeNativeCodexExecutor({
     codexHome: path.join(userDataPath, 'native-codex-home'), fixtureRoot,
+    ensureCodexCompatibility,
   });
   const nativeClaudeExecutor = createClaudeNativeFullComputerExecutor({
     claudeConfigDir: path.join(userDataPath, 'native-claude-config'), fixtureRoot,
@@ -99,7 +122,7 @@ function createAgentRuntime({ userDataPath, crypto, randomId, testExecutorEnable
   });
   const coordinator = createSessionCoordinator({ sessionStore: sessions, connectionStore: store, manager, confirmProviderSwitch });
   return Object.freeze({ store, sessions, activity, manager, coordinator, initialize: async () => {
-    await Promise.all([store.initialize(), sessions.initialize()]);
+    await Promise.all([store.initialize(), sessions.initialize(), codexCompatibilityStore.initialize()]);
   } });
 }
 module.exports = {
