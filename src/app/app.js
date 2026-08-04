@@ -48,6 +48,7 @@
     }
     if (type === 'test-connection') {
       if (result?.status?.installed === false) return `The ${provider} command is not installed.`;
+      if (result?.status?.compatible === false) return 'This Codex update is not compatible with Claude Pet yet. Update Claude Pet or install a compatible Codex version.';
       if (result?.status?.authenticated === false) return `${provider} is installed but not signed in yet.`;
       if (result?.permission?.available === false) return `${provider} is signed in, but this access mode is unavailable.`;
       if (result?.permission?.allowed === false) return `${provider} is signed in, but this access mode is blocked.`;

@@ -1076,3 +1076,28 @@ link the note to it — this file is the inbox, not the archive.
   `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. A fresh whole-branch reviewer
   approved `278a8c7..b1250ca` with no Critical or Important findings and declared the branch ready
   to merge. NEXT: publish Task 5 as a new GitHub PR before Task 6 begins.
+
+## 2026-08-03 — Codex CLI forward compatibility Task 6
+
+- GitHub PR #6 merged Task 5 remotely at `eb1332b` without changing the local `master` checkout.
+  Task 6 began from that exact remote merge in isolated branch
+  `codex/codex-compat-feedback-task-6`.
+- Commit `c02a842` orders manager preflight as CLI installed, compatible, then authenticated. The
+  unified renderer and retained Settings status helper now distinguish a deterministically
+  unsupported update from a retryable compatibility-check failure using fixed safe copy. The
+  `app:intent` regression confirms that only the public retryable error survives IPC; internal
+  paths, hashes, file identities, causes, and raw output remain absent. Claude and Offline Demo
+  behavior are unchanged.
+- TDD witnessed 35 passing and three intended failing focused tests before implementation, then
+  38/38 focused tests after it. The independent task reviewer found no Critical, Important, or
+  Minor findings and approved both specification compliance and code quality. The pre-existing
+  passing IPC regression legitimately re-proves the Task 4 public-error boundary while the other
+  three tests witnessed the Task 6 defects.
+- Fresh controller verification passed 42/42 focused Task 6 and adjacent renderer tests, 392/392
+  complete-suite Node tests with one intentional live-provider skip, and Python 3/3; three changed
+  source syntax checks and `git diff --check` also passed. `npm install` still reports two high
+  severity advisories in the existing dependency graph; Task 6 made no dependency change. No WSL,
+  provider sign-in, live qualification, real model/provider request, user-workspace mutation,
+  local `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred. Fresh whole-branch review
+  found only that this heading initially used GitHub's next-day UTC date instead of the local build
+  date; this update corrects it. NEXT: publish Task 6 as a new GitHub PR before Task 7 begins.
