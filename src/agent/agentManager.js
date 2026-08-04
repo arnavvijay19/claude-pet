@@ -192,6 +192,7 @@ function createAgentManager({ store, executors, activity }) {
       const status = cloneFrozenJson(await executor.getStatus(connection), 'PROVIDER_OUTPUT_INVALID');
       throwIfAborted(controller.signal);
       if (status?.installed === false) throw new AgentError('CLI_NOT_INSTALLED');
+      if (status?.compatible === false) throw new AgentError('CLI_VERSION_UNSUPPORTED');
       if (status?.authenticated === false) throw new AgentError('AUTH_REQUIRED');
       if (run.permissionProfile === WORKSPACE && status?.workspaceAvailable === false) {
         throw new AgentError('WORKSPACE_UNAVAILABLE');

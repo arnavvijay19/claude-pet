@@ -2,6 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { AgentError } = require('../src/agent/agentErrors.js');
 
 const {
   APP_INTENTS,
@@ -207,6 +208,31 @@ test('tests and starts official setup for the explicitly requested saved connect
   ]);
   await assert.rejects(invoke({ type: 'test-connection', data: {} }));
   await assert.rejects(invoke({ type: 'begin-provider-setup', data: { connectionId: 'missing' } }));
+});
+
+test('returns the retryable compatibility public error unchanged through app intent', async () => {
+  const ipcMain = fakeIpc();
+  const sender = {};
+  const deps = dependencies();
+  deps.manager.getStatusFor = async () => {
+    throw new AgentError('CLI_COMPATIBILITY_CHECK_FAILED', {
+      cause: new Error('C:\\Users\\test\\codex-0.200.1.exe sha256=secret publisher=untrusted raw output'),
+    });
+  };
+  registerAppIpc({ ipcMain, sender, publish: async () => {}, setView: () => {}, ...deps });
+
+  const result = await ipcMain.handlers.get('app:intent')(
+    { sender }, { type: 'test-connection', data: { connectionId: 'connection-a' } },
+  );
+  assert.deepEqual(result, {
+    failure: {
+      code: 'CLI_COMPATIBILITY_CHECK_FAILED',
+      message: 'Claude Pet could not finish checking this Codex update.',
+      action: 'Retry the compatibility check.',
+      requestId: null,
+    },
+  });
+  assert.doesNotMatch(JSON.stringify(result), /AgentError|remote method|C:\\Users|sha256|publisher|raw output/i);
 });
 
 test('creates one reusable native window and publishes once per activity update', async () => {

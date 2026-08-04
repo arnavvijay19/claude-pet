@@ -382,6 +382,34 @@ test('workspace, permission, and model preflight failures reject before executio
   }
 });
 
+test('reports an incompatible Codex update before signed-out and Full Computer preflight failures', async () => {
+  let executions = 0;
+  const connection = {
+    id: 'connection-1', executorType: 'codex-cli', modelId: 'agent-model', effort: 'high',
+    workspacePath: 'Z:\\workspace', permissionProfile: 'full-computer', fullAccessConfirmed: true, revision: 1,
+  };
+  const executor = fakeExecutor({
+    getStatus: async () => ({
+      installed: true, compatible: false, authenticated: false, fullComputerAvailable: false,
+    }),
+    runGoal: async () => { executions += 1; return { text: '', changedFiles: [] }; },
+  });
+  const store = {
+    getActiveSelection: async () => connection.id,
+    getConnection: async (id) => id === connection.id ? connection : null,
+    getRunConnection: async (id) => id === connection.id ? connection : null,
+    setActiveSelection: async () => {},
+  };
+  const manager = createAgentManager({
+    store,
+    executors: { 'codex-cli:full-computer': executor },
+    activity: createActivityStore({ clock: () => 123 }),
+  });
+
+  await assert.rejects(manager.runGoal('work'), (error) => error.code === 'CLI_VERSION_UNSUPPORTED');
+  assert.equal(executions, 0);
+});
+
 test('success and failure clear busy and unknown failures are normalized', async () => {
   const success = harness();
   const result = await success.manager.runGoal('work');

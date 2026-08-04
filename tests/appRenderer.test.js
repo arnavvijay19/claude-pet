@@ -90,6 +90,48 @@ test('keeps Codex setup results visible through the Settings snapshot rerender',
   assert.deepEqual(harness.intents, [['test-connection', { connectionId: 'codex' }]]);
 });
 
+test('renders fixed safe feedback for incompatible and unchecked Codex updates', async () => {
+  const harness = rendererHarness();
+  const results = [
+    { status: { installed: true, compatible: false, authenticated: false, fullComputerAvailable: false } },
+    { failure: {
+      code: 'CLI_COMPATIBILITY_CHECK_FAILED',
+      message: 'Claude Pet could not finish checking this Codex update.',
+      action: 'Retry the compatibility check.',
+      requestId: null,
+      cause: 'C:\\Users\\test\\codex-0.200.1.exe sha256=secret publisher=untrusted raw output',
+    } },
+  ];
+  harness.window.claudePetApp.intent = async () => results.shift();
+  vm.runInNewContext(
+    fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'app.js'), 'utf8'),
+    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  harness.window.claudePetApp.callback({
+    view: 'settings', agents: [{ id: 'agent', name: 'Agent' }], sessions: [{ id: 'session' }],
+    selection: { sessionId: 'session', agentId: 'agent' }, activeAgent: { id: 'agent', name: 'Agent' },
+    session: { id: 'session' }, turns: [], connections: [],
+    run: { busy: false, connectionId: null, permissionProfile: null }, activity: { run: null, events: [] }, notice: null,
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  await harness.settingsOptions().connectionAction('test-connection', { connectionId: 'codex' });
+  assert.equal(
+    harness.settingsOptions().connectionFeedback,
+    'This Codex update is not compatible with Claude Pet yet. Update Claude Pet or install a compatible Codex version.',
+  );
+  await harness.settingsOptions().connectionAction('test-connection', { connectionId: 'codex' });
+  assert.equal(
+    harness.settingsOptions().connectionFeedback,
+    'Claude Pet could not finish checking this Codex update. Retry the compatibility check.',
+  );
+  assert.doesNotMatch(
+    harness.settingsOptions().connectionFeedback,
+    /AgentError|remote method|C:\\Users|sha256|publisher|raw output/i,
+  );
+});
+
 test('shows a plain Full Computer cancellation result instead of Electron IPC error wrapping', async () => {
   const harness = rendererHarness();
   harness.window.claudePetApp.intent = async () => {
