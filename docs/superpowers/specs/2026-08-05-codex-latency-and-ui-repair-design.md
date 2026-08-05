@@ -323,13 +323,26 @@ flow must be demonstrated in the real app.
 - Removing the redundant permission probe must not weaken the compatibility gate. The gate is
   the witnessed failing test in 1.4.
 
-## Sequencing
+## Sequencing and GitHub workflow
 
-Phase 1, then Phase 2, then Phase 3. Each phase is implemented on its own non-`master` branch
-from the prior merge point and published as a separate reviewable pull request. `master` is
-never edited directly.
+Phase 1, then Phase 2, then Phase 3.
+
+All work is published to GitHub. Every implementation task follows the workflow already
+established for forward-compatibility Tasks 1-7:
+
+1. Start the task in an isolated worktree on a fresh `codex/...` branch whose base is the exact
+   remote merge commit of the previous task.
+2. Implement with witnessed red-green tests.
+3. Run the full verification gates.
+4. Push the branch and open a reviewable pull request against `master`.
+5. Merge that pull request remotely. The local `master` checkout is never edited directly.
+6. Begin the next task from the new remote merge commit.
+
+Pull request bodies follow the existing repository convention: a `## Summary` section, a
+`## Verification` section reporting exact test counts and package figures, and no AI-credit
+trailer. Commits carry no `Co-Authored-By` trailer.
 
 Phase 3 is substantially larger than Phases 1 and 2. Its implementation plan is expected to
-split into at least three reviewable steps: the vendored renderer foundation and jsdom test
-migration, then the ribbon plus run cards and traces, then the pet coupling, scrubber, palette,
-and export. Each step must leave the app runnable, per architectural rule 12.
+split into at least three separately reviewed pull requests: the vendored renderer foundation
+and jsdom test migration, then the ribbon plus run cards and traces, then the pet coupling,
+scrubber, palette, and export. Each must leave the app runnable, per architectural rule 12.
