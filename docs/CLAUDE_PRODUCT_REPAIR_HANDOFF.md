@@ -80,6 +80,34 @@ Measure before and after on the installed official Codex identity. Treat these a
 
 If live measurements show these targets are incompatible with required signed discovery or process startup, report the measured boundary and revise the target rather than weakening verification.
 
+## Fresh Claude Code bootstrap
+
+This machine was checked on 2026-08-05 with Claude Code `2.1.220`. The two useful user-scoped plugins are already installed and enabled:
+
+- `superpowers@superpowers-dev` `6.1.1`
+- `chrome-devtools-mcp@claude-plugins-official` `1.5.0`
+
+At the start of a fresh Claude session, run `claude plugin list`. If either plugin is absent, install only the missing one:
+
+```powershell
+claude plugin install superpowers@superpowers-dev
+claude plugin install chrome-devtools-mcp@claude-plugins-official
+```
+
+If present but disabled, use `claude plugin enable <plugin-id>`. Do not install broad MCP, WSL, cloud, theme, or multi-agent packages for this repair.
+
+Use the Superpowers skills deliberately and in this order as the work reaches each stage:
+
+1. `systematic-debugging` for the measured reproduction and root cause.
+2. `brainstorming` to present the product and UI approaches before implementation.
+3. `writing-plans` after the user approves the direction.
+4. `using-git-worktrees` before product edits so `master` remains untouched.
+5. `test-driven-development` for each behavior change.
+6. `verification-before-completion` before claiming any phase works.
+7. `requesting-code-review` and `finishing-a-development-branch` when preparing each PR.
+
+Use the Chrome DevTools `a11y-debugging` or `chrome-devtools` skill only where it can inspect the real Electron renderer. It supplements, but does not replace, launching the packaged app and visually testing the two required window sizes. Do not use `dispatching-parallel-agents` or `subagent-driven-development` unless the user explicitly asks; the repair needs one coherent owner.
+
 ## Required debugging sequence
 
 1. Read `docs/project-context.md`, `docs/BUILD_LOG.md`, the Codex compatibility spec/plan, and the complete current executor/manager/probe code.
