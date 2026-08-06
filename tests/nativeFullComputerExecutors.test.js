@@ -132,7 +132,7 @@ test('requires the runtime-owned compatibility coordinator for native Codex exec
   const deps = dependencies('codex-cli', CODEX_BINDING);
   assert.throws(
     () => createCodexNativeFullComputerExecutor({
-      runner: fakeRunner('codex-cli', CODEX_BINDING), codexHome: 'Z:\\pet\\native-codex', fixtureRoot: 'Z:\\fixtures',
+      runner: fakeRunner('codex-cli', CODEX_BINDING), codexHome: 'Z:\\pet\\native-codex',
       ...deps, ensureCodexCompatibility: undefined,
     }),
     /compatibility coordinator/,
@@ -145,7 +145,7 @@ test('native Codex status qualifies a 0.146.0 binding and distinguishes unsuppor
   const deps = dependencies('codex-cli', binding);
   const qualified = [];
   const executor = createCodexNativeFullComputerExecutor({
-    runner: fakeRunner('codex-cli', binding), codexHome: 'Z:\\pet\\native-codex', fixtureRoot: 'Z:\\fixtures',
+    runner: fakeRunner('codex-cli', binding), codexHome: 'Z:\\pet\\native-codex',
     ...deps,
     ensureCodexCompatibility: async (value) => {
       qualified.push(value);
@@ -158,7 +158,7 @@ test('native Codex status qualifies a 0.146.0 binding and distinguishes unsuppor
   assert.deepEqual(qualified, [binding]);
 
   const unsupported = createCodexNativeFullComputerExecutor({
-    runner: fakeRunner('codex-cli', CODEX_BINDING), codexHome: 'Z:\\pet\\native-codex', fixtureRoot: 'Z:\\fixtures',
+    runner: fakeRunner('codex-cli', CODEX_BINDING), codexHome: 'Z:\\pet\\native-codex',
     ...dependencies('codex-cli', CODEX_BINDING),
     ensureCodexCompatibility: async () => { throw new (require('../src/agent/agentErrors.js').AgentError)('CLI_VERSION_UNSUPPORTED'); },
   });
@@ -166,7 +166,7 @@ test('native Codex status qualifies a 0.146.0 binding and distinguishes unsuppor
     installed: true, compatible: false, authenticated: false, fullComputerAvailable: false,
   });
   const retryable = createCodexNativeFullComputerExecutor({
-    runner: fakeRunner('codex-cli', CODEX_BINDING), codexHome: 'Z:\\pet\\native-codex', fixtureRoot: 'Z:\\fixtures',
+    runner: fakeRunner('codex-cli', CODEX_BINDING), codexHome: 'Z:\\pet\\native-codex',
     ...dependencies('codex-cli', CODEX_BINDING),
     ensureCodexCompatibility: async () => { throw new (require('../src/agent/agentErrors.js').AgentError)('CLI_COMPATIBILITY_CHECK_FAILED'); },
   });
@@ -181,12 +181,26 @@ test('native Codex status does not advertise Full Computer when qualified login 
     return { exitCode: 1, stdout: '', stderr: '' };
   };
   const executor = createCodexNativeFullComputerExecutor({
-    runner, codexHome: 'Z:\\pet\\native-codex', fixtureRoot: 'Z:\\fixtures',
+    runner, codexHome: 'Z:\\pet\\native-codex',
     ...dependencies('codex-cli', CODEX_BINDING),
   });
   assert.deepEqual(await executor.getStatus(connection('codex-cli')), {
     installed: true, compatible: true, authenticated: false, fullComputerAvailable: false,
   });
+});
+
+test('codex permission verification reports readiness without a synthetic probe', async () => {
+  // Catches a permission path that spends a bounded probe deadline re-proving facts the
+  // compatibility contract already supplies, which surfaced as PERMISSION_PROFILE_UNAVAILABLE.
+  const runner = fakeRunner('codex-cli', CODEX_BINDING);
+  const deps = dependencies('codex-cli', CODEX_BINDING);
+  const executor = createCodexNativeFullComputerExecutor({
+    runner, codexHome: 'Z:\\pet\\native-codex',
+    ...deps,
+  });
+  const result = await executor.verifyPermissionProfile(connection('codex-cli'));
+  assert.deepEqual(result, { available: true, allowed: true });
+  assert.equal(deps.probes.length, 0);
 });
 
 test('Codex qualifies each full-computer setup, permission, and run operation on a freshly held executable', async () => {
@@ -198,7 +212,7 @@ test('Codex qualifies each full-computer setup, permission, and run operation on
     return { compatible: true, version: binding.version, cached: false };
   };
   const executor = createCodexNativeFullComputerExecutor({
-    runner, codexHome: 'Z:\\pet\\native-codex', fixtureRoot: 'Z:\\pet\\resources\\probes',
+    runner, codexHome: 'Z:\\pet\\native-codex',
     ...deps,
   });
   const saved = connection('codex-cli');
@@ -206,9 +220,7 @@ test('Codex qualifies each full-computer setup, permission, and run operation on
     permissionProfiles: ['full-computer'], network: true, authentication: true,
     efforts: ['none', 'low', 'medium', 'high', 'xhigh', 'max'],
   });
-  assert.deepEqual(await executor.verifyPermissionProfile(saved), {
-    available: true, allowed: true, controlRequests: 1, childCanaryConnections: 1,
-  });
+  assert.deepEqual(await executor.verifyPermissionProfile(saved), { available: true, allowed: true });
   assert.deepEqual(await executor.beginSetup(saved), { started: true });
   const result = await executor.runGoal(
     requestFor('codex-cli'), () => {}, new AbortController().signal,
@@ -235,9 +247,10 @@ test('Codex qualifies each full-computer setup, permission, and run operation on
   });
   assert.equal(JSON.stringify(publicSpec).includes('wsl.exe'), false);
   assert.equal(JSON.stringify(publicSpec).includes('pet-workspace'), false);
-  assert.equal(deps.probes.length, 1);
+  // Setup, permission, and run each rediscover and qualify a freshly held executable. The
+  // permission path no longer runs a synthetic probe, so no probe may be spawned at all.
+  assert.equal(deps.probes.length, 0);
   assert.deepEqual(qualified.map(({ binding }) => binding), [CODEX_BINDING, CODEX_BINDING, CODEX_BINDING]);
-  assert.equal(deps.probes[0].provider, 'codex-cli');
   assert.equal(deps.leases.every((lease) => lease.cleaned === true), true);
 });
 
@@ -248,7 +261,7 @@ test('native Codex does not reuse a status binding for a later run', async () =>
   const qualified = [];
   let discoveries = 0;
   const executor = createCodexNativeFullComputerExecutor({
-    runner: fakeRunner('codex-cli', second), codexHome: 'Z:\\pet\\native-codex', fixtureRoot: 'Z:\\fixtures',
+    runner: fakeRunner('codex-cli', second), codexHome: 'Z:\\pet\\native-codex',
     ...dependencies('codex-cli', second),
     discoverSignedNativeCli: async () => (++discoveries === 1 ? first : second),
     ensureCodexCompatibility: async (binding) => {
@@ -304,7 +317,7 @@ test('both native executors reject Workspace, stale confirmation, or mismatched 
   const cases = [
     {
       create: (deps, runner) => createCodexNativeFullComputerExecutor({
-        runner, codexHome: 'Z:\\pet\\codex', fixtureRoot: 'Z:\\fixtures', ...deps,
+        runner, codexHome: 'Z:\\pet\\codex', ...deps,
       }),
       provider: 'codex-cli', binding: CODEX_BINDING,
     },
@@ -351,7 +364,7 @@ test('maps native launch failure to a fixed public error without exposing proces
   runner.streamJsonl = async () => { throw new Error('CreateProcess failed token=secret'); };
   const deps = dependencies('codex-cli', CODEX_BINDING);
   const executor = createCodexNativeFullComputerExecutor({
-    runner, codexHome: 'Z:\\pet\\codex', fixtureRoot: 'Z:\\fixtures', ...deps,
+    runner, codexHome: 'Z:\\pet\\codex', ...deps,
   });
   await assert.rejects(
     executor.runGoal(

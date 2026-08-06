@@ -8,7 +8,6 @@ const { AgentError } = require('../agentErrors.js');
 const { createCliRunner } = require('../cliRunner.js');
 const { codexFeatureArgs } = require('../codexFeaturePolicy.js');
 const { mapCodexEvent } = require('../codexEventMapper.js');
-const { verifyNativeToolSurface: defaultVerifyNativeToolSurface } = require('../localProviderProbe.js');
 const { discoverSignedNativeCli: defaultDiscoverSignedNativeCli } = require('../nativeCliDiscovery.js');
 const { openVerifiedNativeCliLaunchLease: defaultOpenLease } = require('../nativeCliLaunchLease.js');
 const { EFFORTS, MODEL_IDS, listCodexModels } = require('./codexModels.js');
@@ -71,16 +70,13 @@ async function writeNativeCodexConfig({ home, workspacePath }) {
 function createCodexNativeFullComputerExecutor({
   runner = createCliRunner(),
   codexHome,
-  fixtureRoot,
   discoverSignedNativeCli = defaultDiscoverSignedNativeCli,
   openVerifiedNativeCliLaunchLease = defaultOpenLease,
-  verifyNativeToolSurface = defaultVerifyNativeToolSurface,
   writeFullComputerConfig = writeNativeCodexConfig,
   ensureCodexCompatibility,
 } = {}) {
-  if (typeof codexHome !== 'string' || !codexHome
-      || typeof fixtureRoot !== 'string' || !fixtureRoot) {
-    throw new TypeError('Native Codex executor requires dedicated home and probe fixtures.');
+  if (typeof codexHome !== 'string' || !codexHome) {
+    throw new TypeError('Native Codex executor requires a dedicated home.');
   }
   if (typeof ensureCodexCompatibility !== 'function') throw new TypeError('Native Codex executor requires a runtime compatibility coordinator.');
   const environment = Object.freeze({ CODEX_HOME: codexHome });
@@ -163,15 +159,12 @@ function createCodexNativeFullComputerExecutor({
       };
     },
     async verifyPermissionProfile(connection) {
+      // Readiness comes from the compatibility contract, which already rediscovers the exact
+      // signed executable and qualifies it. The former permission-purpose probe emitted no
+      // available/allowed facts, so it could only ever pass or exhaust its bounded deadline.
       await prepare(connection);
-      const binding = await compatibleBinding(connection);
-      return verifyNativeToolSurface({
-        provider: 'codex-cli', cliBinding: binding,
-        workspacePath: connection.workspacePath, fixtureRoot,
-        spawn: (spec) => withLease(binding, (launchLease) => runner.capture({
-          ...spec, launchLease, timeoutMs: 30_000,
-        })),
-      });
+      await compatibleBinding(connection);
+      return { available: true, allowed: true };
     },
     async runGoal(request, emitActivity, signal, run) {
       validateRun(request, run);
