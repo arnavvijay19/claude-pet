@@ -7,6 +7,19 @@
   `2026-07-27-core-v1-ux-rebuild-design.md` for the main window only.
 - Inputs: `CLAUDE_PRODUCT_REPAIR_HANDOFF.md`, measured reproduction recorded below.
 
+## Scope
+
+Claude Pet is personal, local-only software for one machine. It is not a product, is not
+distributed, and has no other users. Public code signing, reputation gates, enterprise-policy
+validation, multi-user threat modeling, and release polish are therefore out of scope and are
+not completion blockers.
+
+The fail-closed exact Codex identity verification is **not** relaxed by this. It protects this
+machine rather than a distribution channel: Full Computer mode has real access to the user's own
+files, so the exact signed-publisher, path, SHA-256, volume-serial, and file-ID chain still has
+to stop a tampered or spoofed `codex.exe`. Phase 1 removes the *cost* of that verification, never
+its strength. Local packaging verification also stays, because the user installs from it.
+
 ## Problem
 
 Codex Test Connection, official login, and task startup are extremely slow, and an attempted

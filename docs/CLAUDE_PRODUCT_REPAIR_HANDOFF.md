@@ -1,4 +1,21 @@
-# Claude Pet Product Repair Handoff
+# Claude Pet Repair Handoff
+
+## Scope correction (2026-08-06)
+
+The user stated directly that Claude Pet is **personal, local-only software for this one
+machine**. It is not a product, is not distributed, and has no other users. The "real product"
+framing below was this document's own wording, not the user's intent; the rest of the document
+is otherwise preserved as the original diagnosis record.
+
+What this rules out: public code signing, SmartScreen or reputation gates, enterprise-policy
+validation, multi-user threat modeling, and release polish. Their absence is **not applicable**
+rather than outstanding, and none of it blocks completion.
+
+What it does **not** relax: the fail-closed exact Codex identity verification. That protects
+this machine, not a distribution channel. Full Computer mode has real access to the user's own
+files, and the exact signed-publisher, path, SHA-256, volume-serial, and file-ID chain is what
+stops a tampered or spoofed `codex.exe` from inheriting that access. Local packaging
+verification also stays, because the user installs from that package.
 
 ## Checkpoint
 
@@ -11,7 +28,8 @@
 
 ## User request
 
-Act as the main architect and repair Claude Pet as a real product. The urgent problem is that Codex Test Connection, official login, and task startup feel extremely slow; an attempted task ended with `PERMISSION_PROFILE_UNAVAILABLE`. The broader app feels slow, unclear, and unpleasant to use, and the UI needs functional redesign rather than cosmetic decoration.
+Act as the main architect and repair Claude Pet, which is personal local-only software for this
+machine (see the scope correction above). The urgent problem is that Codex Test Connection, official login, and task startup feel extremely slow; an attempted task ended with `PERMISSION_PROFILE_UNAVAILABLE`. The broader app feels slow, unclear, and unpleasant to use, and the UI needs functional redesign rather than cosmetic decoration.
 
 Do not add a Light/Dark/System theme feature. Keep the established dark appearance unless a later user-approved design explicitly replaces it.
 
@@ -33,7 +51,7 @@ Do not add a Light/Dark/System theme feature. Keep the established dark appearan
 - Not yet confirmed: which exact permission-probe sub-step failed in the user's real run. Reproduce once with bounded internal stage timing and fixed-category diagnostics before changing error handling. Do not log raw paths, hashes, credentials, command lines, environment values, or provider output.
 - The Electron process observed during this investigation started before the WorkBuddy undo and may have retained old code in memory. Stop it normally and restart from this branch/master before collecting UI or runtime evidence.
 
-## Required product architecture
+## Required architecture
 
 Decompose the repair into reviewable phases; do not bundle an unbounded “improve everything” rewrite.
 
