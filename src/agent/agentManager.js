@@ -208,18 +208,6 @@ function createAgentManager({ store, executors, activity }) {
       throwIfAborted(controller.signal);
       const models = cloneFrozenJson(await executor.listModels(connection), 'PROVIDER_OUTPUT_INVALID');
       throwIfAborted(controller.signal);
-      const permission = cloneFrozenJson(
-        await executor.verifyPermissionProfile(connection),
-        'PROVIDER_OUTPUT_INVALID',
-      );
-      throwIfAborted(controller.signal);
-      if (permission === false || permission?.available === false) {
-        throw new AgentError('PERMISSION_PROFILE_UNAVAILABLE');
-      }
-      if (permission?.allowed === false || permission?.blocked === true) {
-        throw new AgentError('PERMISSION_BLOCKED');
-      }
-
       const selectedModel = Array.isArray(models)
         ? models.find((model) => (typeof model === 'string' ? model : model?.id) === run.model)
         : null;

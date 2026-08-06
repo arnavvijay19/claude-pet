@@ -101,7 +101,7 @@ function createAgentRuntime({ userDataPath, crypto, randomId, testExecutorEnable
     });
   const claudeExecutor = createClaudeCodeCliExecutor({ claudeConfigDir: path.join(userDataPath, 'claude-config') });
   const nativeCodexExecutor = createRuntimeNativeCodexExecutor({
-    codexHome: path.join(userDataPath, 'native-codex-home'), fixtureRoot,
+    codexHome: path.join(userDataPath, 'native-codex-home'),
     ensureCodexCompatibility,
   });
   const nativeClaudeExecutor = createClaudeNativeFullComputerExecutor({

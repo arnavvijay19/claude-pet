@@ -246,7 +246,6 @@ test('rejects non-plain executor preflight snapshots with PROVIDER_OUTPUT_INVALI
     { getStatus: async () => new Date() },
     { getCapabilities: async () => new Map([['efforts', ['high']]]) },
     { listModels: async () => [new Date()] },
-    { verifyPermissionProfile: async () => new Date() },
   ];
   for (const overrides of cases) {
     let executions = 0;
@@ -261,6 +260,16 @@ test('rejects non-plain executor preflight snapshots with PROVIDER_OUTPUT_INVALI
     );
     assert.equal(executions, 0);
   }
+
+  // Run preflight no longer verifies the permission profile, but the delegate path still
+  // clones its snapshot, so a non-plain permission result must still be rejected there.
+  const { manager } = harness({
+    executor: fakeExecutor({ verifyPermissionProfile: async () => new Date() }),
+  });
+  await assert.rejects(
+    manager.verifyPermissionProfile(),
+    (error) => error.code === 'PROVIDER_OUTPUT_INVALID',
+  );
 });
 
 test('sanitizes and validates every executor activity event before publication', async () => {
@@ -363,11 +372,9 @@ test('Stop during asynchronous selection prevents preflight and returns RUN_STOP
   assert.equal(manager.getSnapshot().busy, false);
 });
 
-test('workspace, permission, and model preflight failures reject before execution', async () => {
+test('workspace and model preflight failures reject before execution', async () => {
   const cases = [
     ['WORKSPACE_UNAVAILABLE', { getStatus: async () => ({ workspaceAvailable: false }) }],
-    ['PERMISSION_PROFILE_UNAVAILABLE', { verifyPermissionProfile: async () => ({ available: false }) }],
-    ['PERMISSION_BLOCKED', { verifyPermissionProfile: async () => ({ available: true, allowed: false }) }],
     ['MODEL_UNAVAILABLE', { listModels: async () => [{ id: 'different-model' }] }],
   ];
   for (const [code, overrides] of cases) {
@@ -380,6 +387,36 @@ test('workspace, permission, and model preflight failures reject before executio
     await assert.rejects(manager.runGoal('work'), (error) => error.code === code, code);
     assert.equal(executions, 0, code);
   }
+});
+
+test('run preflight does not call verifyPermissionProfile', async () => {
+  const calls = [];
+  const executor = fakeExecutor({
+    getStatus: async () => {
+      calls.push('getStatus');
+      return { installed: true, authenticated: true, workspaceAvailable: true };
+    },
+    listModels: async () => {
+      calls.push('listModels');
+      return [{ id: 'agent-model', efforts: ['low', 'high'] }];
+    },
+    getCapabilities: async () => {
+      calls.push('getCapabilities');
+      return { efforts: ['low', 'high'] };
+    },
+    verifyPermissionProfile: async () => {
+      calls.push('verifyPermissionProfile');
+      return { available: true, allowed: true };
+    },
+    runGoal: async () => {
+      calls.push('runGoal');
+      return { text: 'done', changedFiles: [] };
+    },
+  });
+  const { manager } = harness({ executor });
+  await manager.runGoal('do the thing');
+  assert.equal(calls.includes('verifyPermissionProfile'), false);
+  assert.equal(calls.includes('runGoal'), true);
 });
 
 test('reports an incompatible Codex update before signed-out and Full Computer preflight failures', async () => {
@@ -538,7 +575,8 @@ test('passes exact capability and permission arguments through run and delegate 
   await manager.verifyPermissionProfile();
 
   assert.equal(capabilityCalls.length, 2);
-  assert.equal(permissionCalls.length, 2);
+  // Run preflight no longer verifies the permission profile, so only the delegate path calls it.
+  assert.equal(permissionCalls.length, 1);
   for (const args of capabilityCalls) {
     assert.equal(args.length, 2);
     assert.equal(args[0].id, 'connection-1');

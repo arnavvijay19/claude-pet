@@ -189,6 +189,20 @@ test('native Codex status does not advertise Full Computer when qualified login 
   });
 });
 
+test('codex permission verification reports readiness without a synthetic probe', async () => {
+  // Catches a permission path that spends a bounded probe deadline re-proving facts the
+  // compatibility contract already supplies, which surfaced as PERMISSION_PROFILE_UNAVAILABLE.
+  const runner = fakeRunner('codex-cli', CODEX_BINDING);
+  const deps = dependencies('codex-cli', CODEX_BINDING);
+  const executor = createCodexNativeFullComputerExecutor({
+    runner, codexHome: 'Z:\\pet\\native-codex', fixtureRoot: 'Z:\\pet\\resources\\probes',
+    ...deps,
+  });
+  const result = await executor.verifyPermissionProfile(connection('codex-cli'));
+  assert.deepEqual(result, { available: true, allowed: true });
+  assert.equal(deps.probes.length, 0);
+});
+
 test('Codex qualifies each full-computer setup, permission, and run operation on a freshly held executable', async () => {
   const runner = fakeRunner('codex-cli', CODEX_BINDING);
   const deps = dependencies('codex-cli', CODEX_BINDING);
@@ -206,9 +220,7 @@ test('Codex qualifies each full-computer setup, permission, and run operation on
     permissionProfiles: ['full-computer'], network: true, authentication: true,
     efforts: ['none', 'low', 'medium', 'high', 'xhigh', 'max'],
   });
-  assert.deepEqual(await executor.verifyPermissionProfile(saved), {
-    available: true, allowed: true, controlRequests: 1, childCanaryConnections: 1,
-  });
+  assert.deepEqual(await executor.verifyPermissionProfile(saved), { available: true, allowed: true });
   assert.deepEqual(await executor.beginSetup(saved), { started: true });
   const result = await executor.runGoal(
     requestFor('codex-cli'), () => {}, new AbortController().signal,
@@ -235,9 +247,10 @@ test('Codex qualifies each full-computer setup, permission, and run operation on
   });
   assert.equal(JSON.stringify(publicSpec).includes('wsl.exe'), false);
   assert.equal(JSON.stringify(publicSpec).includes('pet-workspace'), false);
-  assert.equal(deps.probes.length, 1);
+  // Setup, permission, and run each rediscover and qualify a freshly held executable. The
+  // permission path no longer runs a synthetic probe, so no probe may be spawned at all.
+  assert.equal(deps.probes.length, 0);
   assert.deepEqual(qualified.map(({ binding }) => binding), [CODEX_BINDING, CODEX_BINDING, CODEX_BINDING]);
-  assert.equal(deps.probes[0].provider, 'codex-cli');
   assert.equal(deps.leases.every((lease) => lease.cleaned === true), true);
 });
 
