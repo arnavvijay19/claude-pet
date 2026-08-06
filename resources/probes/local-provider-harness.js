@@ -428,10 +428,12 @@ function createCodexHarness(fixture, owner, limits) {
         const result = callResults(body).find((item) => item.call_id === calls[0].id);
         const match = /cell ID\s+([A-Za-z0-9_-]+)/i.exec(resultText(result));
         if (!match) throw new Error('Codex exec did not yield a bounded command');
+        if (!owner.startedWait()) throw new Error('Codex exec cell was not running when wait was issued');
         events = codexFunctionEvents(body.model, [{
           ...calls[1],
-          arguments: { cell_id: match[1], yield_time_ms: 10000, max_tokens: 10000 },
+          arguments: { cell_id: match[1], yield_time_ms: 20000, max_tokens: 10000 },
         }], 'wait');
+        owner.armWait();
       } else if (turn === 2) {
         const result = callResults(body).find((item) => item.call_id === calls[1].id);
         const text = resultText(result);

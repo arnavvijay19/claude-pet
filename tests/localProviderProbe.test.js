@@ -21,6 +21,16 @@ const {
   verifyNativeToolSurface,
 } = require('../src/agent/localProviderProbe.js');
 
+test('codex exec waits on the armed sentinel instead of a fixed sleep', () => {
+  const source = require('node:fs').readFileSync(
+    path.join(__dirname, '..', 'src', 'agent', 'localProviderProbe.js'),
+    'utf8',
+  );
+  assert.equal(/Start-Sleep -Milliseconds 10500/.test(source), false);
+  assert.equal(source.includes('__WAIT_ARMED__'), true);
+  assert.equal(source.includes('__WAIT_STARTED__'), true);
+});
+
 function request({ url, method = 'POST', bearer = 'wrong', body = '{}', headers = {} }) {
   return new Promise((resolve, reject) => {
     const parsed = new URL(url);
