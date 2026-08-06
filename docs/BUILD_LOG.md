@@ -1167,3 +1167,43 @@ link the note to it — this file is the inbox, not the archive.
   then passed the post-fix complete Node suite with 405 passing, zero failing, and one intentional
   skip. `git diff --check` passed. The fix was committed and pushed to `origin/master`; local and
   remote `master` both resolved to `883e95a` at verification time.
+
+## 2026-08-06 - Build-time npm advisory clearance
+
+- Cleared the two high-severity advisories that `npm.cmd audit` reported against build-time-only
+  transitive dependencies of the `@electron/packager` devDependency: `brace-expansion@5.0.8`
+  (GHSA-rgw5-rvv9-x895, DoS via unbounded intermediate arrays) reached through
+  `@electron/asar -> minimatch`, and `undici@7.28.0` (GHSA-8xcm-r25x-g524, GHSA-4cwx-7wf7-3272,
+  GHSA-m8rv-5g2x-5cg5, GHSA-jr45-8vmc-qm54, GHSA-v3r7-h72x-cjcm) reached through `@electron/get`.
+  `npm.cmd ls --omit=dev --all` is empty, so neither package ever shipped in the Windows package.
+- Plain `npm.cmd audit fix` resolved both; `--force` was not needed and was not used. The change is
+  two patch bumps, `brace-expansion` to `5.0.9` and `undici` to `7.29.0`, both still marked
+  `"dev": true`. `@electron/packager` stays `20.0.4`, `electron` stays `43.1.1`, and `minimatch`
+  itself stays `10.2.6`, so the asar glob layer's own version is unchanged. `package-lock.json` is
+  the only changed file (six insertions, six deletions); `package.json` is untouched and its
+  effective `dependencies` remains `{}`. A re-run of `npm.cmd audit` reports zero vulnerabilities.
+- Verification: Node 405 passing, 0 failing, 1 intentional live-provider skip; Python 3/3 passing;
+  `git diff --check` passed. A fresh `package:win` plus `verify:package` produced 159 files and
+  367391150 bytes, byte-for-byte identical to a pre-change baseline package built from the same
+  tree, which proves the dependency bump changed nothing about which files are packaged.
+- Package-figure reconciliation, recorded rather than silently rewritten: the previously logged
+  159 files / 367390918 bytes predates this branch. The 232-byte increase is entirely pre-existing
+  on unmodified `a435732`. `src/agent/codexCompatibilityStore.js` is the only packaged file changed
+  since that measurement (commit `883e95a`, seven added lines), and it accounts for 231 of the 232
+  bytes: its CRLF working-tree size grew from 9363 to 9594. The residual single byte falls in the
+  locally generated `resources/windows/generated/provider-job-host.build.json` build record, whose
+  length varies with the recording machine's `csc.exe` path and version string; the original build's
+  record was not retained, so that byte cannot be attributed further. The file count is unchanged
+  at 159 and the forbidden-path scan is clean.
+- Fresh-worktree bootstrap artifact, diagnosed and not a regression: the first full-suite run in a
+  new worktree failed `documented Node diagnostic completes the real Electron entrypoint boundary`
+  with `SyntaxError: Unexpected token 'D', "Downloadin"... is not valid JSON`. `npm ci` had skipped
+  Electron's postinstall and `package:win` uses the separate `@electron/get` zip cache, so that test
+  was the first consumer to require `node_modules/electron/dist`. `node_modules/electron/index.js`
+  lazily self-installs the binary on that first `require('electron')` and prints
+  `Downloading Electron binary...` to stdout under `stdio: 'inherit'`, corrupting the diagnostic's
+  JSON stdout channel. The standalone diagnostic, the focused file, and two later full-suite runs
+  all pass; the failure is one-time per worktree and independent of this dependency change.
+- Not run in this task: packaged runtime QA, provider sign-in, real model request, and code signing.
+  No WSL, provider sign-in, real credential, real model request, user-workspace mutation, local
+  `master`, `.workbuddy-ai/`, or `LOCAL_PR.html` change occurred.
