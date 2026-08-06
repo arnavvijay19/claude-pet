@@ -58,7 +58,7 @@ The app never authenticates directly to a provider consumer account.
 - The app checks status only through documented CLI commands.
 - Credential files remain opaque; app-owned executor configuration is stored separately from them.
 - The pet, response, and Settings renderers never receive provider credentials.
-- freemodel.dev credentials and unrelated provider overrides never enter real-provider children.
+- Unrelated credentials and environment overrides never enter real-provider children.
 
 ## Agent authority
 
@@ -98,7 +98,7 @@ traversal rights to its parent directory.
 - The app never silently retries, changes executor, changes model, or invokes fallback.
 - Authentication, quota, timeout, failed command, and stopped-run retries require another user
   action.
-- The app does not modify the user's existing freemodel.dev setup.
+- The app does not modify unrelated CLI configuration.
 - Provider branding, source code, and assets are not copied.
 - Public distribution retains provider-terms and Windows-signing review gates.
 

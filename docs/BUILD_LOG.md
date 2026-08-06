@@ -15,10 +15,10 @@ optional — an unlogged session is a failed session even if its code worked). F
 
 <!-- entries below -->
 
-- **2026-07-15 · claude (freemodel) · docs** — Research integration finished (`866abff`), AI
+- **2026-07-15 · Claude · docs** — Research integration finished (`866abff`), AI
   deployment strategy + this log added. No code yet; next unstarted work is plan Task 1.
 
-- **2026-07-16 · Fable 5 (freemodel) · Task 1 (MVP sprite extraction)** — Done, on worktree
+- **2026-07-16 · Claude · Task 1 (MVP sprite extraction)** — Done, on worktree
   branch `worktree-task-1-mvp-sprite-extraction` (no remote exists; user merges to master).
   Delivered `scripts/extract_mvp_sprite.py`, `tests/test_extract_mvp_sprite.py` (pytest,
   1 passed ~2.4s), and generated `assets/spritesheet-mvp.png` (1152x208), `assets/pet.json`,
@@ -27,7 +27,7 @@ optional — an unlogged session is a failed session even if its code worked). F
   original Step 3 snippet was wrong 3 ways (magenta bg kept, aspect squashed, off-grid frames
   sliced) — superseded in place; see the Task 1 correction block in the plan. Next: Task 2.
 
-- **2026-07-16 · Fable 5 (freemodel) · post-Task-1 docs** — Follow-up on the Task 1 branch
+- **2026-07-16 · Claude · post-Task-1 docs** — Follow-up on the Task 1 branch
   before handing off to Task 2: re-ran the suite (1 passed), moved the Task 1 entry above out
   of Field notes into this section (placement fix, content verbatim), and expanded plan Task
   2's `.gitignore` snippet to cover the Python/worktree artifacts Task 1 introduced
@@ -36,15 +36,15 @@ optional — an unlogged session is a failed session even if its code worked). F
   session): commit the uncommitted `project-context.md` edit in the main checkout, then from
   `Z:\Downloads\Code\Claude Pet` on `master` run
   `git merge worktree-task-1-mvp-sprite-extraction` — an unmerged Task 1 would make the next
-  session redo it. Then Task 2 via the standard entry prompt (hard task — Fable high/xhigh
+  session redo it. Then Task 2 via the standard entry prompt (hard task — Claude high/xhigh
   per the model policy; xhigh is better saved for Tasks 4/6/7 where the silent failures live).
 
-- **2026-07-16 · Fable 5 (freemodel) · integration** — The NEXT items above are done (user
+- **2026-07-16 · Claude · integration** — The NEXT items above are done (user
   delegated them): `master` fast-forwarded to `9b160dc`, his `project-context.md` tweak
   committed as `87ff927`, suite green on merged `master` (1 passed, 2.30s). Nothing pending —
   the next session starts plan Task 2 directly via the standard entry prompt.
 
-- **2026-07-16 · Fable 5 (freemodel) · Task 2 (Electron scaffold)** — Done, on worktree branch
+- **2026-07-16 · Claude · Task 2 (Electron scaffold)** — Done, on worktree branch
   `worktree-task-2-electron-scaffold` (`17f4e57` = package.json + .gitignore exactly per plan;
   docs commit follows). Verified: `npm install` completed, `node_modules/.bin/electron` exists,
   and `./node_modules/.bin/electron --version` → `v33.4.11` (pasted output, not assumed —
@@ -54,13 +54,13 @@ optional — an unlogged session is a failed session even if its code worked). F
   on `master` run `git merge worktree-task-2-electron-scaffold`, then re-run `npm install` in
   the main checkout (node_modules lives only in the worktree and is git-ignored). Then Task 3.
 
-- **2026-07-16 · Fable 5 (freemodel) · integration** — The NEXT items above are done (user
+- **2026-07-16 · Claude · integration** — The NEXT items above are done (user
   delegated them, same session): `master` fast-forwarded to `e8bb227`, `npm install` re-run in
   the main checkout, `./node_modules/.bin/electron --version` → `v33.4.11` there too (pasted).
   Nothing pending — the next session starts plan Task 3 directly via the standard entry prompt
   (mechanical task per the model policy; worktree recommended, branch off `master`).
 
-- **2026-07-16 · Fable 5 (freemodel) · Task 3 (sprite state machine + renderer shell)** — Done,
+- **2026-07-16 · Claude · Task 3 (sprite state machine + renderer shell)** — Done,
   on worktree branch `worktree-task-3-sprite-renderer`, based on the task-2 branch tip
   (`0fe4d64`, verified descendant of `master` — merging task-3 brings the unmerged task-2
   docs commit along, history stays linear). `c4e167f` = `src/renderer/pet.js` +
@@ -70,16 +70,16 @@ optional — an unlogged session is a failed session even if its code worked). F
   `npm test` → 4 pass / 0 fail (pasted), pytest → 1 passed. `renderer-main.js` deliberately
   doesn't exist yet (Task 7). NEXT (user): from `Z:\Downloads\Code\Claude Pet` on `master` run
   `git merge worktree-task-3-sprite-renderer` (fast-forward), then Task 4 via the standard
-  entry prompt (hard task — Fable high/xhigh; first window on screen, visual verification
+  entry prompt (hard task — Claude high/xhigh; first window on screen, visual verification
   mandatory).
 
-- **2026-07-16 · Fable 5 (freemodel) · integration + electron bump** — Task 3 branch merged
+- **2026-07-16 · Claude · integration + electron bump** — Task 3 branch merged
   to `master` by the user (fast-forward to `df488b2`), `npm install` re-run there. User then
   ran `npm audit fix --force` → electron 33.4.11→43.1.1; session verified the bump is safe
   and committed it (`512a2c4`, stale `allowScripts` removed — see the two field notes) plus
   these docs. Verified on merged `master`: `npm test` 4 pass / 0 fail, pytest 1 passed,
   `electron --version` → v43.1.1, `git status` clean. Nothing pending — next session starts
-  plan Task 4 via the standard entry prompt (hard task — Fable high/xhigh effort; first
+  plan Task 4 via the standard entry prompt (hard task — Claude high/xhigh effort; first
   visible window, visual verification mandatory, now doubly so on electron 43).
 
 - **2026-07-17 · Codex (GPT-5) · Task 4 pass 1/2 (overlay window + tray)** — Fresh worktree
@@ -107,7 +107,7 @@ optional — an unlogged session is a failed session even if its code worked). F
 
 - **2026-07-21 · Codex (GPT-5) · provider-neutral redesign and replanning** — Reworked the
   canonical spec, research, project context, and existing implementation plan in 6458d6b:
-  completed Tasks 1-5 stay intact and the old Claude-only/appeal-blocked tail is replaced by
+  completed Tasks 1-5 stay intact and the old Claude-only tail is replaced by
   serial provider-neutral Tasks 6-15. The temporary separate provider design was folded into
   the canonical docs and deleted. Verified: exact task sequence 6-15, 73 executable unchecked
   steps, balanced plan fences, no placeholder/truncation markers, five-file docs-only staged
@@ -325,7 +325,7 @@ optional — an unlogged session is a failed session even if its code worked). F
   login, or image generation occurred. The user approved the written spec. NEXT: rewrite and review
   the canonical plan tail before any application code or WSL installation.
 
-- **2026-07-26 · Fable 5 (freemodel) · docs reconciliation (no task executed)** — Session launched
+- **2026-07-26 · Claude · docs reconciliation (no task executed)** — Session launched
   with the stale Task 13 standard entry prompt; verified Task 13 is already accepted and integrated
   (all five plan steps `[x]`, `e02a58d` on `master`, fresh suite evidence: canonical Node 150/150,
   pytest 1/1, clean status). Did not re-execute Task 13, start Task 14, enable Full Computer, or
@@ -524,8 +524,8 @@ link the note to it — this file is the inbox, not the archive.
   corrupted a UTF-8 character split across chunks. Commit `3e75862` adds both regressions,
   rejects non-object JSON, and puts the request stream in UTF-8 text mode before collection;
   focused 4/4 and full Node 8/8 verified after the fix, and the plan was corrected in place.
-- 2026-07-21 SUPERSEDE: The unimplemented Claude-only Tasks 6-8, consumer-account appeal
-  blocker, and single claudeClient architecture are obsolete. Canonical spec/research/context
+- 2026-07-21 SUPERSEDE: The unimplemented Claude-only Tasks 6-8 and single claudeClient
+  architecture are obsolete. Canonical spec/research/context
   now define providerManager + encrypted providerStore + five adapters + Settings/response
   windows; the canonical plan's next task is Task 6, and provider purchase/login is optional.
 - 2026-07-22 SUPERSEDE: The 2026-07-21 five-adapter chat-first tail is obsolete. The user wants
