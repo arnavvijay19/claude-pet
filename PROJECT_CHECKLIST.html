@@ -269,7 +269,7 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Current (as of 2026-08-08):</strong> Core V1 Tasks 1–19 and UX Tasks 1–6 are complete. Codex forward-compatibility Tasks 1–7 are merged (PRs #2–#8). The Phase 1 Codex startup-latency work (Tasks 1–6) is implemented and merged (PRs #10, #12), cutting the fixed 10.5 s probe sleep and the repeated PowerShell/Add-Type inspector opens. A product-repair handoff (PR #9), build-time npm advisory clearance, and stale-evidence write recovery are done. The Windows Job Object provider-lifecycle plan is approved but not started. The Codex not-installed false positive is fixed (b3482fa), Phase 2 Task 1 (per-connection state machine) is merged, and the automatic progress board is live at http://localhost:4178.</p>
+      <p><strong>Current (as of 2026-08-08):</strong> Core V1 Tasks 1–19 and UX Tasks 1–6 are complete. Codex forward-compatibility Tasks 1–7 are merged (PRs #2–#8). The Phase 1 Codex startup-latency work (Tasks 1–6) is implemented and merged (PRs #10, #12), cutting the fixed 10.5 s probe sleep and the repeated PowerShell/Add-Type inspector opens. A product-repair handoff (PR #9), build-time npm advisory clearance, and stale-evidence write recovery are done. The Windows Job Object provider-lifecycle plan is approved but not started (C# unverified-compile, intentionally unmerged). The Codex not-installed false positive is fixed (b3482fa). Phase 2 (per-connection state machine + renderer wiring + cancellable long verification, Tasks 1–3) is fully merged (2b5ea21), and the automatic progress board is live at http://localhost:4178. Phase 3 (main UI repair) is the next designed-but-unstarted work and is human-gated for visual/accessibility QA.</p>
       <p><strong>Verified live:</strong> The Node test suite passes 420/421 (1 skipped) after Phase 1; packaged-app Codex sign-in smoke (earlier) and account-free compatibility qualification against Codex 0.146.0 are evidenced. WSL Workspace (optional Tasks 20–23), a genuine Windows Job Object boundary, and the four Codex-compat downstream gates (packaged status QA, real sign-in smoke, signing/reputation, enterprise policy) remain open.</p>
     </section>
 
@@ -308,7 +308,8 @@
       <h2 id="nextsteps-title">Next steps</h2>
       <div class="official-files">
         <ul>
-          <li><strong>Phase 2 (Codex startup latency)</strong> — Task 1 (per-connection state machine) merged (Aug 8); Task 2 (renderer wiring) merged (Aug 8, 02443ec); Task 3 (cancellable verification) remains.</li>
+          <li><strong>Phase 2 (Codex startup latency)</strong> — Task 1 (per-connection state machine) merged (Aug 8); Task 2 (renderer wiring) merged (Aug 8, 02443ec); Task 3 (cancellable verification) merged (Aug 8, 2b5ea21). Phase 2 is complete.</li>
+          <li><strong>Phase 3 (main UI repair)</strong> — designed but not yet task-planned; the next work, but human-gated for visual/accessibility QA (never claim complete without it).</li>
           <li><strong>Automatic progress board</strong> is DONE and live at http://localhost:4178 (auto-ingests memory, surfaces git state, accepts direct comments).</li>
           <li>The remaining open gates are unchanged: packaged signed-out status QA, real sign-in/model smoke, signing/reputation + enterprise policy, the Windows Job Object lifecycle boundary, and the optional WSL Workspace Tasks 20–23.</li>
         </ul>
@@ -725,9 +726,9 @@
       {
         id: 'phase-2-task-3',
         title: 'Phase 2 Task 3 — Cancellable long verification',
-        done: false,
-        explanation: 'Make long Codex verification cancellable via the state machine cancel() path. Designed; not yet started. Phase 2 Task 2 already exposes the Cancel button (connectionCancel -> state.cancel) and the verifying state, so the main process only needs to honor an abort of an in-flight test-connection.',
-        action: 'Implement next; the renderer side is already wired via Phase 2 Task 2.',
+        done: true,
+        explanation: 'Merged Aug 8 (2b5ea21, branch codex/phase-2-connection-cancel). The renderer Cancel control (Phase 2 Task 2) now signals main to abort the in-flight test-connection: app.js connectionCancel also fires bridge.intent(\'cancel-test-connection\'), appWindow registers that intent and aborts the held AbortController for the connection, and the test-connection handler returns a fixed CONNECTION_CHECK_CANCELLED outcome instead of an unhandled IPC error. The AbortSignal threads through agentManager.getStatusFor -> executor.getStatus -> discoverBinding/discover (conditional signal) -> inspectNativeCliCandidate (signal -> --version capture) -> runner.capture, which already terminates the provider process tree. agentErrors.throwIfAborted is the shared checkpoint. Tests added: appWindow.test.js (3: abort, safe no-op, malformed), codexCli.test.js (3: pre-aborted, forwards signal, mid-flight stop), agentManager.test.js (1: forwards signal), and the discovery fixture was relaxed to tolerate the optional signal field. Exit gates: node --check clean; full suite green (454 pass / 0 fail / 1 env-gated skip).',
+        action: 'Phase 2 complete. Phase 3 (main UI repair) is next; it is human-gated for visual/accessibility QA and must not be claimed complete without it.',
       },
       {
         id: 'job-object-task-1',
