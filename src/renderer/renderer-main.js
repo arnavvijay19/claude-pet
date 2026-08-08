@@ -52,7 +52,50 @@ async function startPetRenderer() {
   window.claudePet.onState((state) => machine.setState(state, performance.now()));
   canvas.addEventListener('drop', (event) => { event.preventDefault(); const file = event.dataTransfer?.files?.[0]; if (file) void window.claudePet.submitTextFile(file); });
   canvas.addEventListener('dragover', (event) => event.preventDefault());
+  installProgressRing();
+  installAttentionBadge();
 }
 
-if (typeof module !== 'undefined' && module.exports) module.exports = { drawFrame };
+// Phase 3 Task 4 sub-branch 3: render the run-progress ring around the pet.
+// Pure geometry comes from petWindowEffects (same source as the ribbon); this is
+// a thin DOM adapter over the #pet-ring SVG path.
+function installProgressRing() {
+  const fx = typeof petWindowEffects !== 'undefined' ? petWindowEffects : null;
+  const ringEl = document.querySelector('#pet-ring');
+  if (!fx || !ringEl || typeof window.claudePet.onProgress !== 'function') return;
+  window.claudePet.onProgress((progress) => {
+    const vm = fx.ringViewModel({ progress });
+    if (vm.visible) {
+      ringEl.setAttribute('d', vm.path);
+      ringEl.style.display = '';
+    } else {
+      ringEl.style.display = 'none';
+    }
+  });
+}
+
+// Phase 3 Task 4 sub-branch 3: render the sign-in / failure attention badge.
+// A polite live region (#pet-badge) so a blocked run is announced even with the
+// main window closed; tone (info/danger) drives the badge color via CSS.
+function installAttentionBadge() {
+  const fx = typeof petWindowEffects !== 'undefined' ? petWindowEffects : null;
+  const badgeEl = document.querySelector('#pet-badge');
+  if (!fx || !badgeEl || typeof window.claudePet.onAttention !== 'function') return;
+  const glyphEl = badgeEl.querySelector('#pet-badge-glyph');
+  window.claudePet.onAttention(({ attention, label }) => {
+    const vm = fx.attentionBadge({ attention, label });
+    if (vm.visible) {
+      badgeEl.setAttribute('data-tone', vm.tone);
+      badgeEl.setAttribute('aria-label', vm.label || '');
+      if (glyphEl) glyphEl.textContent = vm.tone === 'danger' ? '!' : '?';
+      badgeEl.style.display = '';
+    } else {
+      badgeEl.removeAttribute('data-tone');
+      badgeEl.removeAttribute('aria-label');
+      badgeEl.style.display = 'none';
+    }
+  });
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { drawFrame, installProgressRing, installAttentionBadge };
 if (typeof window !== 'undefined' && window.claudePet) void startPetRenderer();

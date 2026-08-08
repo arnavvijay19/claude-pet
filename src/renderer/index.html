@@ -13,12 +13,47 @@
       max-width: 220px; background: #fff; border-radius: 8px; padding: 8px 10px;
       font: 12px system-ui; display: none;
     }
+    /* Progress-ring + attention-badge overlay (Phase 3 Task 4 sub-branch 3).
+       Sits above the pet canvas, purely decorative to pointer events. */
+    #pet-overlay {
+      position: absolute; top: 0; left: 0; pointer-events: none;
+    }
+    #pet-ring { transition: stroke 120ms linear; }
+    #pet-badge { transition: opacity 120ms linear; }
+    #pet-badge[data-tone="info"] #pet-badge-ring { stroke: #f5a623; }
+    #pet-badge[data-tone="info"] #pet-badge-glyph { fill: #f5a623; }
+    #pet-badge[data-tone="danger"] #pet-badge-ring { stroke: #e5484d; }
+    #pet-badge[data-tone="danger"] #pet-badge-glyph { fill: #e5484d; }
+    #pet-badge-pulse {
+      animation: pet-badge-pulse 1.4s ease-in-out infinite;
+      transform-origin: 168px 34px;
+    }
+    @keyframes pet-badge-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.55; transform: scale(1.12); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #pet-badge-pulse { animation: none; }
+    }
   </style>
 </head>
 <body>
   <div id="bubble"></div>
   <canvas id="pet" width="192" height="208"></canvas>
+  <svg id="pet-overlay" width="192" height="208" viewBox="0 0 192 208" aria-hidden="false">
+    <!-- Progress ring: a subtle full-circle track, plus the live arc (hidden until progress arrives). -->
+    <circle cx="96" cy="104" r="92" fill="none" stroke="rgba(0,0,0,0.12)" stroke-width="4" aria-hidden="true" />
+    <path id="pet-ring" d="" fill="none" stroke="#5b8cff" stroke-width="4" stroke-linecap="round" aria-hidden="true" style="display:none;" />
+    <!-- Attention badge: hidden until a sign-in / failure attention arrives. A polite live
+         region so a blocked run is announced to assistive tech even with the main window closed. -->
+    <g id="pet-badge" role="status" aria-live="polite" aria-label="" style="display:none;">
+      <circle id="pet-badge-pulse" cx="168" cy="34" r="15" fill="rgba(229,72,77,0.18)" aria-hidden="true" />
+      <circle id="pet-badge-ring" cx="168" cy="34" r="13" fill="#fff" stroke="#f5a623" stroke-width="3" aria-hidden="true" />
+      <text id="pet-badge-glyph" x="168" y="39" text-anchor="middle" font-size="15" font-family="system-ui" font-weight="700" fill="#f5a623" aria-hidden="true">!</text>
+    </g>
+  </svg>
   <script src="pet.js"></script>
+  <script src="petWindowEffects.js"></script>
   <script src="renderer-main.js"></script>
 </body>
 </html>
