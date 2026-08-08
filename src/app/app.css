@@ -270,6 +270,72 @@ input, textarea {
 .diff__line--meta { color: var(--muted); }
 .diff__line--ctx { color: var(--text); }
 
+/* Phase 3 Task 5: run scrubber. Reuses the run-card / trace palette and the shell's
+   dark theme so the scrubber reads as part of the same product. */
+.run-card__scrub-toggle {
+  display: inline-block;
+  margin: 8px 0 0;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.run-card__scrub-toggle:focus-visible { outline: 2px solid var(--accent, #6aa9ff); outline-offset: 2px; }
+.run-card__scrubber { margin: 10px 0 0; }
+.scrubber {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.scrubber:focus-visible { outline: 2px solid var(--accent, #6aa9ff); outline-offset: 2px; }
+.scrubber__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.scrubber__btn {
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.scrubber__btn:disabled { opacity: 0.4; cursor: default; }
+.scrubber__btn:focus-visible { outline: 2px solid var(--accent, #6aa9ff); outline-offset: 2px; }
+.scrubber__position {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  min-width: 64px;
+  text-align: center;
+}
+.scrubber__caption {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.scrubber__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.trace-item__output {
+  display: block;
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
 .first-run {
   width: min(620px, 100%);
   margin: auto;

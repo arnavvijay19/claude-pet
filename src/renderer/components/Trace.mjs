@@ -57,7 +57,8 @@ export function TraceList(props = {}) {
       return html`<li key=${item.id || `trace-${index}`} class=${`trace-item trace-item--${kind}`}>
         ${kind === TRACE_KINDS.COMMAND
           ? html`<code class="trace-item__command">${item.command}</code>
-              <span class=${`trace-item__exit trace-item__exit--${item.exitCode === 0 ? 'ok' : 'fail'}`}>exit ${item.exitCode}</span>`
+              <span class=${`trace-item__exit trace-item__exit--${item.exitCode === 0 ? 'ok' : 'fail'}`}>exit ${item.exitCode}</span>
+              ${item.output ? html`<pre class="trace-item__output" aria-label="Command output">${item.output}</pre>` : null}`
           : null}
         ${kind === TRACE_KINDS.FILE
           ? html`<span class="trace-item__path">${item.label}</span>

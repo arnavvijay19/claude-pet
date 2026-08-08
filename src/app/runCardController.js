@@ -23,6 +23,17 @@
   }
   const { buildRunCards, TRACE_KINDS } = model;
 
+  // Phase 3 Task 5: the run scrubber (design 3.5) reuses this controller's run card.
+  // Its pure model + live controller are loaded here so the toggle can render an
+  // inline, read-only step-by-step replay of a completed run.
+  const scrubberModel = (root && root.claudePetRunScrubberModel)
+    || (typeof require !== 'undefined' ? require('../renderer/components/runScrubberModel.js') : null);
+  const scrubberController = (root && root.claudePetRunScrubber)
+    || (typeof require !== 'undefined' ? require('./runScrubberController.js') : null);
+  const isScrubbable = scrubberModel && typeof scrubberModel.isScrubbable === 'function'
+    ? scrubberModel.isScrubbable
+    : () => false;
+
   function element(doc, tagName, text = '', className = '') {
     const value = doc.createElement(tagName);
     if (text) value.textContent = text;
@@ -105,7 +116,7 @@
     cardEl.append(wrap);
   }
 
-  function appendCard(doc, host, card, expandedStore, rerender) {
+  function appendCard(doc, host, card, expandedStore, rerender, scrubStore) {
     const article = element(doc, 'article', '', 'run-card');
     if (card.id) article.setAttribute('data-run-id', card.id);
 
@@ -127,6 +138,31 @@
       });
     }
 
+    // Phase 3 Task 5: a completed run gains a "Scrub steps" affordance. Toggling it
+    // reveals an inline scrubber that replays the run step by step (read-only; no
+    // new data collection, no provider calls). The scrubStore (a Map keyed by runId)
+    // doubles as the open flag and persists the cursor across re-renders.
+    if (isScrubbable(card) && scrubStore) {
+      const id = card.id || '';
+      const scrubOn = scrubStore.has(id);
+      const toggle = element(doc, 'button', scrubOn ? 'Hide scrubber' : 'Scrub steps', 'run-card__scrub-toggle');
+      toggle.type = 'button';
+      toggle.setAttribute('aria-pressed', scrubOn ? 'true' : 'false');
+      toggle.addEventListener('click', () => {
+        if (scrubStore.has(id)) scrubStore.delete(id);
+        else scrubStore.set(id, undefined);
+        rerender();
+      });
+      article.append(toggle);
+      if (scrubOn) {
+        const panel = element(doc, 'div', '', 'run-card__scrubber');
+        article.append(panel);
+        if (scrubberController && typeof scrubberController.createScrubberHost === 'function') {
+          scrubberController.createScrubberHost(panel, card, { store: scrubStore });
+        }
+      }
+    }
+
     if (card.answer) {
       const section = element(doc, 'section', '', 'run-card__answer');
       const byline = element(doc, 'p', '', 'run-card__byline run-card__byline--agent');
@@ -142,12 +178,12 @@
   }
 
   // Render the full conversation timeline as run cards into host.
-  function renderCards(host, snapshot, expandedStore) {
+  function renderCards(host, snapshot, expandedStore, scrubStore) {
     const doc = (typeof globalThis !== 'undefined' && globalThis.document) || null;
     if (!doc || !host) return;
     const cards = model.buildRunCards(snapshot);
 
-    const rerender = () => renderCards(host, snapshot, expandedStore);
+    const rerender = () => renderCards(host, snapshot, expandedStore, scrubStore);
     if (typeof host.replaceChildren === 'function') host.replaceChildren();
     else { while (host.firstChild) host.removeChild(host.firstChild); }
 
@@ -155,18 +191,20 @@
       host.append(element(doc, 'p', 'Start with a clear task. Your agent’s answer will stay in this session.', 'empty-copy'));
       return;
     }
-    for (const card of cards) appendCard(doc, host, card, expandedStore, rerender);
+    for (const card of cards) appendCard(doc, host, card, expandedStore, rerender, scrubStore);
   }
 
-  // Bind a run-card timeline to a host element and a persistent expand/collapse store.
-  // `update` re-derives the run cards from a snapshot and re-renders; expansion state
-  // survives across updates because it lives in `expandedStore`, supplied by the caller.
+  // Bind a run-card timeline to a host element and persistent expand/collapse +
+  // scrubber stores. `update` re-derives the run cards from a snapshot and
+  // re-renders; expansion + scrubber state survive across updates because they live
+  // in the caller-supplied stores.
   function createRunCardHost(host, options = {}) {
     if (!host) throw new TypeError('createRunCardHost requires a host element');
     const expandedStore = options.expandedStore || new Set();
+    const scrubStore = options.scrubStore || new Map();
 
     function update(snapshot) {
-      renderCards(host, snapshot, expandedStore);
+      renderCards(host, snapshot, expandedStore, scrubStore);
     }
 
     return Object.freeze({ update });
