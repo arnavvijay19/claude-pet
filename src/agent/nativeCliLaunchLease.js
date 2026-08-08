@@ -441,12 +441,9 @@ function createNativeCliInspectionHelper({
   spawn = defaultSpawn,
   environment = process.env,
   systemRoot = environment.SystemRoot || environment.SYSTEMROOT || 'C:\\Windows',
-  scriptPath = path.join(__dirname, '..', '..', 'resources', 'windows', 'inspect-native-cli.ps1'),
+  helperPath = path.join(__dirname, '..', '..', 'resources', 'windows', 'generated', 'native-cli-inspector.exe'),
   timeoutMs = DEFAULT_HELPER_TIMEOUT_MS,
 } = {}) {
-  const powershellPath = path.win32.join(
-    systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe',
-  );
   const boundedTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0
     ? Math.min(timeoutMs, 30000)
     : DEFAULT_HELPER_TIMEOUT_MS;
@@ -463,11 +460,8 @@ function createNativeCliInspectionHelper({
 
       let child;
       try {
-        child = spawn(powershellPath, [
-          '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-          '-File', scriptPath,
-        ], {
-          cwd: path.dirname(scriptPath),
+        child = spawn(helperPath, [], {
+          cwd: path.dirname(helperPath),
           env: minimalHelperEnvironment(environment),
           shell: false,
           windowsHide: true,
