@@ -441,12 +441,9 @@ function createNativeCliInspectionHelper({
   spawn = defaultSpawn,
   environment = process.env,
   systemRoot = environment.SystemRoot || environment.SYSTEMROOT || 'C:\\Windows',
-  scriptPath = path.join(__dirname, '..', '..', 'resources', 'windows', 'inspect-native-cli.ps1'),
+  helperPath = path.join(__dirname, '..', '..', 'resources', 'windows', 'generated', 'native-cli-inspector.exe'),
   timeoutMs = DEFAULT_HELPER_TIMEOUT_MS,
 } = {}) {
-  const powershellPath = path.win32.join(
-    systemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe',
-  );
   const boundedTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0
     ? Math.min(timeoutMs, 30000)
     : DEFAULT_HELPER_TIMEOUT_MS;
@@ -463,11 +460,8 @@ function createNativeCliInspectionHelper({
 
       let child;
       try {
-        child = spawn(powershellPath, [
-          '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-          '-File', scriptPath,
-        ], {
-          cwd: path.dirname(scriptPath),
+        child = spawn(helperPath, [], {
+          cwd: path.dirname(helperPath),
           env: minimalHelperEnvironment(environment),
           shell: false,
           windowsHide: true,
@@ -559,6 +553,7 @@ async function inspectNativeCliCandidate(candidatePath, {
   allowedJunction = null,
   codexReleasePolicy,
   environment = process.env,
+  retainSession = false,
 } = {}) {
   assertMainProcess();
   const dynamicPolicy = codexReleasePolicy === undefined
@@ -629,7 +624,10 @@ async function inspectNativeCliCandidate(candidatePath, {
       publicInspection.junctionPath = facts.reparseChain[0].path;
       publicInspection.junctionTarget = dynamicRelease?.target || path.win32.dirname(facts.path);
     }
-    result = Object.freeze(publicInspection);
+    result = Object.freeze(retainSession
+      ? { inspection: Object.freeze(publicInspection), session }
+      : publicInspection);
+    if (retainSession) session = null;
   } catch (error) {
     failure = cliUnavailable(error);
   }
@@ -730,18 +728,19 @@ async function openVerifiedNativeCliLaunchLease(binding, {
   runner = createNativeCliLeaseRunner(),
   environment = process.env,
   launchTimeoutMs = DEFAULT_LAUNCH_TIMEOUT_MS,
+  session: retainedSession = null,
 } = {}) {
   assertMainProcess();
   const expected = normalizeBinding(binding);
-  if (!helper || typeof helper.open !== 'function'
+  if ((!retainedSession && (!helper || typeof helper.open !== 'function'))
     || !runner || typeof runner.capture !== 'function' || typeof runner.launch !== 'function') {
     throw new AgentError('CLI_NOT_INSTALLED');
   }
 
-  let session;
+  let session = retainedSession;
   let failure = null;
   try {
-    session = await helper.open(expected.path);
+    if (!session) session = await helper.open(expected.path);
     const facts = normalizeFacts(session?.facts);
     if (typeof session?.release !== 'function' || !sameFinalFacts(expected, facts)) {
       throw new AgentError('CLI_NOT_INSTALLED');

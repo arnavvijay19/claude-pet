@@ -187,6 +187,22 @@ test('discoverSignedNativeCli returns an immutable exact signed binding for each
   }
 });
 
+test('discovery returns the retained verified session with its immutable binding', async () => {
+  const session = { release: async () => {} };
+  const discovered = await discoverSignedNativeCli(discoveryOptions('codex-cli', {
+    retainSession: true,
+    inspectCandidate: async (candidate, options) => {
+      assert.equal(options.retainSession, true);
+      return { inspection: validInspection('codex-cli', candidate), session };
+    },
+  }));
+
+  assert.equal(discovered.session, session);
+  assert.equal(Object.isFrozen(discovered), true);
+  assert.equal(Object.isFrozen(discovered.binding), true);
+  assert.equal(discovered.binding.path, PROVIDERS['codex-cli'].canonical);
+});
+
 test('Codex discovery binds supported dynamic release versions without a positive allowlist', async () => {
   for (const version of ['0.145.0', '0.146.0', '0.200.1']) {
     const release = codexRelease(version);

@@ -172,12 +172,17 @@ function canonicalFixture(provider, fixtures) {
   }
 }
 
-function buildCodexExec({ workspace, outsideRead, outsideWrite, imagePath, canaryUrl }) {
+function buildCodexExec({
+  workspace, outsideRead, outsideWrite, imagePath, canaryUrl, waitStartedPath, waitArmedPath,
+}) {
   const shellCommand = [
     `$read = Get-Content -Raw -LiteralPath ${JSON.stringify(outsideRead)}`,
     `Set-Content -NoNewline -LiteralPath ${JSON.stringify(outsideWrite)} -Value outside-write-ok`,
     `Invoke-WebRequest -UseBasicParsing -Uri ${JSON.stringify(canaryUrl)} | Out-Null`,
-    'Start-Sleep -Milliseconds 10500',
+    `Set-Content -NoNewline -LiteralPath ${JSON.stringify(waitStartedPath)} -Value __WAIT_STARTED__`,
+    '$deadline = (Get-Date).AddSeconds(20)',
+    `while (-not (Test-Path -LiteralPath ${JSON.stringify(waitArmedPath)}) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 25 }`,
+    `if (-not (Test-Path -LiteralPath ${JSON.stringify(waitArmedPath)})) { throw '__WAIT_ARMED__ never observed' }`,
     'Write-Output $read',
     'Write-Output child-canary-ok',
     'Write-Output wait-ok',
@@ -386,6 +391,8 @@ function createLocalProviderProbe({
       let harness = null;
       const outsideRead = path.join(ownerDirectory, 'outside-read.txt');
       const outsideWrite = path.join(ownerDirectory, 'outside-write.txt');
+      const waitStartedPath = path.join(ownerDirectory, 'wait-started.txt');
+      const waitArmedPath = path.join(ownerDirectory, 'wait-armed.txt');
       const imagePath = path.join(ownerDirectory, 'tiny.png');
       const hookSentinel = path.join(ownerDirectory, 'hostile-hook-ran.txt');
       const pluginSentinel = path.join(ownerDirectory, 'hostile-plugin-ran.txt');
@@ -451,8 +458,13 @@ function createLocalProviderProbe({
           owner: {
             outsideRead,
             outsideWrite,
+            waitStartedPath,
+            waitArmedPath,
+            armWait: () => fileSystem.writeFile(waitArmedPath, 'armed', 'utf8'),
+            startedWait: () => require('node:fs').existsSync(waitStartedPath),
             codexExec: buildCodexExec({
               workspace: probeWorkspace, outsideRead, outsideWrite, imagePath, canaryUrl,
+              waitStartedPath, waitArmedPath,
             }),
             canaryCommand: buildClaudeCanaryCommand(canaryUrl),
           },

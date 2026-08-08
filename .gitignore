@@ -8,4 +8,6 @@ __pycache__/
 dist/
 resources/windows/generated/provider-job-host.exe
 resources/windows/generated/provider-job-host.build.json
+resources/windows/generated/native-cli-inspector.exe
+resources/windows/generated/native-cli-inspector.build.json
 resources/windows/generated/.build-*/

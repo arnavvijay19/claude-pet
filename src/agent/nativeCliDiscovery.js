@@ -256,6 +256,7 @@ async function discoverSignedNativeCli({
   environment = process.env,
   inspectCandidate = inspectNativeCliCandidate,
   resolveCandidates = resolveCommandCandidatesWithWhere,
+  retainSession = false,
 } = {}) {
   const policy = NATIVE_CLI_POLICY[provider];
   const normalizedWorkspace = normalizeAbsolute(workspacePath);
@@ -342,15 +343,21 @@ async function discoverSignedNativeCli({
         inspectionOptions.expectedReparseChain = expectedReparseChain;
         inspectionOptions.expectedVersion = policy.version;
       }
+      inspectionOptions.retainSession = retainSession;
       inspection = await inspectCandidate(candidate, inspectionOptions);
     } catch {
       continue;
     }
+    const retainedSession = retainSession ? inspection?.session : null;
+    const inspectionFacts = retainSession ? inspection?.inspection : inspection;
     const binding = bindingFromInspection(
-      candidate, inspection, policy, officialRoot, exclusions, allowedJunction,
+      candidate, inspectionFacts, policy, officialRoot, exclusions, allowedJunction,
       expectedReparseChain, expectedLexicalCandidate, codexReleasePolicy,
     );
-    if (binding) return binding;
+    if (binding) return retainSession ? Object.freeze({ binding, session: retainedSession }) : binding;
+    if (retainedSession?.release) {
+      try { await retainedSession.release(); } catch {}
+    }
   }
   throw new AgentError('CLI_NOT_INSTALLED');
 }

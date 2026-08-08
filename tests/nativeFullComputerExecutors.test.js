@@ -98,11 +98,16 @@ function dependencies(provider, binding) {
     probes,
     configs,
     discoverSignedNativeCli: async (input) => {
-      assert.deepEqual(input, { provider, workspacePath: 'Z:\\workspace' });
-      return binding;
+      assert.deepEqual(input, provider === 'codex-cli'
+        ? { provider, workspacePath: 'Z:\\workspace', retainSession: true }
+        : { provider, workspacePath: 'Z:\\workspace' });
+      return provider === 'codex-cli'
+        ? { binding, session: { release: async () => {} } }
+        : binding;
     },
-    openVerifiedNativeCliLaunchLease: async (input) => {
+    openVerifiedNativeCliLaunchLease: async (input, options) => {
       assert.equal(input, binding);
+      if (provider === 'codex-cli') assert.equal(typeof options?.session?.release, 'function');
       const lease = { cleanup: async () => { lease.cleaned = true; } };
       leases.push(lease);
       return lease;
@@ -125,6 +130,32 @@ test('does not export an exact Codex full-computer version while preserving Clau
   assert.equal(CLAUDE_FULL_COMPUTER_VERSION, '2.1.217');
   assert.equal(CODEX_DISABLED_FEATURES.includes('multi_agent'), true);
   assert.deepEqual(codexFeatureArgs().slice(0, 3), ['--strict-config', '--disable', 'apps']);
+});
+
+test('codex status opens the inspection helper exactly once', async () => {
+  let opens = 0;
+  const executor = createCodexNativeFullComputerExecutor({
+    runner: {
+      capture: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
+      launch: async () => ({}),
+      streamJsonl: async () => {},
+    },
+    codexHome: 'C:\\owned\\home',
+    discoverSignedNativeCli: async () => {
+      opens += 1;
+      return { binding: CODEX_BINDING, session: { release: async () => {} } };
+    },
+    openVerifiedNativeCliLaunchLease: async (binding, options) => {
+      assert.equal(binding, CODEX_BINDING);
+      assert.equal(typeof options?.session?.release, 'function');
+      return { cleanup: async () => {} };
+    },
+    writeFullComputerConfig: async () => ({ path: 'C:\\owned\\home\\config.toml', sha256: 'a'.repeat(64) }),
+    ensureCodexCompatibility: async () => ({ compatible: true, version: '0.146.0', cached: true }),
+  });
+  const status = await executor.getStatus(connection('codex-cli'));
+  assert.equal(status.installed, true);
+  assert.equal(opens, 1);
 });
 
 test('requires the runtime-owned compatibility coordinator for native Codex execution', () => {
@@ -263,7 +294,10 @@ test('native Codex does not reuse a status binding for a later run', async () =>
   const executor = createCodexNativeFullComputerExecutor({
     runner: fakeRunner('codex-cli', second), codexHome: 'Z:\\pet\\native-codex',
     ...dependencies('codex-cli', second),
-    discoverSignedNativeCli: async () => (++discoveries === 1 ? first : second),
+    discoverSignedNativeCli: async () => ({
+      binding: (++discoveries === 1 ? first : second),
+      session: { release: async () => {} },
+    }),
     ensureCodexCompatibility: async (binding) => {
       qualified.push(binding);
       return { compatible: true, version: binding.version, cached: false };
@@ -374,4 +408,37 @@ test('maps native launch failure to a fixed public error without exposing proces
     (error) => error.code === 'NATIVE_FULL_COMPUTER_LAUNCH_FAILED'
       && !String(error.message).includes('token=secret'),
   );
+});
+
+test('stop during a run releases the lease once and terminates the owned tree', async () => {
+  const controller = new AbortController();
+  let releases = 0;
+  let terminated = 0;
+  const base = dependencies('codex-cli', CODEX_BINDING);
+  const executor = createCodexNativeFullComputerExecutor({
+    runner: {
+      capture: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
+      launch: async () => ({}),
+      streamJsonl: async () => {
+        controller.abort();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        terminated += 1;
+        const error = new Error('Aborted');
+        error.name = 'AbortError';
+        throw error;
+      },
+    },
+    codexHome: 'Z:\\pet\\codex',
+    ...base,
+    discoverSignedNativeCli: async () => ({ binding: CODEX_BINDING, session: { release: async () => {} } }),
+    openVerifiedNativeCliLaunchLease: async () => {
+      const lease = { cleanup: async () => { releases += 1; } };
+      return lease;
+    },
+  });
+  await assert.rejects(() => executor.runGoal(
+    requestFor('codex-cli'), () => {}, controller.signal, runSnapshot('codex-cli'),
+  ));
+  assert.equal(releases, 1);
+  assert.equal(terminated, 1);
 });
