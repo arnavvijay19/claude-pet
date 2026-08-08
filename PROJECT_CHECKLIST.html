@@ -308,7 +308,7 @@
       <h2 id="nextsteps-title">Next steps</h2>
       <div class="official-files">
         <ul>
-          <li><strong>Phase 2 (Codex startup latency)</strong> — Task 1 (per-connection state machine) implemented and merged (Aug 8); Tasks 2 (renderer wiring) and 3 (cancellable verification) remain.</li>
+          <li><strong>Phase 2 (Codex startup latency)</strong> — Task 1 (per-connection state machine) merged (Aug 8); Task 2 (renderer wiring) merged (Aug 8, 02443ec); Task 3 (cancellable verification) remains.</li>
           <li><strong>Automatic progress board</strong> is DONE and live at http://localhost:4178 (auto-ingests memory, surfaces git state, accepts direct comments).</li>
           <li>The remaining open gates are unchanged: packaged signed-out status QA, real sign-in/model smoke, signing/reputation + enterprise policy, the Windows Job Object lifecycle boundary, and the optional WSL Workspace Tasks 20–23.</li>
         </ul>
@@ -718,16 +718,16 @@
       {
         id: 'phase-2-task-2',
         title: 'Phase 2 Task 2 — Wire per-connection state into the connection renderer',
-        done: false,
-        explanation: 'Replace the global connectionActionPending/connectionFeedback in the settings/connection UI with the per-connection state machine so feedback renders on the card the user acted on. Designed (design doc lines 180-204); not yet started.',
-        action: 'Implement after Task 1 is merged; use Node tests where possible (renderer uses a fake DOM stub).',
+        done: true,
+        explanation: 'Merged Aug 8 (02443ec, branch codex/phase-2-connection-renderer). Replaced the global connectionActionPending/connectionFeedback in src/app with an independent, observable state machine per saved connection (src/app/connectionState.js wrapping the Phase 2 Task 1 machine, exposed to the renderer as globalThis.claudePetConnectionState). app.js now drives per-connection verify/installed/sign-in-required/failure and preserves the safe message + action composition without surfacing raw cause/paths; settings.js renders per-connection card status, a Cancel button while verifying, and disables the editor while its own connection verifies. Tests updated: connectionState.test.js (new), appSettings.test.js, appRenderer.test.js. Exit gates: node --check clean; changed/new tests 20/20 green; full suite green except the env-gated real-Codex diagnostic.',
+        action: 'Phase 2 Task 3 (cancellable long verification) is next.',
       },
       {
         id: 'phase-2-task-3',
         title: 'Phase 2 Task 3 — Cancellable long verification',
         done: false,
-        explanation: 'Make long Codex verification cancellable via the state machine cancel() path. Designed; not yet started.',
-        action: 'Implement after Task 2.',
+        explanation: 'Make long Codex verification cancellable via the state machine cancel() path. Designed; not yet started. Phase 2 Task 2 already exposes the Cancel button (connectionCancel -> state.cancel) and the verifying state, so the main process only needs to honor an abort of an in-flight test-connection.',
+        action: 'Implement next; the renderer side is already wired via Phase 2 Task 2.',
       },
       {
         id: 'job-object-task-1',
