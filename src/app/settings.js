@@ -18,6 +18,24 @@
     }),
   });
 
+  // The pure connection-state machine is reused here so the per-connection UI state matches
+  // the renderer's orchestrator exactly. The renderer loads it as a global script; Node tests
+  // (no global) fall back to require.
+  const connectionMachine = (typeof globalThis !== 'undefined' && globalThis.claudePetConnectionStateMachine)
+    || (typeof require !== 'undefined' ? require('../agent/connectionStateMachine.js') : null);
+  const VERIFYING = connectionMachine?.STATES?.VERIFYING;
+  const NOT_CHECKED = connectionMachine?.STATES?.NOT_CHECKED;
+
+  // Derive the visible status line for a connection from its per-connection state. Failures
+  // surface their fixed safe message; in-flight and idle states show the named step; the
+  // "Not checked" starting state shows nothing.
+  function connectionStatusLabel(state) {
+    if (!state || state.state === NOT_CHECKED) return null;
+    if (state.failure) return state.failure.message;
+    if (state.step) return state.step;
+    return state.state;
+  }
+
   function element(document, tagName, text = '', className = '') {
     const value = document.createElement(tagName);
     value.textContent = text;
@@ -192,8 +210,10 @@
     panel.append(section);
   }
 
-  function renderConnectionCards(document, panel, snapshot, options, busy) {
+  function renderConnectionCards(document, panel, snapshot, options, runBusy) {
     const action = options.connectionAction || (() => {});
+    const cancel = options.connectionCancel || (() => {});
+    const getConnectionState = options.getConnectionState || (() => null);
     const section = group(document, 'Provider connections');
     for (const connection of snapshot.connections || []) {
       const card = element(document, 'article', '', 'settings-card connection-card');
@@ -208,23 +228,46 @@
         ),
       );
       card.append(copy);
+      const state = getConnectionState(connection.id);
+      const verifying = state?.state === VERIFYING;
+      // Only this connection's own controls are busy; unrelated connections stay usable.
+      const cardBusy = runBusy || verifying;
       if (PROVIDERS[connection.executorType]) {
         const controls = element(document, 'div', '', 'connection-actions');
         const provider = PROVIDERS[connection.executorType];
         const edit = mutationButton(document, `Edit ${provider.label}`, () => {
           options.onEditConnection?.(connection.id);
-        }, busy, 'compact-action');
+        }, cardBusy, 'compact-action');
         edit.dataset.action = `edit-${connection.executorType}`;
-        const test = mutationButton(document, 'Test', () => {
-          void action('test-connection', { connectionId: connection.id });
-        }, busy, 'compact-action');
-        test.dataset.action = `test-${connection.executorType}`;
-        const signIn = mutationButton(document, `Sign in to ${provider.label}`, () => {
-          void action('begin-provider-setup', { connectionId: connection.id });
-        }, busy, 'compact-action');
-        signIn.dataset.action = `setup-${connection.executorType}`;
-        controls.append(edit, test, signIn);
+        if (verifying) {
+          // A long verification is cancellable from the exact card the user acted on.
+          const cancelButton = mutationButton(
+            document, 'Cancel', () => cancel(connection.id), false, 'compact-action',
+          );
+          cancelButton.dataset.action = `cancel-${connection.executorType}`;
+          controls.append(edit, cancelButton);
+        } else {
+          const test = mutationButton(document, 'Test', () => {
+            void action('test-connection', { connectionId: connection.id });
+          }, cardBusy, 'compact-action');
+          test.dataset.action = `test-${connection.executorType}`;
+          const signIn = mutationButton(document, `Sign in to ${provider.label}`, () => {
+            void action('begin-provider-setup', { connectionId: connection.id });
+          }, cardBusy, 'compact-action');
+          signIn.dataset.action = `setup-${connection.executorType}`;
+          controls.append(edit, test, signIn);
+        }
         card.append(controls);
+      }
+      // The status/failure renders on the card the user acted on, not off-screen.
+      const statusLabel = connectionStatusLabel(state);
+      if (statusLabel) {
+        card.append(element(
+          document,
+          'p',
+          statusLabel,
+          state?.failure ? 'connection-feedback connection-failure' : 'connection-status',
+        ));
       }
       section.append(card);
     }
@@ -252,8 +295,18 @@
       editing ? `Edit ${provider.label} connection` : 'Add provider connection',
       'Credentials remain in the official provider CLI. Claude Pet stores connection settings only.',
     );
-    if (options.connectionFeedback) {
-      section.append(element(document, 'p', options.connectionFeedback, 'connection-feedback'));
+    // The editing connection's own tested status/failure is shown here too, mirroring the
+    // card, so the result is visible whether or not the card is on screen.
+    const editingState = editing ? (options.getConnectionState || (() => null))(editing.id) : null;
+    const editorBusy = busy || (editingState?.state === VERIFYING);
+    const editingStatus = connectionStatusLabel(editingState);
+    if (editingStatus) {
+      section.append(element(
+        document,
+        'p',
+        editingStatus,
+        editingState?.failure ? 'connection-feedback connection-failure' : 'connection-status',
+      ));
     }
     const form = element(document, 'form', '', 'settings-form provider-editor');
     const providerSelect = selectField(
@@ -269,14 +322,14 @@
       if (!chosen) return;
       workspace.value = chosen;
       options.draftState?.patchSettings(key, { workspacePath: chosen });
-    }, busy, 'compact-action');
+    }, editorBusy, 'compact-action');
     browse.dataset.action = 'browse-connection-workspace';
     const workspaceRow = element(document, 'div', '', 'field-with-action');
     workspaceRow.append(workspace, browse);
     const model = selectField(document, 'connection-model', provider.models, draft.modelId);
     const effort = selectField(document, 'connection-effort', provider.efforts, draft.effort);
     for (const control of [providerSelect, workspace, model, effort]) {
-      control.disabled = busy;
+      control.disabled = editorBusy;
       control.dataset.mutation = 'true';
     }
     bindDraft(options, key, workspace, 'workspacePath');
@@ -314,7 +367,7 @@
         keyHint: null,
       });
       if (result) options.draftState?.clearSettings(key);
-    }, busy, 'primary-action');
+    }, editorBusy, 'primary-action');
     save.dataset.action = 'save-provider-connection';
     form.append(
       label(document, 'Provider', providerSelect),
@@ -474,7 +527,9 @@
 
   function renderSettings(target, snapshot, dispatch, options = {}) {
     const document = options.document || globalThis.document;
-    const busy = snapshot.run?.busy === true || options.connectionActionPending === true;
+    // Per-connection pending no longer disables everything. `busy` here is the global run
+    // busy state only; connection cards and the editor compute their own per-connection busy.
+    const busy = snapshot.run?.busy === true;
     const selected = options.settingsTab === 'session' ? 'session' : 'agent';
     const shell = element(document, 'section', '', 'settings-shell');
     const header = element(document, 'header', '', 'settings-header');

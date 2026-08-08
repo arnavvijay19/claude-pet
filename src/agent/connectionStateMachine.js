@@ -297,9 +297,20 @@ function createConnectionStateStore() {
   return Object.freeze({ get, ensure, remove, list, subscribe });
 }
 
-module.exports = {
+const connectionStateMachineApi = Object.freeze({
   STATES,
   EVENTS,
   createConnectionStateMachine,
   createConnectionStateStore,
-};
+});
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = connectionStateMachineApi;
+}
+
+// Expose to the Electron renderer. The renderer runs with nodeIntegration disabled and
+// no module system, so it cannot `require` this module; a plain <script> tag loads it and
+// the renderer's own thin wrapper (src/app/connectionState.js) reuses the same pure machine.
+if (typeof globalThis !== 'undefined') {
+  globalThis.claudePetConnectionStateMachine = connectionStateMachineApi;
+}

@@ -14,10 +14,19 @@
   const settingsRoot = document.querySelector('#settings-root');
   const draftState = window.claudePetDraftState?.createDraftState?.() || null;
   let snapshot = null;
-  let connectionFeedback = '';
-  let connectionActionPending = false;
   let editingConnectionId = null;
   let settingsTab = 'agent';
+
+  // One independent, observable connection state per saved connection. This replaces the old
+  // single global `connectionActionPending` boolean and global `connectionFeedback` string so
+  // an in-flight test or a failure is keyed to the exact connection the user acted on, and
+  // unrelated connections stay usable. The wrapper is loaded as a global script in the
+  // renderer; the guarded fallback keeps the app working if it is somehow absent.
+  const connectionStateApi = (typeof globalThis !== 'undefined' ? globalThis.claudePetConnectionState : null);
+  const connectionState = connectionStateApi
+    && typeof connectionStateApi.createRendererConnectionState === 'function'
+    ? connectionStateApi.createRendererConnectionState()
+    : null;
 
   async function dispatch(type, data = {}) {
     try {
@@ -37,45 +46,77 @@
     return executorType === 'claude-code-cli' ? 'Claude Code' : 'Codex';
   }
 
-  function connectionResultMessage(type, result, data) {
-    const provider = connectionProvider(data);
-    if (result?.failure?.message) return `${result.failure.message} ${result.failure.action || ''}`.trim();
-    if (type === 'save-connection') return `${provider} connection saved. It has not replaced your active agent.`;
-    if (type === 'begin-provider-setup') {
-      return result?.started
-        ? `Official ${provider} sign-in opened. Complete it there, then test this connection again.`
-        : `${provider} sign-in did not start. Check the connection and try again.`;
-    }
-    if (type === 'test-connection') {
-      if (result?.status?.installed === false) return `The ${provider} command is not installed.`;
-      if (result?.status?.compatible === false) return 'This Codex update is not compatible with Claude Pet yet. Update Claude Pet or install a compatible Codex version.';
-      if (result?.status?.authenticated === false) return `${provider} is installed but not signed in yet.`;
-      if (result?.permission?.available === false) return `${provider} is signed in, but this access mode is unavailable.`;
-      if (result?.permission?.allowed === false) return `${provider} is signed in, but this access mode is blocked.`;
-      return `${provider} is installed, signed in, and ready to use with this connection.`;
-    }
-    return 'Connection updated.';
-  }
-
   function connectionErrorMessage(error) {
     const message = error?.message || 'That connection action could not be completed.';
     const publicMessage = message.match(/AgentError:\s*(.+)$/);
     return publicMessage ? publicMessage[1] : message;
   }
 
+  // Move a connection's per-connection state machine forward from a test-connection result.
+  // Only fixed, safe outcomes are stored; raw errors, causes, credentials, paths, and
+  // provider output never enter the renderer state.
+  function applyConnectionResult(type, result, data) {
+    const connectionId = data.connectionId;
+    if (result?.failure?.message) {
+      // Preserve the original master behaviour of combining the safe message with its
+      // suggested next action (e.g. "… Retry the compatibility check."), so the renderer
+      // shows one complete, fixed-strings-only line. Raw cause/paths never enter here.
+      const message = `${result.failure.message} ${result.failure.action || ''}`.trim();
+      connectionState.fail(connectionId, result.failure.code || 'CONNECTION_FAILED', message);
+      return;
+    }
+    if (type === 'test-connection') {
+      const statusResult = result?.status || {};
+      if (statusResult.installed === false) {
+        connectionState.fail(
+          connectionId,
+          'CLI_NOT_INSTALLED',
+          `The ${connectionProvider(data)} command is not installed.`,
+        );
+        return;
+      }
+      if (statusResult.compatible === false) {
+        connectionState.fail(
+          connectionId,
+          'CLI_VERSION_UNSUPPORTED',
+          'This Codex update is not compatible with Claude Pet yet. Update Claude Pet or install a compatible Codex version.',
+        );
+        return;
+      }
+      if (statusResult.authenticated === false) {
+        connectionState.markSignInRequired(connectionId, { oneTime: result?.oneTime === true });
+        return;
+      }
+      connectionState.markInstalled(connectionId);
+    }
+  }
+
   async function connectionAction(type, data) {
-    connectionActionPending = true;
-    render(snapshot);
+    const connectionId = data?.connectionId || (type === 'save-connection' && data?.id) || null;
+    if (connectionState && connectionId && type === 'test-connection') {
+      connectionState.verifying(connectionId);
+      render(snapshot);
+    }
     try {
       const result = await dispatch(type, data);
-      connectionFeedback = connectionResultMessage(type, result, data);
-      if (type === 'save-connection' && result?.id) editingConnectionId = result.id;
+      if (connectionState) {
+        if (type === 'save-connection' && result?.id) {
+          editingConnectionId = result.id;
+          // Saving changes the connection; clear any prior tested state.
+          connectionState.reset(result.id);
+        } else if (connectionId) {
+          applyConnectionResult(type, result, data);
+        }
+      } else if (type === 'save-connection' && result?.id) {
+        editingConnectionId = result.id;
+      }
       return result;
     } catch (error) {
-      connectionFeedback = connectionErrorMessage(error);
+      if (connectionState && connectionId) {
+        connectionState.fail(connectionId, 'CONNECTION_ACTION_FAILED', connectionErrorMessage(error));
+      }
       return null;
     } finally {
-      connectionActionPending = false;
       render(snapshot);
     }
   }
@@ -107,8 +148,12 @@
       if (!empty && value.view === 'settings') {
         window.claudePetSettings.renderSettings(settingsRoot, value, dispatch, {
           connectionAction,
-          connectionActionPending,
-          connectionFeedback,
+          connectionCancel: (connectionId) => {
+            if (connectionState) connectionState.cancel(connectionId);
+            render(snapshot);
+          },
+          getConnectionState: (connectionId) => (connectionState ? connectionState.view(connectionId) : null),
+          connectionStates: connectionStateApi?.STATES || null,
           editingConnectionId,
           draftState,
           settingsTab,
@@ -121,7 +166,6 @@
           },
           onEditConnection(connectionId) {
             editingConnectionId = connectionId;
-            connectionFeedback = '';
             render(snapshot);
           },
         });
