@@ -28,6 +28,35 @@
     ? connectionStateApi.createRendererConnectionState()
     : null;
 
+  // Cancel an in-flight verification the same way the Settings panel does: reset the local
+  // per-connection state and tell the main process to abort the underlying provider process.
+  // Extracted to IIFE scope so both the Settings panel and the live status ribbon can call it.
+  function connectionCancel(connectionId) {
+    if (connectionState) connectionState.cancel(connectionId);
+    try {
+      void bridge.intent('cancel-test-connection', { connectionId });
+    } catch (error) { /* best-effort; local state is already reset */ }
+    render(snapshot);
+  }
+
+  // Phase 3: wire the live status ribbon (vanilla-DOM controller from ribbonController.js,
+  // driven by the shared ribbon model). The controller is exposed on globalThis by the
+  // renderer script that loads before app.js. If it is absent the ribbon simply stays empty
+  // and the rest of the app works unchanged.
+  const ribbonHost = document.querySelector('#app-ribbon');
+  const ribbonController = (ribbonHost && globalThis.claudePetRibbon
+    && typeof globalThis.claudePetRibbon.createRibbonHost === 'function')
+    ? globalThis.claudePetRibbon.createRibbonHost(ribbonHost, {
+      getConnectionState: (connectionId) => (connectionState ? connectionState.view(connectionId) : null),
+      actions: {
+        check: (connectionId) => { if (connectionId) void connectionAction('test-connection', { connectionId }); },
+        cancel: (connectionId) => { if (connectionId) connectionCancel(connectionId); },
+        signIn: (connectionId) => { if (connectionId) void connectionAction('begin-provider-setup', { connectionId }); },
+        stop: () => void dispatch('stop-run', {}),
+      },
+    })
+    : null;
+
   async function dispatch(type, data = {}) {
     try {
       status.textContent = 'Working…';
@@ -148,15 +177,7 @@
       if (!empty && value.view === 'settings') {
         window.claudePetSettings.renderSettings(settingsRoot, value, dispatch, {
           connectionAction,
-          connectionCancel: (connectionId) => {
-            if (connectionState) connectionState.cancel(connectionId);
-            // Also tell the main process to abort the in-flight verification, not just the
-            // local UI state, so the underlying provider process is actually stopped.
-            try {
-              void bridge.intent('cancel-test-connection', { connectionId });
-            } catch (error) { /* best-effort; local state is already reset */ }
-            render(snapshot);
-          },
+          connectionCancel,
           getConnectionState: (connectionId) => (connectionState ? connectionState.view(connectionId) : null),
           connectionStates: connectionStateApi?.STATES || null,
           editingConnectionId,
@@ -181,6 +202,8 @@
         window.claudePetConversation.renderActivityDrawer(activityRoot, value, dispatch);
       }
     }
+    // Phase 3: keep the live status ribbon in sync with every snapshot.
+    if (ribbonController) ribbonController.update(value);
   }
 
   firstRunForm.addEventListener('submit', async (event) => {

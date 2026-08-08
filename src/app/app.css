@@ -136,6 +136,55 @@ input, textarea {
   padding: 0;
 }
 
+/* Phase 3 status ribbon — the single morphing status surface at the top of the
+   main window. Vanilla-DOM equivalent of the Preact StatusRibbon component; both
+   share the same data-tone vocabulary. */
+.app-ribbon {
+  display: flex;
+  min-height: 44px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+.status-ribbon {
+  display: flex;
+  align-items: center;
+  gap: var(--space);
+  width: 100%;
+  padding: var(--space) calc(var(--space) * 2);
+}
+.status-ribbon__dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+.status-ribbon[data-tone="muted"] .status-ribbon__dot { background: var(--muted); }
+.status-ribbon[data-tone="success"] .status-ribbon__dot { background: #3fb950; }
+.status-ribbon[data-tone="info"] .status-ribbon__dot { background: var(--accent); }
+.status-ribbon[data-tone="warning"] .status-ribbon__dot { background: #d29922; }
+.status-ribbon[data-tone="danger"] .status-ribbon__dot { background: var(--danger); }
+.status-ribbon__label { font-weight: 600; }
+.status-ribbon__detail { color: var(--muted); font-size: .82rem; }
+.status-ribbon__action {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-raised);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.status-ribbon__action:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+.status-ribbon__action--check,
+.status-ribbon__action--signin { border-color: var(--accent); }
+.status-ribbon__action--cancel { border-color: var(--muted); }
+.status-ribbon__action--stop { border-color: var(--danger); color: #ffd5d7; }
+
 .first-run {
   width: min(620px, 100%);
   margin: auto;
