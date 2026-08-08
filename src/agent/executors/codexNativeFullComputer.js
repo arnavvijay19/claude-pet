@@ -4,7 +4,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
-const { AgentError } = require('../agentErrors.js');
+const { AgentError, throwIfAborted } = require('../agentErrors.js');
 const { createCliRunner } = require('../cliRunner.js');
 const { codexFeatureArgs } = require('../codexFeaturePolicy.js');
 const { mapCodexEvent } = require('../codexEventMapper.js');
@@ -108,6 +108,7 @@ function createCodexNativeFullComputerExecutor({
       try {
         discovered = await timer.stage('discovery', async () => discoverSignedNativeCli({
           provider: 'codex-cli', workspacePath: connection.workspacePath, retainSession: true,
+          ...(signal !== undefined ? { signal } : {}),
         }));
         binding = discovered?.binding || discovered;
         retainedSession = discovered?.session;
@@ -146,19 +147,21 @@ function createCodexNativeFullComputerExecutor({
   }
 
   return Object.freeze({
-    async getStatus(connection) {
+    async getStatus(connection, signal) {
       const timer = createStageTimer({ enabled: stageTimingEnabled });
       try {
         try {
           return await withVerifiedCodex(connection, async ({ binding, lease }) => {
+            throwIfAborted(signal);
             const login = await timer.stage('login-status', async () => runner.capture({
               command: binding.path, launchLease: lease, args: ['login', 'status'],
-              env: environment, timeoutMs: 5000,
+              env: environment, timeoutMs: 5000, signal,
             }));
             const authenticated = login?.exitCode === 0;
             return { installed: true, compatible: true, authenticated, fullComputerAvailable: authenticated };
-          }, undefined, timer);
+          }, signal, timer);
         } catch (error) {
+          if (signal?.aborted) throw error;
           if (error instanceof AgentError && error.code === 'CLI_NOT_INSTALLED') {
             return { installed: false, authenticated: false, fullComputerAvailable: false };
           }

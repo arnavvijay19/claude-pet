@@ -717,3 +717,18 @@ test('rejects an expired selected connection before reserving busy state or invo
   assert.equal(starts, 0);
   assert.equal(manager.getSnapshot().busy, false);
 });
+
+test('getStatusFor forwards the abort signal to the targeted executor getStatus', async () => {
+  let receivedSignal = undefined;
+  const executor = fakeExecutor({
+    getStatus: async (connection, signal) => { receivedSignal = signal; return { installed: true }; },
+  });
+  const { manager } = harness({ executor });
+  const controller = new AbortController();
+  await manager.getStatusFor('connection-1', { signal: controller.signal });
+  assert.equal(receivedSignal, controller.signal, 'executor.getStatus receives the forwarded signal');
+  // Without options, getStatusFor still resolves and passes no signal.
+  receivedSignal = 'unset';
+  await manager.getStatusFor('connection-1');
+  assert.equal(receivedSignal, undefined, 'getStatusFor without options passes no signal');
+});

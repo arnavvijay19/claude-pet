@@ -150,6 +150,11 @@
           connectionAction,
           connectionCancel: (connectionId) => {
             if (connectionState) connectionState.cancel(connectionId);
+            // Also tell the main process to abort the in-flight verification, not just the
+            // local UI state, so the underlying provider process is actually stopped.
+            try {
+              void bridge.intent('cancel-test-connection', { connectionId });
+            } catch (error) { /* best-effort; local state is already reset */ }
             render(snapshot);
           },
           getConnectionState: (connectionId) => (connectionState ? connectionState.view(connectionId) : null),

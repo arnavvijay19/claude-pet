@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const { AgentError } = require('../agentErrors.js');
+const { AgentError, throwIfAborted } = require('../agentErrors.js');
 const { createCliRunner } = require('../cliRunner.js');
 const { discoverSignedNativeCli } = require('../nativeCliDiscovery.js');
 const { openVerifiedNativeCliLaunchLease } = require('../nativeCliLaunchLease.js');
@@ -47,13 +47,16 @@ function createClaudeCodeCliExecutor({
   if (typeof claudeConfigDir !== 'string' || !claudeConfigDir) throw new TypeError('Claude executor requires a dedicated CLAUDE_CONFIG_DIR.');
   const environment = Object.freeze({ CLAUDE_CONFIG_DIR: claudeConfigDir });
 
-  async function discoverBinding(connection) {
+  async function discoverBinding(connection, signal) {
     if (!validConnection(connection)) throw new AgentError('UNSUPPORTED_OPTION');
+    const discoverOptions = { provider: 'claude-code-cli', workspacePath: connection.workspacePath };
+    if (signal !== undefined) discoverOptions.signal = signal;
     try {
-      const binding = await discover({ provider: 'claude-code-cli', workspacePath: connection.workspacePath });
+      const binding = await discover(discoverOptions);
       if (!validBinding(binding)) throw new Error('Invalid Claude CLI binding.');
       return binding;
     } catch (error) {
+      if (signal?.aborted) throw error; // propagate cancellation unmangled
       if (error instanceof AgentError && error.code === 'UNSUPPORTED_OPTION') throw error;
       throw new AgentError('CLI_NOT_INSTALLED', { cause: error });
     }
@@ -79,32 +82,38 @@ function createClaudeCodeCliExecutor({
     }
   }
 
-  async function installedVersion(binding) {
+  async function installedVersion(binding, signal) {
     try {
       const result = await withFreshLease(binding, (launchLease) => runner.capture({
-        command: binding.path, launchLease, args: ['--version'], env: environment, timeoutMs: 5000,
+        command: binding.path, launchLease, args: ['--version'], env: environment, timeoutMs: 5000, signal,
       }));
       return result?.exitCode === 0 && meetsMinimumVersion(result.stdout);
     } catch (error) {
+      if (signal?.aborted) throw error;
       if (error instanceof AgentError && error.code === 'CLI_NOT_INSTALLED') throw error;
       return false;
     }
   }
 
   return Object.freeze({
-    async getStatus(connection) {
+    async getStatus(connection, signal) {
       let binding;
-      try { binding = await discoverBinding(connection); } catch { return { installed: false, authenticated: false, workspaceAvailable: false }; }
+      try { binding = await discoverBinding(connection, signal); } catch { return { installed: false, authenticated: false, workspaceAvailable: false }; }
+      throwIfAborted(signal);
       let installed;
-      try { installed = await installedVersion(binding); } catch { return { installed: true, authenticated: false, workspaceAvailable: false }; }
+      try { installed = await installedVersion(binding, signal); } catch { return { installed: true, authenticated: false, workspaceAvailable: false }; }
+      throwIfAborted(signal);
       if (!installed) return { installed: true, authenticated: false, workspaceAvailable: false };
       try {
         const status = await withFreshLease(binding, (launchLease) => runner.capture({
-          command: binding.path, launchLease, args: ['auth', 'status', '--json'], env: environment, timeoutMs: 5000,
+          command: binding.path, launchLease, args: ['auth', 'status', '--json'], env: environment, timeoutMs: 5000, signal,
         }));
         const authenticated = status?.exitCode === 0 && authenticatedFrom(status.stdout);
         return { installed: true, authenticated, workspaceAvailable: authenticated };
-      } catch { return { installed: true, authenticated: false, workspaceAvailable: false }; }
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        return { installed: true, authenticated: false, workspaceAvailable: false };
+      }
     },
     async beginSetup(connection) {
       const binding = await discoverBinding(connection);

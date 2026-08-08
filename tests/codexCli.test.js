@@ -286,3 +286,48 @@ test('rejects a relative Codex workspace before native discovery', async () => {
   await assert.rejects(executor.beginSetup(relativeConnection), { code: 'UNSUPPORTED_OPTION' });
   assert.equal(discoveries, 0);
 });
+
+test('getStatus rejects immediately when the verification signal is already aborted', async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const runner = fakeRunner();
+  const executor = createCodexCliExecutor({
+    runner, codexHome: 'Z:\\pet-codex', ...nativeCliDependencies(),
+  });
+  await assert.rejects(executor.getStatus(connection(), controller.signal), /Abort/);
+  assert.equal(runner.calls.length, 0, 'no provider process is launched after abort');
+});
+
+test('getStatus forwards the abort signal to the runner login-status capture', async () => {
+  const controller = new AbortController();
+  const runner = fakeRunner();
+  const executor = createCodexCliExecutor({
+    runner, codexHome: 'Z:\\pet-codex', ...nativeCliDependencies(),
+  });
+  await executor.getStatus(connection(), controller.signal);
+  const loginCall = runner.calls.find(
+    (call) => call.spec.args[0] === 'login' && call.spec.args[1] === 'status',
+  );
+  assert.ok(loginCall, 'login status capture was performed');
+  assert.equal(loginCall.spec.signal, controller.signal, 'runner.capture receives the abort signal');
+});
+
+test('getStatus stops the login-status capture when the signal aborts mid-flight', async () => {
+  const controller = new AbortController();
+  const runner = fakeRunner({
+    capture: async (spec) => {
+      if (spec.signal?.aborted) throw new Error('Aborted');
+      if (spec.args[0] === 'login' && spec.args[1] === 'status') {
+        // Would block until the real provider answers; the abort must interrupt it.
+        await new Promise(() => {});
+      }
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+  const executor = createCodexCliExecutor({
+    runner, codexHome: 'Z:\\pet-codex', ...nativeCliDependencies(),
+  });
+  const promise = executor.getStatus(connection(), controller.signal);
+  controller.abort();
+  await assert.rejects(promise, /Abort/);
+});

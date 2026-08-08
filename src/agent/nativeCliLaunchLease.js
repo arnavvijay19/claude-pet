@@ -3,7 +3,7 @@
 const { spawn: defaultSpawn } = require('node:child_process');
 const { TextDecoder } = require('node:util');
 const path = require('node:path');
-const { AgentError } = require('./agentErrors.js');
+const { AgentError, throwIfAborted } = require('./agentErrors.js');
 
 const MAX_HELPER_LINE_BYTES = 32768;
 const MAX_VERSION_OUTPUT_BYTES = 65536;
@@ -571,6 +571,7 @@ async function inspectNativeCliCandidate(candidatePath, {
   codexReleasePolicy,
   environment = process.env,
   retainSession = false,
+  signal = undefined,
 } = {}) {
   assertMainProcess();
   const dynamicPolicy = codexReleasePolicy === undefined
@@ -597,6 +598,7 @@ async function inspectNativeCliCandidate(candidatePath, {
   let failure = null;
   try {
     session = await helper.open(candidatePath);
+    throwIfAborted(signal);
     const facts = normalizeFacts(session?.facts);
     const dynamicRelease = dynamicPolicy
       ? codexReleaseFromFacts(candidatePath, facts, dynamicPolicy)
@@ -621,6 +623,7 @@ async function inspectNativeCliCandidate(candidatePath, {
       args: ['--version'],
       options: versionSpawnOptions(facts.path, environment),
       timeoutMs: DEFAULT_LAUNCH_TIMEOUT_MS,
+      signal,
     });
     if (versionResult?.exitCode !== 0 || !reportsExactVersion(versionResult.stdout, verifiedVersion)) {
       throw new AgentError('CLI_NOT_INSTALLED');
@@ -646,6 +649,7 @@ async function inspectNativeCliCandidate(candidatePath, {
       : publicInspection);
     if (retainSession) session = null;
   } catch (error) {
+    if (signal?.aborted) throw error; // propagate cancellation unmangled
     failure = cliUnavailable(error);
   }
   if (session) {

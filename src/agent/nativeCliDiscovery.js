@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const { AgentError } = require('./agentErrors.js');
+const { AgentError, throwIfAborted } = require('./agentErrors.js');
 const {
   CORE_ENVIRONMENT_KEYS,
   minimalEnvironment,
@@ -242,6 +242,7 @@ async function discoverSignedNativeCli({
   inspectCandidate = inspectNativeCliCandidate,
   resolveCandidates = resolveCommandCandidatesWithWhere,
   retainSession = false,
+  signal = undefined,
 } = {}) {
   const policy = NATIVE_CLI_POLICY[provider];
   const normalizedWorkspace = normalizeAbsolute(workspacePath);
@@ -329,8 +330,11 @@ async function discoverSignedNativeCli({
         inspectionOptions.expectedVersion = policy.version;
       }
       inspectionOptions.retainSession = retainSession;
+      if (signal !== undefined) inspectionOptions.signal = signal;
       inspection = await inspectCandidate(candidate, inspectionOptions);
-    } catch {
+    } catch (error) {
+      // A cancellation must stop the scan and propagate rather than be treated as "not found".
+      if (signal?.aborted) throw error;
       continue;
     }
     const retainedSession = retainSession ? inspection?.session : null;

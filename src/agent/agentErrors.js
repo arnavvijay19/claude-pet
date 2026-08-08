@@ -109,10 +109,35 @@ function toPublicError(error) {
   };
 }
 
+function throwIfAborted(signal) {
+  const code = error instanceof AgentError && PUBLIC_ERROR_BY_CODE[error.code]
+    ? error.code
+    : 'COMMAND_FAILED';
+  const copy = PUBLIC_ERROR_BY_CODE[code];
+  return {
+    code,
+    message: copy.message,
+    action: copy.action,
+    requestId: error instanceof AgentError ? error.requestId : null,
+  };
+}
+
+// Throw a sentinel AbortError if the supplied AbortSignal has already fired. Used by the
+// cancellable connection verification path (Phase 2 Task 3) so an in-flight test-connection
+// stops promptly when the user cancels it. Never reads or forwards raw error/cause text.
+function throwIfAborted(signal) {
+  if (signal?.aborted) {
+    const error = new Error('Aborted');
+    error.name = 'AbortError';
+    throw error;
+  }
+}
+
 module.exports = {
   AgentError,
   ERROR_CODES,
   PUBLIC_ERROR_BY_CODE,
   FIXED_PUBLIC_OUTCOMES,
   toPublicError,
+  throwIfAborted,
 };
