@@ -11,6 +11,8 @@ const { createFullComputerAuthorization } = require('./agent/fullComputerAuthori
 const { createTrayMenuTemplate } = require('./trayMenu.js');
 const { loadPetManifestWithDataUrl } = require('./petAssets.js');
 const { createPetAnimationController } = require('./petAnimationController.js');
+const { createPetCouplingController } = require('./petCouplingController.js');
+const { derivePetInput, progressFromActivity } = require('./agent/petStateModel.js');
 const { authorizeTextAttachment } = require('./bridge/attachmentAuthorization.js');
 const { claimSingleInstance } = require('./singleInstance.js');
 const { createSafeStorageCrypto } = require('./agent/safeStorageCrypto.js');
@@ -151,15 +153,49 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
   if (activeConnectionId) await runtime.coordinator.ensureSessionForConnection(activeConnectionId);
   const manifest = loadPetManifestWithDataUrl({ assetsDir: ASSETS_DIR, readFileSync: fs.readFileSync });
   animation = createPetAnimationController({ manifest, publish: publishPetState });
+  // Phase 3 Task 4 (sub-branch 2): couple the pet to the SAME connection + run state
+  // the ribbon shows. The controller publishes the progress ring + attention to the
+  // pet window and reconciles the connection/ambient animation states; the
+  // run-lifecycle animation stays with promptController's token flow.
+  const petCoupling = createPetCouplingController({
+    animation,
+    publishProgress: (progress) => petWindow?.webContents.send('pet:progress', { progress }),
+    publishAttention: ({ attention, label }) => petWindow?.webContents.send('pet:attention', { attention, label }),
+  });
+  // Build the normalized { connection, run } input the coupling controller expects
+  // from the runtime snapshot, the active connection record, and the activity store.
+  async function buildPetInput() {
+    const managerState = runtime.manager.getSnapshot();
+    const connectionId = managerState.connectionId
+      || (managerState.busy ? null : await runtime.store.getActiveSelection());
+    const connectionRecord = connectionId ? await runtime.store.getConnection(connectionId) : null;
+    const activitySnapshot = runtime.activity.snapshot();
+    return derivePetInput({
+      managerSnapshot: managerState,
+      connectionRecord,
+      runProgress: progressFromActivity(activitySnapshot),
+    });
+  }
+  // Reflect the current pet truth into the pet window + animation. Defensive: a
+  // failure here must never break the existing activity/run flow it piggybacks on.
+  async function petSync() {
+    try {
+      petCoupling.sync(await buildPetInput());
+    } catch {
+      // Observers must not affect runtime or run state.
+    }
+  }
+  void petSync();
   authorization = createFullComputerAuthorization({
     store: runtime.store,
     showMessageBox: (window, options) => dialog.showMessageBox(window, options),
     randomBytes: crypto.randomBytes,
   });
-  runtime.activity.subscribe(() => { animation?.activity(animation.currentToken()); });
+  runtime.activity.subscribe(() => { animation?.activity(animation.currentToken()); void petSync(); });
   const afterRunStateChange = () => {
     void refreshTray();
     void appWindowController?.publish();
+    void petSync();
   };
   promptController = createPromptController({ manager: runtime.coordinator, animation, response: {
     begin: (context) => {
