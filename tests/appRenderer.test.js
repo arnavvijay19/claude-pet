@@ -6,6 +6,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 
+// The renderer runs with nodeIntegration disabled and reuses the pure state machine via
+// globals. Provide the same globals to the VM sandbox so app.js can drive per-connection
+// state the same way it does in the real window.
+const connectionStateModule = require('../src/app/connectionState.js');
+const connectionStateMachine = require('../src/agent/connectionStateMachine.js');
+const rendererGlobals = {
+  claudePetConnectionStateMachine: connectionStateMachine,
+  claudePetConnectionState: connectionStateModule,
+};
+
 class Element {
   constructor(id = '', tagName = 'div') {
     this.id = id;
@@ -58,7 +68,9 @@ function rendererHarness() {
       renderSettings: (_root, _snapshot, _dispatch, options) => { settingsOptions = options; },
     },
   };
-  return { document, elements, intents, subscriptions: () => subscriptions, settingsOptions: () => settingsOptions, window };
+  return {
+    document, elements, intents, subscriptions: () => subscriptions, settingsOptions: () => settingsOptions, window, rendererGlobals,
+  };
 }
 
 test('keeps Codex setup results visible through the Settings snapshot rerender', async () => {
@@ -72,7 +84,7 @@ test('keeps Codex setup results visible through the Settings snapshot rerender',
   };
   vm.runInNewContext(
     fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'app.js'), 'utf8'),
-    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout },
+    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout, ...harness.rendererGlobals },
   );
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(typeof harness.window.claudePetApp.callback, 'function');
@@ -85,8 +97,10 @@ test('keeps Codex setup results visible through the Settings snapshot rerender',
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(typeof harness.settingsOptions()?.connectionAction, 'function');
   await harness.settingsOptions().connectionAction('test-connection', { connectionId: 'codex' });
-  assert.match(harness.settingsOptions().connectionFeedback, /installed.*not signed in/i);
-  assert.equal(harness.settingsOptions().connectionActionPending, false);
+  const codexState = harness.settingsOptions().getConnectionState('codex');
+  assert.equal(codexState.state, 'Sign-in required');
+  assert.match(codexState.step, /Sign in to Codex/i);
+  assert.equal(typeof harness.settingsOptions().connectionCancel, 'function');
   assert.deepEqual(harness.intents, [['test-connection', { connectionId: 'codex' }]]);
 });
 
@@ -105,7 +119,7 @@ test('renders fixed safe feedback for incompatible and unchecked Codex updates',
   harness.window.claudePetApp.intent = async () => results.shift();
   vm.runInNewContext(
     fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'app.js'), 'utf8'),
-    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout },
+    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout, ...harness.rendererGlobals },
   );
   await new Promise((resolve) => setImmediate(resolve));
   harness.window.claudePetApp.callback({
@@ -118,16 +132,16 @@ test('renders fixed safe feedback for incompatible and unchecked Codex updates',
 
   await harness.settingsOptions().connectionAction('test-connection', { connectionId: 'codex' });
   assert.equal(
-    harness.settingsOptions().connectionFeedback,
+    harness.settingsOptions().getConnectionState('codex').failure.message,
     'This Codex update is not compatible with Claude Pet yet. Update Claude Pet or install a compatible Codex version.',
   );
   await harness.settingsOptions().connectionAction('test-connection', { connectionId: 'codex' });
   assert.equal(
-    harness.settingsOptions().connectionFeedback,
+    harness.settingsOptions().getConnectionState('codex').failure.message,
     'Claude Pet could not finish checking this Codex update. Retry the compatibility check.',
   );
   assert.doesNotMatch(
-    harness.settingsOptions().connectionFeedback,
+    harness.settingsOptions().getConnectionState('codex').failure.message,
     /AgentError|remote method|C:\\Users|sha256|publisher|raw output/i,
   );
 });
@@ -139,7 +153,7 @@ test('shows a plain Full Computer cancellation result instead of Electron IPC er
   };
   vm.runInNewContext(
     fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'app.js'), 'utf8'),
-    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout },
+    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout, ...harness.rendererGlobals },
   );
   await new Promise((resolve) => setImmediate(resolve));
   harness.window.claudePetApp.callback({
@@ -149,9 +163,9 @@ test('shows a plain Full Computer cancellation result instead of Electron IPC er
     run: { busy: false, connectionId: null, permissionProfile: null }, activity: { run: null, events: [] }, notice: null,
   });
   await new Promise((resolve) => setImmediate(resolve));
-  await harness.settingsOptions().connectionAction('save-connection', {});
-  assert.equal(harness.settingsOptions().connectionFeedback, 'Full Computer was not enabled.');
-  assert.doesNotMatch(harness.settingsOptions().connectionFeedback, /AgentError|remote method/i);
+  await harness.settingsOptions().connectionAction('save-connection', { id: 'codex', executorType: 'codex-cli' });
+  assert.equal(harness.settingsOptions().getConnectionState('codex').failure.message, 'Full Computer was not enabled.');
+  assert.doesNotMatch(harness.settingsOptions().getConnectionState('codex').failure.message, /AgentError|remote method/i);
 });
 
 test('uses the selected provider name in connection feedback', async () => {
@@ -162,7 +176,7 @@ test('uses the selected provider name in connection feedback', async () => {
   };
   vm.runInNewContext(
     fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'app.js'), 'utf8'),
-    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout },
+    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout, ...harness.rendererGlobals },
   );
   await new Promise((resolve) => setImmediate(resolve));
   harness.window.claudePetApp.callback({
@@ -177,17 +191,17 @@ test('uses the selected provider name in connection feedback', async () => {
   await harness.settingsOptions().connectionAction('save-connection', {
     executorType: 'claude-code-cli',
   });
-  assert.equal(
-    harness.settingsOptions().connectionFeedback,
-    'Claude Code connection saved. It has not replaced your active agent.',
-  );
+  // Saving resets the connection's tested state; no global feedback banner remains.
+  const claudeState = harness.settingsOptions().getConnectionState('claude');
+  assert.equal(claudeState.state, 'Not checked');
+  assert.equal(claudeState.failure, null);
 });
 
 test('clean profile exposes one obvious Offline Demo start action and dispatches onboarding intents', async () => {
   const harness = rendererHarness();
   vm.runInNewContext(
     fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'app.js'), 'utf8'),
-    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout },
+    { document: harness.document, window: harness.window, console, setTimeout, clearTimeout, ...harness.rendererGlobals },
   );
   await new Promise((resolve) => setImmediate(resolve));
 

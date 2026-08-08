@@ -157,7 +157,12 @@ test('renders provider-aware Codex and Claude editors with no Workspace fallback
   renderSettings(root, value, () => {}, {
     document: documentBoundary,
     connectionAction,
-    connectionFeedback: 'Codex is installed. Sign in is still required.',
+    getConnectionState: (id) => (id === 'codex'
+      ? {
+        state: 'Sign-in required', connectionId: 'codex', step: 'Sign in to Codex',
+        feedback: null, failure: null, updatedAt: 0,
+      }
+      : null),
     editingConnectionId: 'codex',
   });
   const values = flatten(root);
@@ -165,7 +170,7 @@ test('renders provider-aware Codex and Claude editors with no Workspace fallback
   for (const expected of [
     'Edit Codex connection', 'Full computer access', 'Workspace only is not available yet',
     'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna',
-    'Codex is installed. Sign in is still required.',
+    'Sign in to Codex',
   ]) assert.equal(text.includes(expected), true, expected);
   const workspace = values.find((item) => item.dataset.field === 'connection-workspace');
   const model = values.find((item) => item.dataset.field === 'connection-model');
