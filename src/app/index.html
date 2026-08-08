@@ -10,6 +10,7 @@
   <div class="app-shell">
     <aside id="sidebar-root" class="sidebar"></aside>
     <main id="workspace-root" class="workspace">
+      <div id="app-ribbon" class="app-ribbon" aria-live="polite"></div>
       <p id="app-status" class="sr-status" aria-live="polite"></p>
       <section id="first-run" class="first-run" aria-labelledby="first-run-title">
         <p class="eyebrow">Welcome</p>
@@ -39,6 +40,8 @@
   <script src="sidebar.js"></script>
   <script src="conversation.js"></script>
   <script src="settings.js"></script>
+  <script src="../renderer/components/ribbonModel.js"></script>
+  <script src="../renderer/components/ribbonController.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
