@@ -409,3 +409,36 @@ test('maps native launch failure to a fixed public error without exposing proces
       && !String(error.message).includes('token=secret'),
   );
 });
+
+test('stop during a run releases the lease once and terminates the owned tree', async () => {
+  const controller = new AbortController();
+  let releases = 0;
+  let terminated = 0;
+  const base = dependencies('codex-cli', CODEX_BINDING);
+  const executor = createCodexNativeFullComputerExecutor({
+    runner: {
+      capture: async () => ({ exitCode: 0, stdout: '', stderr: '' }),
+      launch: async () => ({}),
+      streamJsonl: async () => {
+        controller.abort();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        terminated += 1;
+        const error = new Error('Aborted');
+        error.name = 'AbortError';
+        throw error;
+      },
+    },
+    codexHome: 'Z:\\pet\\codex',
+    ...base,
+    discoverSignedNativeCli: async () => ({ binding: CODEX_BINDING, session: { release: async () => {} } }),
+    openVerifiedNativeCliLaunchLease: async () => {
+      const lease = { cleanup: async () => { releases += 1; } };
+      return lease;
+    },
+  });
+  await assert.rejects(() => executor.runGoal(
+    requestFor('codex-cli'), () => {}, controller.signal, runSnapshot('codex-cli'),
+  ));
+  assert.equal(releases, 1);
+  assert.equal(terminated, 1);
+});

@@ -102,6 +102,7 @@ function createCodexNativeFullComputerExecutor({
     let retainedSession;
     let lease;
     let operationError;
+    let released = false;
     try {
       let discovered;
       try {
@@ -126,9 +127,12 @@ function createCodexNativeFullComputerExecutor({
       operationError = error;
       throw error;
     } finally {
+      if (released) return;
       if (lease?.cleanup) {
+        released = true;
         try { await lease.cleanup(); } catch (error) { if (!operationError) throw error; }
       } else if (retainedSession?.release) {
+        released = true;
         try { await retainedSession.release(); } catch (error) { if (!operationError) throw error; }
       }
     }
