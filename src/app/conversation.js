@@ -42,6 +42,12 @@
   let runCardController = null;
   const runCardExpanded = new Set();
   const runCardScrub = new Map();
+  // Phase 3 Task 6: the latest render's reopen handler. The run-card controller is
+  // created once (so its onReopenGoal closure is stable), but it delegates to this
+  // module-level handler, which is refreshed every render with the current snapshot,
+  // draftState, and dispatch. Reopening a past goal seeds the composer with that
+  // goal's text and re-renders so the user can edit + re-run it.
+  let reopenGoalHandler = null;
 
   function providerLabel(snapshot, turn) {
     const connection = snapshot.connections.find(
@@ -120,11 +126,21 @@
     let timeline;
     const runCards = (typeof globalThis !== 'undefined' ? globalThis.claudePetRunCards : null);
     if (runCards && typeof runCards.createRunCardHost === 'function') {
+      // Refresh the reopen handler with this render's snapshot/draftState/dispatch.
+      reopenGoalHandler = (goalText) => {
+        if (!draftState || !snapshot.session?.id) return;
+        draftState.setComposer(snapshot.session.id, goalText);
+        void dispatch('set-view', { view: 'conversation' });
+      };
       if (!runCardTimeline) {
         runCardTimeline = element(document, 'div', '', 'conversation-scroll');
         runCardTimeline.setAttribute?.('role', 'log');
         runCardTimeline.setAttribute?.('aria-label', 'Conversation');
-        runCardController = runCards.createRunCardHost(runCardTimeline, { expandedStore: runCardExpanded, scrubStore: runCardScrub });
+        runCardController = runCards.createRunCardHost(runCardTimeline, {
+          expandedStore: runCardExpanded,
+          scrubStore: runCardScrub,
+          onReopenGoal: (goalText) => { if (reopenGoalHandler) reopenGoalHandler(goalText); },
+        });
       }
       timeline = runCardTimeline;
       runCardController.update(snapshot);

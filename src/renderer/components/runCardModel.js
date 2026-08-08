@@ -292,6 +292,16 @@ function buildRunCards(snapshot) {
   return runs.map((run, index) => mapTurnToRunCard(run, { snapshot }, index));
 }
 
+// Phase 3 Task 6: a run card can be "reopened for edits" when it carries a past
+// goal with text. Reopening seeds the composer with that text so the user can edit
+// and re-run it against the currently selected participant. A card without a goal
+// (e.g. an agent turn with no preceding user goal) is not reopenable.
+function canReopenForEdits(card) {
+  if (!card || typeof card !== 'object') return false;
+  const goal = card.goal;
+  return Boolean(goal && typeof goal.text === 'string' && goal.text.trim().length > 0);
+}
+
 const runCardModel = Object.freeze({
   RUN_CARD_ROLES,
   TRACE_KINDS,
@@ -306,6 +316,7 @@ const runCardModel = Object.freeze({
   distributeEvents,
   mapTurnToRunCard,
   buildRunCards,
+  canReopenForEdits,
 });
 
 if (typeof module !== 'undefined' && module.exports) {

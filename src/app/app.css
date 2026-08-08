@@ -284,6 +284,21 @@ input, textarea {
   cursor: pointer;
 }
 .run-card__scrub-toggle:focus-visible { outline: 2px solid var(--accent, #6aa9ff); outline-offset: 2px; }
+
+/* Phase 3 Task 6: re-run a past goal with edits. Mirrors the scrub toggle so the two
+   run-card actions read as a pair, but is visually distinct via the accent tint. */
+.run-card__rerun-edit {
+  display: inline-block;
+  margin: 8px 0 0;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--accent, #6aa9ff);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.run-card__rerun-edit:focus-visible { outline: 2px solid var(--accent, #6aa9ff); outline-offset: 2px; }
 .run-card__scrubber { margin: 10px 0 0; }
 .scrubber {
   background: var(--bg);
