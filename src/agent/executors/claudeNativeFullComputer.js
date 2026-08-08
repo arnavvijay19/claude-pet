@@ -3,7 +3,7 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
-const { AgentError } = require('../agentErrors.js');
+const { AgentError, throwIfAborted } = require('../agentErrors.js');
 const { createCliRunner } = require('../cliRunner.js');
 const { mapClaudeEvent } = require('../claudeEventMapper.js');
 const { verifyNativeToolSurface: defaultVerifyNativeToolSurface } = require('../localProviderProbe.js');
@@ -76,15 +76,17 @@ function createClaudeNativeFullComputerExecutor({
   }
   const environment = Object.freeze({ CLAUDE_CONFIG_DIR: claudeConfigDir });
 
-  async function discover(connection) {
+  async function discover(connection, signal) {
     validateConnection(connection);
     try {
       const binding = await discoverSignedNativeCli({
         provider: 'claude-code-cli', workspacePath: connection.workspacePath,
+        ...(signal !== undefined ? { signal } : {}),
       });
       if (!validBinding(binding)) throw new Error('Invalid Claude CLI binding');
       return binding;
     } catch (error) {
+      if (signal?.aborted) throw error; // propagate cancellation unmangled
       if (error instanceof AgentError && ['UNSUPPORTED_OPTION', 'FULL_COMPUTER_CONFIRMATION_REQUIRED'].includes(error.code)) throw error;
       throw new AgentError('CLI_NOT_INSTALLED', { cause: error });
     }
@@ -106,9 +108,9 @@ function createClaudeNativeFullComputerExecutor({
     }
   }
 
-  async function exactVersion(binding) {
+  async function exactVersion(binding, signal) {
     const result = await withLease(binding, (launchLease) => runner.capture({
-      command: binding.path, launchLease, args: ['--version'], env: environment, timeoutMs: 5000,
+      command: binding.path, launchLease, args: ['--version'], env: environment, timeoutMs: 5000, signal,
     }));
     const version = parseVersion(result?.stdout);
     return result?.exitCode === 0 && version?.join('.') === CLAUDE_FULL_COMPUTER_VERSION;
@@ -122,21 +124,25 @@ function createClaudeNativeFullComputerExecutor({
   }
 
   return Object.freeze({
-    async getStatus(connection) {
+    async getStatus(connection, signal) {
       let binding;
-      try { binding = await discover(connection); } catch { return { installed: false, authenticated: false, fullComputerAvailable: false }; }
+      try { binding = await discover(connection, signal); } catch { return { installed: false, authenticated: false, fullComputerAvailable: false }; }
+      throwIfAborted(signal);
       try {
-        if (!await exactVersion(binding)) return { installed: false, authenticated: false, fullComputerAvailable: false };
+        if (!await exactVersion(binding, signal)) return { installed: false, authenticated: false, fullComputerAvailable: false };
         const status = await withLease(binding, (launchLease) => runner.capture({
           command: binding.path, launchLease,
-          args: ['auth', 'status', '--json'], env: environment, timeoutMs: 5000,
+          args: ['auth', 'status', '--json'], env: environment, timeoutMs: 5000, signal,
         }));
         return {
           installed: true,
           authenticated: status?.exitCode === 0 && authenticatedFrom(status.stdout),
           fullComputerAvailable: true,
         };
-      } catch { return { installed: true, authenticated: false, fullComputerAvailable: false }; }
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        return { installed: true, authenticated: false, fullComputerAvailable: false };
+      }
     },
     async beginSetup(connection) {
       const binding = await discover(connection);

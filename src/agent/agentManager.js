@@ -133,13 +133,18 @@ function createAgentManager({ store, executors, activity }) {
     return { connection, identifier, key, run, executor: executorFrom(executors, key) };
   }
 
-  async function delegate(method, requestedConnectionId) {
+  async function delegate(method, requestedConnectionId, signal) {
     const { connection, executor } = await selectedExecutor(undefined, requestedConnectionId);
     if (method === 'getCapabilities') {
       return cloneFrozenJson(
         await executor[method](connection, connection.modelId || null),
         'PROVIDER_OUTPUT_INVALID',
       );
+    }
+    if (method === 'getStatus') {
+      // The signal (when present) makes the verification cancellable: it is forwarded to the
+      // executor's getStatus and on to the runner, which terminates the provider process.
+      return cloneFrozenJson(await executor.getStatus(connection, signal), 'PROVIDER_OUTPUT_INVALID');
     }
     return cloneFrozenJson(await executor[method](connection), 'PROVIDER_OUTPUT_INVALID');
   }
@@ -265,7 +270,7 @@ function createAgentManager({ store, executors, activity }) {
     getSnapshot,
     select,
     getStatus: () => delegate('getStatus'),
-    getStatusFor: (connectionId) => delegate('getStatus', connectionId),
+    getStatusFor: (connectionId, options) => delegate('getStatus', connectionId, options?.signal),
     beginSetup: () => delegate('beginSetup'),
     beginSetupFor: (connectionId) => delegate('beginSetup', connectionId),
     listModels: () => delegate('listModels'),

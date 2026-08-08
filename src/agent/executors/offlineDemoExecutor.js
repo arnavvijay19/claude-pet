@@ -40,7 +40,8 @@ function createOfflineDemoExecutor({ clock, gate } = {}) {
   }
 
   return Object.freeze({
-    async getStatus() {
+    async getStatus(connection, signal) {
+      throwIfAborted(signal);
       return { installed: true, authenticated: true, workspaceAvailable: true };
     },
 

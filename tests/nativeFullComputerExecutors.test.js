@@ -98,7 +98,10 @@ function dependencies(provider, binding) {
     probes,
     configs,
     discoverSignedNativeCli: async (input) => {
-      assert.deepEqual(input, provider === 'codex-cli'
+      // The discovery call may optionally carry an AbortSignal for cancellation; assert the
+      // meaningful fields and tolerate the optional signal so cancellation threading is not blocked.
+      const { signal, ...core } = input;
+      assert.deepEqual(core, provider === 'codex-cli'
         ? { provider, workspacePath: 'Z:\\workspace', retainSession: true }
         : { provider, workspacePath: 'Z:\\workspace' });
       return provider === 'codex-cli'

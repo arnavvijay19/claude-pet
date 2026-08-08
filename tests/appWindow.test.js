@@ -101,7 +101,7 @@ test('registers one sender-validated IPC boundary for every allowlisted intent',
     'set-participant-connection', 'submit-goal', 'stop-run', 'retry-run',
     'choose-text-file', 'choose-attachment', 'clear-attachment', 'choose-directory',
     'confirm-delete-session', 'save-connection', 'delete-connection',
-    'test-connection', 'begin-provider-setup', 'set-view',
+    'test-connection', 'cancel-test-connection', 'begin-provider-setup', 'set-view',
   ]);
   const ipcMain = fakeIpc();
   const sender = {};
@@ -141,6 +141,7 @@ test('registers one sender-validated IPC boundary for every allowlisted intent',
   } });
   await invoke({ type: 'delete-connection', data: { connectionId: 'connection-a' } });
   await invoke({ type: 'test-connection', data: { connectionId: 'connection-a' } });
+  await invoke({ type: 'cancel-test-connection', data: { connectionId: 'connection-a' } });
   await invoke({ type: 'begin-provider-setup', data: { connectionId: 'connection-a' } });
   await invoke({ type: 'set-view', data: { view: 'settings' } });
 
@@ -273,4 +274,57 @@ test('creates one reusable native window and publishes once per activity update'
     first.sent.filter(([channel]) => channel === 'app:snapshot').length,
     afterPublish + 1,
   );
+});
+
+test('an in-flight test-connection is aborted when cancel-test-connection is sent', async () => {
+  const ipcMain = fakeIpc();
+  const sender = {};
+  const deps = dependencies();
+  let capturedSignal = null;
+  // getStatusFor holds until the supplied signal aborts, mirroring a real provider check.
+  deps.manager.getStatusFor = (connectionId, options) => {
+    capturedSignal = options?.signal || null;
+    return new Promise((resolve, reject) => {
+      const onAbort = () => reject(new Error('Aborted'));
+      if (capturedSignal) {
+        if (capturedSignal.aborted) return onAbort();
+        capturedSignal.addEventListener('abort', onAbort, { once: true });
+      }
+    });
+  };
+  registerAppIpc({ ipcMain, sender, publish: async () => {}, setView: () => {}, ...deps });
+  const invoke = (intent) => ipcMain.handlers.get('app:intent')({ sender }, intent);
+
+  const pending = invoke({ type: 'test-connection', data: { connectionId: 'connection-a' } });
+  // Let the handler register its controller and call getStatusFor with the abort signal.
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.ok(capturedSignal, 'getStatusFor received an abort signal from the main process');
+
+  const cancel = await invoke({ type: 'cancel-test-connection', data: { connectionId: 'connection-a' } });
+  assert.deepEqual(cancel, { cancelled: true });
+
+  const result = await pending;
+  assert.deepEqual(result, { failure: { code: 'CONNECTION_CHECK_CANCELLED', message: 'Verification cancelled.' } });
+});
+
+test('cancel-test-connection is a safe no-op when no verification is in flight', async () => {
+  const ipcMain = fakeIpc();
+  const sender = {};
+  const deps = dependencies();
+  registerAppIpc({ ipcMain, sender, publish: async () => {}, setView: () => {}, ...deps });
+  const invoke = (intent) => ipcMain.handlers.get('app:intent')({ sender }, intent);
+  assert.deepEqual(
+    await invoke({ type: 'cancel-test-connection', data: { connectionId: 'connection-a' } }),
+    { cancelled: false },
+  );
+});
+
+test('rejects a malformed cancel-test-connection intent before side effects', async () => {
+  const ipcMain = fakeIpc();
+  const sender = {};
+  const deps = dependencies();
+  registerAppIpc({ ipcMain, sender, publish: async () => {}, setView: () => {}, ...deps });
+  const invoke = (intent) => ipcMain.handlers.get('app:intent')({ sender }, intent);
+  await assert.rejects(invoke({ type: 'cancel-test-connection', data: {} }));
+  assert.deepEqual(deps.calls, []);
 });

@@ -17,7 +17,7 @@ const APP_INTENTS = Object.freeze([
   'set-participant-connection', 'submit-goal', 'stop-run', 'retry-run',
   'choose-text-file', 'choose-attachment', 'clear-attachment', 'choose-directory',
   'confirm-delete-session', 'save-connection', 'delete-connection',
-  'test-connection', 'begin-provider-setup', 'set-view',
+  'test-connection', 'cancel-test-connection', 'begin-provider-setup', 'set-view',
 ]);
 const APP_CHANNELS = Object.freeze(['app:snapshot', 'app:intent']);
 const BUSY_ALLOWED = new Set(['stop-run', 'set-view']);
@@ -153,6 +153,9 @@ function registerAppIpc({
     throw new TypeError('Application IPC requires main-owned dependencies');
   }
   unregisterAppIpc(ipcMain);
+  // In-flight connection verifications, keyed by connectionId, so a queued cancel can abort
+  // the exact test-connection the user asked to stop. Cleared on completion and on unregister.
+  const pendingConnectionTests = new Map();
   const assertSender = (event) => {
     if (event.sender !== sender) throw new Error('Invalid app sender');
   };
@@ -259,18 +262,37 @@ function registerAppIpc({
       case 'delete-connection':
         if (!exact(data, ['connectionId']) || !id(data.connectionId)) throw unsupported();
         return connections.removeConnection(data.connectionId);
-      case 'test-connection':
+      case 'test-connection': {
         if (!exact(data, ['connectionId']) || !id(data.connectionId)
             || typeof manager.getStatusFor !== 'function'
             || typeof connections.getConnection !== 'function'
             || !await connections.getConnection(data.connectionId)) throw unsupported();
+        // Hold an AbortController for the in-flight verification so a matching cancel can stop
+        // it. The signal is threaded down into the executor's getStatus and the runner, which
+        // terminates the underlying provider process on abort.
+        const controller = new AbortController();
+        pendingConnectionTests.set(data.connectionId, controller);
         try {
-          return {
-            status: await manager.getStatusFor(data.connectionId),
-          };
+          const status = await manager.getStatusFor(data.connectionId, { signal: controller.signal });
+          return { status };
         } catch (error) {
+          if (controller.signal.aborted) {
+            return { failure: { code: 'CONNECTION_CHECK_CANCELLED', message: 'Verification cancelled.' } };
+          }
           return { failure: toPublicError(error) };
+        } finally {
+          if (pendingConnectionTests.get(data.connectionId) === controller) {
+            pendingConnectionTests.delete(data.connectionId);
+          }
         }
+      }
+      case 'cancel-test-connection': {
+        if (!exact(data, ['connectionId']) || !id(data.connectionId)) throw unsupported();
+        const controller = pendingConnectionTests.get(data.connectionId);
+        if (!controller) return { cancelled: false };
+        controller.abort();
+        return { cancelled: true };
+      }
       case 'begin-provider-setup':
         if (!exact(data, ['connectionId']) || !id(data.connectionId)
             || typeof manager.beginSetupFor !== 'function'
@@ -298,7 +320,16 @@ function registerAppIpc({
     await publish();
     return result;
   });
-  return Object.freeze({ unregister: () => unregisterAppIpc(ipcMain) });
+  return Object.freeze({
+    unregister: () => {
+      // Abort any verification still in flight so its executor and provider process wind down.
+      for (const controller of pendingConnectionTests.values()) {
+        try { controller.abort(); } catch { /* aborted already */ }
+      }
+      pendingConnectionTests.clear();
+      unregisterAppIpc(ipcMain);
+    },
+  });
 }
 
 function createAppWindowController({

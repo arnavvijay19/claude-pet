@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const { AgentError } = require('../agentErrors.js');
+const { AgentError, throwIfAborted } = require('../agentErrors.js');
 const { createCliRunner } = require('../cliRunner.js');
 const { discoverSignedNativeCli } = require('../nativeCliDiscovery.js');
 const { openVerifiedNativeCliLaunchLease } = require('../nativeCliLaunchLease.js');
@@ -36,13 +36,16 @@ function createCodexCliExecutor({
   if (typeof ensureCodexCompatibility !== 'function') throw new TypeError('Codex executor requires a runtime compatibility coordinator.');
   const environment = Object.freeze({ CODEX_HOME: codexHome });
 
-  async function discoverBinding(connection) {
+  async function discoverBinding(connection, signal) {
     if (!validConnection(connection)) throw new AgentError('UNSUPPORTED_OPTION');
+    const discoverOptions = { provider: 'codex-cli', workspacePath: connection.workspacePath };
+    if (signal !== undefined) discoverOptions.signal = signal;
     try {
-      const binding = await discover({ provider: 'codex-cli', workspacePath: connection.workspacePath });
+      const binding = await discover(discoverOptions);
       if (!validBinding(binding)) throw new Error('Invalid Codex CLI binding.');
       return binding;
     } catch (error) {
+      if (signal?.aborted) throw error; // propagate cancellation unmangled
       if (error instanceof AgentError && error.code === 'UNSUPPORTED_OPTION') throw error;
       throw new AgentError('CLI_NOT_INSTALLED', { cause: error });
     }
@@ -80,24 +83,30 @@ function createCodexCliExecutor({
   }
 
   return Object.freeze({
-    async getStatus(connection) {
+    async getStatus(connection, signal) {
       let binding;
-      try { binding = await discoverBinding(connection); } catch { return { installed: false, authenticated: false, workspaceAvailable: false }; }
+      try { binding = await discoverBinding(connection, signal); } catch { return { installed: false, authenticated: false, workspaceAvailable: false }; }
+      throwIfAborted(signal);
       try {
-        await ensureCodexCompatibility(binding, { signal: undefined });
+        await ensureCodexCompatibility(binding, { signal });
       } catch (error) {
+        if (signal?.aborted) throw error;
         if (error instanceof AgentError && error.code === 'CLI_VERSION_UNSUPPORTED') {
           return { installed: true, compatible: false, authenticated: false, workspaceAvailable: false };
         }
         throw error;
       }
+      throwIfAborted(signal);
       try {
         const login = await withFreshLease(binding, (launchLease) => runner.capture({
-          command: binding.path, launchLease, args: ['login', 'status'], env: environment, timeoutMs: 5000,
+          command: binding.path, launchLease, args: ['login', 'status'], env: environment, timeoutMs: 5000, signal,
         }));
         const authenticated = login?.exitCode === 0;
         return { installed: true, compatible: true, authenticated, workspaceAvailable: authenticated };
-      } catch { return { installed: true, compatible: true, authenticated: false, workspaceAvailable: false }; }
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        return { installed: true, compatible: true, authenticated: false, workspaceAvailable: false };
+      }
     },
     async beginSetup(connection) {
       const binding = await compatibleBinding(connection);
