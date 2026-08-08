@@ -30,6 +30,17 @@
     return formatter ? formatter(event) : 'Agent activity';
   }
 
+  // Phase 3 Task 3: the live conversation timeline can be rendered as run cards (the
+  // runCardController, driven by the shared runCardModel) instead of flat turns. The
+  // controller is exposed on globalThis by the renderer script that loads before
+  // conversation.js. When it is absent the conversation falls back to the original
+  // per-turn rendering so the app keeps working. The timeline element and controller
+  // are created once and reused across renders so run-card expansion state survives
+  // re-renders; expansion lives in a module-level store the controller reads.
+  let runCardTimeline = null;
+  let runCardController = null;
+  const runCardExpanded = new Set();
+
   function providerLabel(snapshot, turn) {
     const connection = snapshot.connections.find(
       (item) => item.executorType === turn.provider
@@ -101,23 +112,39 @@
     }, 'secondary-action'));
     header.append(heading, badges);
 
-    const timeline = element(document, 'div', '', 'conversation-scroll');
-    timeline.setAttribute?.('role', 'log');
-    timeline.setAttribute?.('aria-label', 'Conversation');
-    if (!snapshot.turns.length) {
-      timeline.append(element(document, 'p', 'Start with a clear task. Your agent’s answer will stay in this session.', 'empty-copy'));
-    }
-    for (const turn of snapshot.turns) {
-      const agent = snapshot.agents.find((item) => item.id === turn.agentId);
-      const article = element(document, 'article', '', `turn turn-${turn.role}`);
-      const byline = turn.role === 'user'
-        ? `You → ${agent?.name || 'Unknown agent'}`
-        : `${agent?.name || 'Unknown agent'} · ${providerLabel(snapshot, turn)} · ${turn.model}`;
-      article.append(
-        element(document, 'h2', byline, 'turn-byline'),
-        element(document, 'p', turn.text, 'turn-text'),
-      );
-      timeline.append(article);
+    // Build the conversation timeline. Prefer the run-card controller (Phase 3 Task 3)
+    // when it is loaded; otherwise fall back to the original per-turn rendering. The
+    // controller's host element is created once and reused so expansion state survives.
+    let timeline;
+    const runCards = (typeof globalThis !== 'undefined' ? globalThis.claudePetRunCards : null);
+    if (runCards && typeof runCards.createRunCardHost === 'function') {
+      if (!runCardTimeline) {
+        runCardTimeline = element(document, 'div', '', 'conversation-scroll');
+        runCardTimeline.setAttribute?.('role', 'log');
+        runCardTimeline.setAttribute?.('aria-label', 'Conversation');
+        runCardController = runCards.createRunCardHost(runCardTimeline, { expandedStore: runCardExpanded });
+      }
+      timeline = runCardTimeline;
+      runCardController.update(snapshot);
+    } else {
+      timeline = element(document, 'div', '', 'conversation-scroll');
+      timeline.setAttribute?.('role', 'log');
+      timeline.setAttribute?.('aria-label', 'Conversation');
+      if (!snapshot.turns.length) {
+        timeline.append(element(document, 'p', 'Start with a clear task. Your agent’s answer will stay in this session.', 'empty-copy'));
+      }
+      for (const turn of snapshot.turns) {
+        const agent = snapshot.agents.find((item) => item.id === turn.agentId);
+        const article = element(document, 'article', '', `turn turn-${turn.role}`);
+        const byline = turn.role === 'user'
+          ? `You → ${agent?.name || 'Unknown agent'}`
+          : `${agent?.name || 'Unknown agent'} · ${providerLabel(snapshot, turn)} · ${turn.model}`;
+        article.append(
+          element(document, 'h2', byline, 'turn-byline'),
+          element(document, 'p', turn.text, 'turn-text'),
+        );
+        timeline.append(article);
+      }
     }
 
     if (snapshot.notice) {

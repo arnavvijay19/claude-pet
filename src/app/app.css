@@ -185,6 +185,91 @@ input, textarea {
 .status-ribbon__action--cancel { border-color: var(--muted); }
 .status-ribbon__action--stop { border-color: var(--danger); color: #ffd5d7; }
 
+/* Phase 3 Task 3: run cards + traces. Reuses the app shell's dark palette so the
+   cards read as part of the same product, not a toy beside it. */
+.run-card {
+  background: var(--panel-raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 12px 0;
+}
+.run-card__goal { margin: 0 0 8px; }
+.run-card__byline {
+  display: inline-block;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 4px;
+}
+.run-card__goal-text { margin: 0; font-size: 15px; }
+.run-card__answer { margin-top: 8px; }
+.run-card__answer-text { margin: 4px 0 0; line-height: 1.5; }
+
+.run-card__trace { margin: 8px 0 0; }
+.trace-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  padding: 2px 10px;
+  min-height: 28px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.trace-summary__icon { font-size: 10px; }
+.trace-empty { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+
+.trace-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.trace-item {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.trace-item__command {
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.trace-item__exit { margin-left: 8px; font-size: 11px; padding: 1px 6px; border-radius: 999px; }
+.trace-item__exit--ok { color: #bfe9cf; border: 1px solid #2f6b46; }
+.trace-item__exit--fail { color: #ffd5d7; border: 1px solid #7a2f31; }
+.trace-item__path { font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace; }
+
+/* Inline unified diff: structural markup + monospace + line coloring only. No
+   third-party highlighter is added (design 3.3). */
+.diff {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  background: #0e0d0c;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre;
+  overflow-x: auto;
+  display: grid;
+}
+.diff__line { display: block; }
+.diff__line--add { color: #8fe3ab; }
+.diff__line--del { color: #f1939a; }
+.diff__line--meta { color: var(--muted); }
+.diff__line--ctx { color: var(--text); }
+
 .first-run {
   width: min(620px, 100%);
   margin: auto;
