@@ -9,6 +9,7 @@ const {
 } = require('./cliRunner.js');
 const {
   codexVersionAllowed,
+  codexReleaseFromReparseChain,
   inspectNativeCliCandidate,
 } = require('./nativeCliLaunchLease.js');
 
@@ -151,38 +152,22 @@ function exactReparseChain(actual, expected) {
 }
 
 function codexReleaseFromInspection(candidate, inspection, policy, executable) {
-  if (!policy || !Array.isArray(inspection.reparseChain)
-    || inspection.reparseChain.length !== 2) return null;
-  const release = normalizeAbsolute(inspection.reparseChain[1]?.rawTarget);
-  if (!release || !samePath(path.win32.dirname(release), policy.releaseRoot)) return null;
-  const releaseName = path.win32.basename(release);
-  if (!releaseName.endsWith(policy.releaseSuffix)) return null;
-  const version = releaseName.slice(0, -policy.releaseSuffix.length);
-  if (!codexVersionAllowed(version, policy)) return null;
-  const target = path.win32.join(release, 'bin');
-  const expectedChain = Object.freeze([
-    Object.freeze({
-      path: policy.installerBin,
-      rawTarget: path.win32.join(policy.standaloneCurrent, 'bin'),
-      type: 'junction',
-    }),
-    Object.freeze({
-      path: policy.standaloneCurrent,
-      rawTarget: release,
-      type: 'junction',
-    }),
-  ]);
+  if (!policy || !Array.isArray(inspection.reparseChain)) return null;
+  const derived = codexReleaseFromReparseChain(
+    candidate, inspection.reparseChain, inspection.path, policy, executable,
+  );
+  if (!derived) return null;
+  const target = derived.target;
   const junctionPath = normalizeAbsolute(inspection.junctionPath);
   const junctionTarget = normalizeAbsolute(inspection.junctionTarget);
   if (!samePath(candidate, path.win32.join(policy.installerBin, executable))
     || !samePath(inspection.path, path.win32.join(target, executable))
-    || !exactReparseChain(inspection.reparseChain, expectedChain)
     || !junctionPath || !samePath(junctionPath, policy.installerBin)
     || !junctionTarget || !samePath(junctionTarget, target)
-    || inspection.version !== version) {
+    || inspection.version !== derived.version) {
     return null;
   }
-  return Object.freeze({ version, target });
+  return Object.freeze({ version: derived.version, target });
 }
 
 function bindingFromInspection(

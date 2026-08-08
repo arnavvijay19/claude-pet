@@ -176,31 +176,48 @@ function normalizeCodexReleasePolicy(raw) {
   });
 }
 
-function codexReleaseFromFacts(candidatePath, facts, policy) {
-  if (facts.reparseChain.length !== 2) return null;
-  const [installer, current] = facts.reparseChain;
-  const expectedLexicalCandidate = path.win32.join(policy.installerBin, 'codex.exe');
-  const expectedCurrentBin = path.win32.join(policy.standaloneCurrent, 'bin');
-  const release = current.rawTarget;
-  const releaseName = path.win32.basename(release);
-  if (!samePath(candidatePath, expectedLexicalCandidate)
-    || installer.type !== 'junction'
-    || current.type !== 'junction'
-    || !samePath(installer.path, policy.installerBin)
-    || !samePath(installer.rawTarget, expectedCurrentBin)
-    || !samePath(current.path, policy.standaloneCurrent)
-    || !samePath(path.win32.dirname(release), policy.releaseRoot)
-    || !releaseName.endsWith(policy.releaseSuffix)) {
+// Derives the official Codex release identity from a verified installer reparse chain.
+// Supports both installer layouts:
+//   - legacy 2-junction: installerBin -> standaloneCurrent\bin ; standaloneCurrent -> release
+//   - current 1-junction: installerBin is a single junction directly to release\bin
+// Returns { version, target } (target = release\bin) or null when the chain is not an
+// exact official layout rooted at policy.installerBin under policy.releaseRoot.
+function codexReleaseFromReparseChain(candidatePath, reparseChain, finalPath, policy, executable) {
+  if (!Array.isArray(reparseChain) || (reparseChain.length !== 1 && reparseChain.length !== 2)) {
     return null;
   }
-  const version = releaseName.slice(0, -policy.releaseSuffix.length);
+  const installer = reparseChain[0];
+  if (installer.type !== 'junction' || !samePath(installer.path, policy.installerBin)) return null;
+
+  let release;
+  if (reparseChain.length === 2) {
+    const current = reparseChain[1];
+    if (current.type !== 'junction'
+      || !samePath(installer.rawTarget, path.win32.join(policy.standaloneCurrent, 'bin'))
+      || !samePath(current.path, policy.standaloneCurrent)) return null;
+    release = current.rawTarget;
+  } else {
+    // Current OpenAI installer: installerBin is one junction straight to release\bin.
+    release = path.win32.dirname(installer.rawTarget);
+  }
   const target = path.win32.join(release, 'bin');
+  const releaseName = path.win32.basename(release);
+  if (!samePath(path.win32.dirname(release), policy.releaseRoot)
+    || !releaseName.endsWith(policy.releaseSuffix)) return null;
+  const version = releaseName.slice(0, -policy.releaseSuffix.length);
   if (!codexVersionAllowed(version, policy)
-    || !samePath(facts.path, path.win32.join(target, 'codex.exe'))
-    || !samePath(terminalPathFromReparseChain(candidatePath, facts.reparseChain), facts.path)) {
+    || !samePath(candidatePath, path.win32.join(policy.installerBin, executable))
+    || !samePath(finalPath, path.win32.join(target, executable))
+    || !samePath(terminalPathFromReparseChain(candidatePath, reparseChain), finalPath)) {
     return null;
   }
   return Object.freeze({ version, target });
+}
+
+function codexReleaseFromFacts(candidatePath, facts, policy) {
+  return codexReleaseFromReparseChain(
+    candidatePath, facts.reparseChain, facts.path, policy, 'codex.exe',
+  );
 }
 
 function normalizeFacts(raw) {
@@ -843,6 +860,7 @@ async function openVerifiedNativeCliLaunchLease(binding, {
 
 module.exports = {
   codexVersionAllowed,
+  codexReleaseFromReparseChain,
   createNativeCliInspectionHelper,
   createNativeCliLeaseRunner,
   inspectNativeCliCandidate,

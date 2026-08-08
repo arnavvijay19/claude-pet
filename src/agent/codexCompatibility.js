@@ -104,11 +104,10 @@ function createCodexCompatibilityQualifier({
       failure = error;
     } finally {
       if (workspacePath) {
-        try {
-          await fileSystem.rm(workspacePath, { recursive: true, force: true });
-        } catch (error) {
-          failure = error;
-        }
+        // Best-effort cleanup. A failure here (e.g. an environment that intercepts
+        // fs.rm, such as a safe-delete shim) must never mask a successful probe,
+        // so we swallow it rather than assigning it to `failure`.
+        await fileSystem.rm(workspacePath, { recursive: true, force: true }).catch(() => {});
       }
     }
     if (failure) throw failure;

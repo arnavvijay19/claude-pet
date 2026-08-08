@@ -7,7 +7,11 @@
   1. docs/project-context.md
   2. docs/BUILD_LOG.md
   3. docs/superpowers/plans/2026-07-13-claude-pet.md
-  4. current Git state and fresh test evidence
+  4. docs/superpowers/plans/2026-07-31-codex-cli-forward-compatibility.md
+  5. docs/superpowers/plans/2026-08-05-codex-startup-latency-phase-1.md
+  6. docs/superpowers/plans/2026-07-29-windows-job-owned-provider-lifecycle.md
+  7. docs/CLAUDE_PRODUCT_REPAIR_HANDOFF.md
+  8. current Git state and fresh test evidence. NOTE: the WorkBuddy GitHub connector is read-only via API (create_pull_request / merge_pull_request return 403), so merges land through `git push origin master` (origin master is not branch-protected), not through the connector.
 
   Browser-saved checkmarks are personal notes, not proof that repository work is complete.
   This file is safe to delete after core Task 19 is finished and verified. Optional WSL Tasks 20-23
@@ -265,8 +269,8 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Current:</strong> Core V1 Tasks 1–19 and UX Tasks 1–6 are complete or verified. Codex is set up in the unified Settings view, and the duplicate-launch startup crash is fixed.</p>
-      <p><strong>Verified live:</strong> After official Codex sign-in, the packaged app completed a bounded read-only Codex task in <code>C:\\Users\\eklip\\Desktop\\a</code> with attributed activity and a visible result. WSL, Claude-provider work, and multi-model work remain out of scope.</p>
+      <p><strong>Current (as of 2026-08-08):</strong> Core V1 Tasks 1–19 and UX Tasks 1–6 are complete. Codex forward-compatibility Tasks 1–7 are merged (PRs #2–#8). The Phase 1 Codex startup-latency work (Tasks 1–6) is implemented and merged (PRs #10, #12), cutting the fixed 10.5 s probe sleep and the repeated PowerShell/Add-Type inspector opens. A product-repair handoff (PR #9), build-time npm advisory clearance, and stale-evidence write recovery are done. The Windows Job Object provider-lifecycle plan is approved but not started.</p>
+      <p><strong>Verified live:</strong> The Node test suite passes 420/421 (1 skipped) after Phase 1; packaged-app Codex sign-in smoke (earlier) and account-free compatibility qualification against Codex 0.146.0 are evidenced. WSL Workspace (optional Tasks 20–23), a genuine Windows Job Object boundary, and the four Codex-compat downstream gates (packaged status QA, real sign-in smoke, signing/reputation, enterprise policy) remain open.</p>
     </section>
 
     <section aria-labelledby="todo-title">
@@ -282,6 +286,35 @@
       <textarea id="notes" rows="6" placeholder="Write the next step or anything that is stuck..."></textarea>
     </section>
 
+    <section aria-labelledby="inprogress-title">
+      <h2 id="inprogress-title">In progress / Open issues</h2>
+      <div class="official-files">
+        <ul>
+          <li>
+            <strong>Codex CLI falsely reported as "not installed"</strong> — <em>IN PROGRESS (fix being applied this turn).</em>
+            Root cause: the Codex compatibility probe's temp-workspace cleanup (an <code>fs.rm</code> call in a <code>finally</code> block) is intercepted by the WorkBuddy safe-delete shim, which throws and masks a successful probe as a failure. The fix makes that cleanup best-effort so the probe outcome is reported correctly. Do NOT mark this fixed until the fix lands and is verified.
+          </li>
+          <li>
+            <strong>GitHub connector is read-only via API</strong> — <code>create_pull_request</code> / <code>merge_pull_request</code> return 403, so merges land through direct <code>git push origin master</code> (origin master is not branch-protected). Workaround: the user must disconnect and reconnect the connector to refresh its stale OAuth token before any write access is possible.
+          </li>
+          <li>
+            <strong>Windows-gated C# inspector build (csc) cannot run in the sandbox</strong> — the precompiled C# inspector (Phase 1 Task 4) is gated to Windows and must be built locally via <code>npm start</code>; the <code>package:win</code> exit gate is therefore not closed in-sandbox.
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section aria-labelledby="nextsteps-title">
+      <h2 id="nextsteps-title">Next steps</h2>
+      <div class="official-files">
+        <ul>
+          <li><strong>Phase 2 (Codex startup latency)</strong> is designed (per-connection state machine) but not yet task-planned or started.</li>
+          <li><strong>Automatic progress board</strong> feature is being added to the dashboard (live progress.json view) — separate from the shipped app.</li>
+          <li>The remaining open gates are unchanged: packaged signed-out status QA, real sign-in/model smoke, signing/reputation + enterprise policy, the Windows Job Object lifecycle boundary, and the optional WSL Workspace Tasks 20–23.</li>
+        </ul>
+      </div>
+    </section>
+
     <section class="official-files" aria-labelledby="official-title">
       <h2 id="official-title">Official project files</h2>
       <p class="muted">This checklist is only a helper. If it disagrees with these files, these files win:</p>
@@ -293,6 +326,11 @@
         <li><a href="docs/superpowers/specs/2026-07-28-codex-first-connection-design.md">Focused Codex connection recovery</a></li>
         <li><a href="docs/superpowers/plans/2026-07-27-core-v1-ux-rebuild.md">Current UX implementation plan (UX Tasks 1–6 complete or verified)</a></li>
         <li><a href="docs/superpowers/plans/2026-07-13-claude-pet.md">Current plan (Core V1 Tasks 15–19 are implemented; optional WSL Tasks 20–23 require a later opt-in)</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-31-codex-cli-forward-compatibility.md">Codex CLI forward compatibility (Tasks 1–7 merged)</a></li>
+        <li><a href="docs/superpowers/plans/2026-08-05-codex-startup-latency-phase-1.md">Phase 1 Codex startup-latency plan</a></li>
+        <li><a href="docs/superpowers/specs/2026-08-05-codex-latency-and-ui-repair-design.md">Codex latency and UI repair design</a></li>
+        <li><a href="docs/superpowers/plans/2026-07-29-windows-job-owned-provider-lifecycle.md">Windows Job Object provider lifecycle (approved, not started)</a></li>
+        <li><a href="docs/CLAUDE_PRODUCT_REPAIR_HANDOFF.md">Product repair handoff</a></li>
       </ul>
     </section>
 
@@ -541,15 +579,15 @@
         id: 'codex-compatibility-task-6',
         title: 'Codex compatibility Task 6 — Explain update compatibility clearly',
         done: true,
-        explanation: 'Implemented, independently reviewed, and controller-verified on an isolated branch. Agent startup now reports missing CLI, incompatible update, and sign-in requirements in that exact order. The unified renderer and retained Settings status helper use fixed safe text that distinguishes an unsupported update from a retryable compatibility-check failure. The app:intent boundary preserves only the public retryable error contract and excludes internal paths, hashes, file identities, causes, and raw output. Claude and Offline Demo behavior remain unchanged.',
-        action: 'Publish and merge the isolated Task 6 PR on GitHub, then run the account-free/package/documentation completion gate in Task 7. The local master checkout intentionally remains unchanged.',
+        explanation: 'Implemented, independently reviewed, and controller-verified on an isolated branch, then merged as PR #7. Agent startup now reports missing CLI, incompatible update, and sign-in requirements in that exact order. The unified renderer and retained Settings status helper use fixed safe text that distinguishes an unsupported update from a retryable compatibility-check failure. The app:intent boundary preserves only the public retryable error contract and excludes internal paths, hashes, file identities, causes, and raw output. Claude and Offline Demo behavior remain unchanged.',
+        action: 'Nothing. Task 6 is merged; the account-free/package/documentation completion gate was delivered by Task 7 (PR #8).',
       },
       {
         id: 'codex-compatibility-task-7',
         title: 'Codex compatibility Task 7 — Live qualification and completion evidence',
         done: true,
-        explanation: 'The documented Node diagnostic now relaunches through an owned temporary Electron app profile, cleans it after confirmed safe outcomes, retains it when timeout termination is unconfirmed, and passed account-free against official Codex 0.146.0. The exact signed identity, policy-bound loopback qualification, focused/full automated checks, Python checks, fresh Windows package, and bounded public JSON evidence were witnessed. The package policy and verifier both prohibit development-only .superpowers, .github, .gitattributes, and .gitignore paths. No credentials, real model request, or user workspace mutation was used.',
-        action: 'Automated completion evidence is ready for review. The separate real sign-in/model, package GUI, signing/reputation, enterprise-policy, and Job Object gates below are intentionally still incomplete.',
+        explanation: 'The documented Node diagnostic now relaunches through an owned temporary Electron app profile, cleans it after confirmed safe outcomes, retains it when timeout termination is unconfirmed, and passed account-free against official Codex 0.146.0. The exact signed identity, policy-bound loopback qualification, focused/full automated checks, Python checks, fresh Windows package, and bounded public JSON evidence were witnessed. The package policy and verifier both prohibit development-only .superpowers, .github, .gitattributes, and .gitignore paths. No credentials, real model request, or user workspace mutation was used. The automated completion-evidence PR (#8, 840d0a5) is merged.',
+        action: 'Nothing technical is required. The four downstream gates below (packaged status QA, real sign-in smoke, signing/reputation, enterprise policy) plus the Job Object boundary remain intentionally open.',
       },
       {
         id: 'codex-compatibility-packaged-status-qa',
@@ -576,8 +614,99 @@
         id: 'codex-compatibility-job-object',
         title: 'Codex compatibility — Windows Job Object lifecycle boundary',
         done: false,
-        explanation: 'The current lifecycle controls are not a Job Object security boundary.',
+        explanation: 'The current lifecycle controls are not a Job Object security boundary. The Windows Job Object provider-lifecycle design (docs/superpowers/plans/2026-07-29-windows-job-owned-provider-lifecycle.md) is approved with 7 TDD gates, but implementation has not started.',
         action: 'Keep separate until the approved provider-lifecycle implementation and evidence exist.',
+      },
+      {
+        id: 'codex-compat-pr-workflow',
+        title: 'GitHub pull-request workflow is now binding',
+        done: true,
+        explanation: 'A project rule (docs, 0bcfcb9) requires one PR per task, merge via GitHub, and never editing local master directly. In practice the WorkBuddy GitHub connector is read-only via API (create_pull_request / merge_pull_request return 403), so merges landed through direct `git push origin master` (origin master is not branch-protected). Local master matches origin/master after PR #12.',
+        action: 'Nothing. If the connector is later reconnected with a fresh token it may regain write, but merges via git push are the verified path.',
+      },
+      {
+        id: 'product-repair-handoff',
+        title: 'Claude Pet product repair handoff',
+        done: true,
+        explanation: 'Merged as PR #9 (d1d789a). Added docs/CLAUDE_PRODUCT_REPAIR_HANDOFF.md, a fresh repair bootstrap, removal of obsolete provider references (5af448e), and a statement that Claude Pet is personal local-only software (ce4db21).',
+        action: 'Nothing. This is documentation/handoff work; app behavior is unchanged.',
+      },
+      {
+        id: 'npm-advisory-clearance',
+        title: 'Clear high-severity build-time npm advisories',
+        done: true,
+        explanation: 'Merged 78c0d00 (Aug 6): patched brace-expansion to 5.0.9 and undici to 7.29.0 (dev-only). Node suite at 405/405 passing; package size effectively unchanged at 159 files / 367,391,150 bytes.',
+        action: 'Nothing. Re-run `npm audit` only if a new advisory appears.',
+      },
+      {
+        id: 'stale-evidence-write-fix',
+        title: 'Recover stale Codex evidence writes',
+        done: true,
+        explanation: 'Merged 883e95a (Aug 4): the compatibility coordinator now recovers from a stale codex-compatibility.json.tmp left by an interrupted qualification, so a prior crash no longer blocks future writes.',
+        action: 'Nothing. Covered by the compatibility-store regression tests.',
+      },
+      {
+        id: 'phase-1-latency-plan',
+        title: 'Phase 1 Codex startup-latency plan and design',
+        done: true,
+        explanation: 'Authored Aug 5 (1f4da13 + design 95ea61f). Root-caused Codex startup cost: a fixed 10.5 s probe sleep, repeated 4–5.6 s PowerShell/Add-Type inspector opens, and a PERMISSION_PROFILE_UNAVAILABLE deadline abort. Plan defines Tasks 1–6 (implemented) plus designed-but-unplanned Phase 2 (per-connection state machine) and Phase 3 (main UI repair).',
+        action: 'Phase 2 and Phase 3 are designed but not yet task-planned; track separately when started.',
+      },
+      {
+        id: 'phase-1-task-1',
+        title: 'Phase 1 Task 1 — Remove per-task Codex permission probe',
+        done: true,
+        explanation: 'Merged as PR #10 (7c4ba6a, 85f74aa). Stopped running the per-task permission probe that caused PERMISSION_PROFILE_UNAVAILABLE deadline aborts during discovery.',
+        action: 'Nothing. Covered by localProviderProbe tests.',
+      },
+      {
+        id: 'phase-1-task-2',
+        title: 'Phase 1 Task 2 — Deterministic wait handshake',
+        done: true,
+        explanation: 'Merged 0d7b429 (Aug 6). Replaced the probe\'s fixed 10.5 s sleep with a wait handshake so startup proceeds as soon as the provider signals readiness.',
+        action: 'Nothing. Verified through the discovery/launch timing tests.',
+      },
+      {
+        id: 'phase-1-task-3',
+        title: 'Phase 1 Task 3 — Reuse one verified session',
+        done: true,
+        explanation: 'Merged 1dc3652 (Aug 7). Discovery and the launch lease now reuse one verified session instead of re-verifying per operation, removing redundant setup cost.',
+        action: 'Nothing. Covered by nativeCliDiscovery / nativeCliLaunchLease tests.',
+      },
+      {
+        id: 'phase-1-task-4',
+        title: 'Phase 1 Task 4 — Precompiled C# inspector',
+        done: true,
+        explanation: 'Merged f47743f (Aug 8). Replaced the PowerShell/Add-Type script inspection helper with a precompiled C# program (new tests/buildNativeCliInspector.test.js). Caveat: no ps1-vs-exe equivalence test, and the Windows-gated csc build is not sandbox-runnable, so the package:win exit gate is not closed in-sandbox.',
+        action: 'On Windows, run the csc build and package:win exit gate to close the remaining caveat.',
+      },
+      {
+        id: 'phase-1-task-5',
+        title: 'Phase 1 Task 5 — Stage timing and fixed public errors',
+        done: true,
+        explanation: 'Merged 2b3ed81 (Aug 7). Added src/agent/stageTiming.js and src/agent/agentErrors.js with fixed public error outcomes; new tests/stageTiming.test.js and tests/agentErrors.test.js.',
+        action: 'Nothing. Public error contracts are now centralized and regression-tested.',
+      },
+      {
+        id: 'phase-1-task-6',
+        title: 'Phase 1 Task 6 — Bound stop and cleanup',
+        done: true,
+        explanation: 'Merged f08e35f (Aug 8). Unwinds the one verified lease on stop and bounds cancellation so Stop reliably tears down the owned provider process tree.',
+        action: 'Nothing. Verify Stop behavior again during the next live Codex smoke.',
+      },
+      {
+        id: 'phase-1-merged',
+        title: 'Phase 1 Codex startup-latency merged to master',
+        done: true,
+        explanation: 'Merged as PR #12 with PR #11 sync (24c0306, 271c347, Aug 8). Exit gates: 420 passing / 0 failing / 1 skipped (421 total), node --check clean on 6 JS files, git diff --check clean. One commit message is inaccurate and the C# csc build remains sandbox-blocked; both are tracked caveats, not blockers.',
+        action: 'Open the packaged app only to judge whether Codex startup now feels responsive (~2–3 s target).',
+      },
+      {
+        id: 'recent-tooling',
+        title: 'Recent tooling — progress dashboard and claude-pet-dev skill',
+        done: true,
+        explanation: 'Built Aug 8 (outside the repo): a TypeScript progress dashboard serving live progress.json with a 3 s refresh on port 4178, exposed via an ephemeral Cloudflare quick tunnel. Also created a user-level skill claude-pet-dev encoding the Phase 1 workflow.',
+        action: 'Nothing required. Tooling only; does not affect the shipped app.',
       },
       {
         id: 'task-20',

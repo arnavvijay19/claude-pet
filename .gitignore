@@ -11,3 +11,10 @@ resources/windows/generated/provider-job-host.build.json
 resources/windows/generated/native-cli-inspector.exe
 resources/windows/generated/native-cli-inspector.build.json
 resources/windows/generated/.build-*/
+
+# Local agent memory (project-scoped, not source)
+.workbuddy-ai/
+
+# Temporary debug scripts from live debugging sessions
+_dbg_*.cjs
+scripts/_dbg_*.js

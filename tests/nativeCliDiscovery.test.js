@@ -80,6 +80,15 @@ function codexRelease(version) {
   });
 }
 
+// Current OpenAI installer layout: installerBin is a single junction straight to release\bin.
+const CODEX_SINGLE_REPARSE_CHAIN = Object.freeze([
+  Object.freeze({
+    path: CODEX_JUNCTION.path,
+    rawTarget: `${CODEX_RELEASE}\\bin`,
+    type: 'junction',
+  }),
+]);
+
 function expectedCodexReleasePolicy(overrides = {}) {
   return {
     minimumVersion: '0.145.0',
@@ -222,6 +231,28 @@ test('Codex discovery binds supported dynamic release versions without a positiv
       publisher: 'OpenAI OpCo, LLC',
     });
   }
+});
+
+test('Codex discovery binds the current single-junction release layout (installerBin -> release\\bin)', async () => {
+  const lexicalCandidate = `${CODEX_JUNCTION.path}\\codex.exe`;
+  const canonicalTarget = `${CODEX_RELEASE}\\bin\\codex.exe`;
+  const binding = await discoverSignedNativeCli(discoveryOptions('codex-cli', {
+    resolveCandidates: async () => [lexicalCandidate],
+    inspectCandidate: async (candidate, options) => {
+      assert.equal(candidate, lexicalCandidate);
+      assert.deepEqual(options.codexReleasePolicy, expectedCodexReleasePolicy());
+      return validInspection('codex-cli', candidate, {
+        path: canonicalTarget,
+        reparsePoint: true,
+        reparseChain: CODEX_SINGLE_REPARSE_CHAIN,
+        junctionPath: CODEX_JUNCTION.path,
+        junctionTarget: `${CODEX_RELEASE}\\bin`,
+      });
+    },
+  }));
+  assert.equal(binding.path, canonicalTarget);
+  assert.equal(binding.version, '0.145.0');
+  assert.equal(binding.publisher, 'OpenAI OpCo, LLC');
 });
 
 test('Codex version policy enforces strict semver, the floor, and only an emergency denylist', () => {

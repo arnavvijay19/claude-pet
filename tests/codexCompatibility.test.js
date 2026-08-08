@@ -221,6 +221,23 @@ test('cleans its app-owned workspace on incompatibility and every uncertain prob
   }
 });
 
+test('a failed cleanup never masks a successful probe (regression: intercepted fs.rm)', async (t) => {
+  const appRoot = await temporaryRoot(t);
+  const realFs = require('node:fs/promises');
+  // Environment that intercepts fs.rm (e.g. a safe-delete shim) and throws on cleanup.
+  const fileSystem = { ...realFs, rm: async () => { throw new Error('intercepted rm'); } };
+  const qualifier = createCodexCompatibilityQualifier({
+    compatibilityRoot: appRoot,
+    fixtureRoot: path.join(appRoot, 'fixtures'),
+    fileSystem,
+    verifyNativeToolSurface: async () => ({
+      available: true, allowed: true, cleanup: true, credentialScrubbed: true,
+    }),
+  });
+  // Probe succeeds -> must return true even though the cleanup rm throws.
+  assert.equal(await qualifier(BINDING), true);
+});
+
 test('rejects incomplete positive probe output as retryable uncertainty', async (t) => {
   const appRoot = await temporaryRoot(t);
   const qualifier = createCodexCompatibilityQualifier({

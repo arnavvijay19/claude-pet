@@ -55,6 +55,14 @@ const CODEX_FUTURE_REPARSE_CHAIN = Object.freeze([
     type: 'junction',
   }),
 ]);
+// Current OpenAI installer layout: installerBin is a single junction straight to release\bin.
+const CODEX_SINGLE_REPARSE_CHAIN_FUTURE = Object.freeze([
+  Object.freeze({
+    path: CODEX_LEXICAL_BIN,
+    rawTarget: `${CODEX_FUTURE_RELEASE}\\bin`,
+    type: 'junction',
+  }),
+]);
 const CODEX_RELEASE_POLICY = Object.freeze({
   minimumVersion: '0.145.0',
   blockedVersions: Object.freeze([]),
@@ -356,6 +364,36 @@ test('dynamic Codex inspection derives a future version from the strict release 
   assert.equal(inspection.path, FUTURE_BINDING.path);
   assert.equal(inspection.version, FUTURE_BINDING.version);
   assert.deepEqual(inspection.reparseChain, CODEX_FUTURE_REPARSE_CHAIN);
+  assert.equal(state.held, false);
+  assert.equal(state.releaseCalls, 1);
+});
+
+test('dynamic Codex inspection accepts the current single-junction release layout', async () => {
+  const facts = validFacts({
+    path: CODEX_FUTURE_CANDIDATE,
+    reparsePoint: true,
+    reparseChain: CODEX_SINGLE_REPARSE_CHAIN_FUTURE,
+    sha256: FUTURE_BINDING.sha256,
+    fileId: FUTURE_BINDING.fileId,
+    fileVersion: '',
+  });
+  const { helper, state } = holdingHelper(facts, CODEX_LEXICAL_CANDIDATE);
+  const inspection = await inspectNativeCliCandidate(CODEX_LEXICAL_CANDIDATE, {
+    helper,
+    expectedPublisher: FUTURE_BINDING.publisher,
+    codexReleasePolicy: CODEX_RELEASE_POLICY,
+    runner: {
+      async capture(spec) {
+        assert.equal(state.held, true);
+        assert.equal(spec.command, FUTURE_BINDING.path);
+        assert.deepEqual(spec.args, ['--version']);
+        return { exitCode: 0, stdout: 'codex-cli 0.146.0\n', stderr: '' };
+      },
+    },
+  });
+
+  assert.equal(inspection.path, FUTURE_BINDING.path);
+  assert.equal(inspection.version, FUTURE_BINDING.version);
   assert.equal(state.held, false);
   assert.equal(state.releaseCalls, 1);
 });
@@ -807,21 +845,31 @@ test('live Codex helper and dynamic inspection bind the installed release and pu
   const session = await helper.open(lexicalCandidate);
   t.after(() => session.release());
 
-  const release = session.facts.reparseChain[1]?.rawTarget;
+  const chain = session.facts.reparseChain;
+  assert.ok(chain.length === 1 || chain.length === 2, `unexpected reparse chain length ${chain.length}`);
+  // Legacy 2-junction layout: release is the second entry's rawTarget. Current 1-junction
+  // layout: the single entry points straight at release\bin.
+  const release = chain.length === 2 ? chain[1].rawTarget : path.win32.dirname(chain[0].rawTarget);
   const releaseName = path.win32.basename(release || '');
   const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-x86_64-pc-windows-msvc$/.exec(releaseName);
   assert.ok(match, releaseName);
   const version = `${match[1]}.${match[2]}.${match[3]}`;
   assert.equal(path.win32.dirname(release).toLowerCase(), releaseRoot.toLowerCase());
   assert.equal(session.facts.path.toLowerCase(), path.win32.join(release, 'bin', 'codex.exe').toLowerCase());
-  assert.deepEqual(session.facts.reparseChain.map((entry) => ({
-    path: entry.path.toLowerCase(),
-    rawTarget: entry.rawTarget.toLowerCase(),
-    type: entry.type,
-  })), [
-    { path: lexicalBin.toLowerCase(), rawTarget: path.win32.join(current, 'bin').toLowerCase(), type: 'junction' },
-    { path: current.toLowerCase(), rawTarget: release.toLowerCase(), type: 'junction' },
-  ]);
+  assert.equal(chain[0].path.toLowerCase(), lexicalBin.toLowerCase());
+  if (chain.length === 2) {
+    assert.deepEqual(chain.map((entry) => ({
+      path: entry.path.toLowerCase(),
+      rawTarget: entry.rawTarget.toLowerCase(),
+      type: entry.type,
+    })), [
+      { path: lexicalBin.toLowerCase(), rawTarget: path.win32.join(current, 'bin').toLowerCase(), type: 'junction' },
+      { path: current.toLowerCase(), rawTarget: release.toLowerCase(), type: 'junction' },
+    ]);
+  } else {
+    assert.equal(chain[0].rawTarget.toLowerCase(), path.win32.join(release, 'bin').toLowerCase());
+    assert.equal(chain[0].type, 'junction');
+  }
   assert.equal(session.facts.publisher, 'OpenAI OpCo, LLC');
   await session.release();
 
