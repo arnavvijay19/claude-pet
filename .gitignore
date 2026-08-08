@@ -14,6 +14,7 @@ resources/windows/generated/.build-*/
 
 # Local agent memory (project-scoped, not source)
 .workbuddy-ai/
+.workbuddy/
 
 # Temporary debug scripts from live debugging sessions
 _dbg_*.cjs
