@@ -32,6 +32,8 @@ const ERROR_CODES = Object.freeze([
   'ATTACHMENT_CONFIRMATION_EXPIRED',
   'CLI_VERSION_UNSUPPORTED',
   'CLI_COMPATIBILITY_CHECK_FAILED',
+  'VERIFYING_UPDATE',
+  'LOCAL_CONFIG_UNAVAILABLE',
 ]);
 
 const PUBLIC_ERROR_BY_CODE = Object.freeze({
@@ -66,6 +68,22 @@ const PUBLIC_ERROR_BY_CODE = Object.freeze({
   ATTACHMENT_CONFIRMATION_EXPIRED: Object.freeze({ message: 'The file attachment confirmation expired.', action: 'Attach the file again.' }),
   CLI_VERSION_UNSUPPORTED: Object.freeze({ message: 'This Codex update is not compatible with Claude Pet yet.', action: 'Update Claude Pet or install a compatible Codex version.' }),
   CLI_COMPATIBILITY_CHECK_FAILED: Object.freeze({ message: 'Claude Pet could not finish checking this Codex update.', action: 'Retry the compatibility check.' }),
+  VERIFYING_UPDATE: Object.freeze({ message: 'Claude Pet is verifying this Codex update.', action: 'Wait for the compatibility check to finish.' }),
+  LOCAL_CONFIG_UNAVAILABLE: Object.freeze({ message: 'The local agent configuration is unavailable.', action: 'Check the native agent home and try again.' }),
+});
+
+// Spec section 1.7 fixed public outcomes, single-sourced here. Each human-meaningful outcome
+// maps to exactly one distinct fixed public AgentError code. None of these codes carry paths,
+// hashes, file identities, credentials, command lines, environment values, causes, or raw
+// provider output — only the safe message/action below.
+const FIXED_PUBLIC_OUTCOMES = Object.freeze({
+  'not installed': 'CLI_NOT_INSTALLED',
+  'verifying update': 'VERIFYING_UPDATE',
+  'incompatible update': 'CLI_VERSION_UNSUPPORTED',
+  'verification temporarily failed': 'CLI_COMPATIBILITY_CHECK_FAILED',
+  'not signed in': 'AUTH_REQUIRED',
+  'local configuration unavailable': 'LOCAL_CONFIG_UNAVAILABLE',
+  'provider launch failed': 'NATIVE_FULL_COMPUTER_LAUNCH_FAILED',
 });
 
 class AgentError extends Error {
@@ -95,5 +113,6 @@ module.exports = {
   AgentError,
   ERROR_CODES,
   PUBLIC_ERROR_BY_CODE,
+  FIXED_PUBLIC_OUTCOMES,
   toPublicError,
 };

@@ -21,6 +21,13 @@ function shouldEnableTestExecutor({ isPackaged, nodeEnv, value } = {}) {
   return isPackaged !== true && nodeEnv === 'test' && value === '1';
 }
 
+function shouldEnableStageTiming({ isPackaged, value } = {}) {
+  // Stage timing is a diagnostic. It runs only in an unpackaged build with the
+  // CLAUDE_PET_STAGE_TIMING flag set to '1', mirroring shouldEnableTestExecutor. Its report
+  // is consumed only in-process and never crosses the IPC/renderer boundary.
+  return isPackaged !== true && value === '1';
+}
+
 function createDeterministicCodexExecutor() {
   return Object.freeze({
     async getStatus() { return { installed: true, authenticated: true, workspaceAvailable: true }; },
@@ -74,7 +81,7 @@ function createAbortableDelayGate({ delayMs = 3000, setTimeoutFn = setTimeout, c
   });
 }
 
-function createAgentRuntime({ userDataPath, crypto, randomId, testExecutorEnabled = false, confirmProviderSwitch, dependencies = {} }) {
+function createAgentRuntime({ userDataPath, crypto, randomId, testExecutorEnabled = false, stageTimingEnabled = false, confirmProviderSwitch, dependencies = {} }) {
   const createCodexCompatibilityStore = dependencies.createCodexCompatibilityStore || defaultCreateCodexCompatibilityStore;
   const createCodexCompatibility = dependencies.createCodexCompatibility || defaultCreateCodexCompatibility;
   const createCodexCompatibilityQualifier = dependencies.createCodexCompatibilityQualifier || defaultCreateCodexCompatibilityQualifier;
@@ -103,6 +110,7 @@ function createAgentRuntime({ userDataPath, crypto, randomId, testExecutorEnable
   const nativeCodexExecutor = createRuntimeNativeCodexExecutor({
     codexHome: path.join(userDataPath, 'native-codex-home'),
     ensureCodexCompatibility,
+    stageTimingEnabled,
   });
   const nativeClaudeExecutor = createClaudeNativeFullComputerExecutor({
     claudeConfigDir: path.join(userDataPath, 'native-claude-config'), fixtureRoot,
@@ -130,4 +138,5 @@ module.exports = {
   createAgentRuntime,
   createUnavailableWorkspaceExecutor,
   shouldEnableTestExecutor,
+  shouldEnableStageTiming,
 };

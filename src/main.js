@@ -4,7 +4,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { safeStorage } = require('electron');
 const { start: startPromptServer } = require('./bridge/promptServer.js');
-const { createAgentRuntime, shouldEnableTestExecutor } = require('./agentRuntime.js');
+const { createAgentRuntime, shouldEnableTestExecutor, shouldEnableStageTiming } = require('./agentRuntime.js');
 const { createPromptController } = require('./promptController.js');
 const { createAppWindowController, createVisibleRequestTracker } = require('./appWindow.js');
 const { createFullComputerAuthorization } = require('./agent/fullComputerAuthorization.js');
@@ -140,8 +140,9 @@ const isPrimaryInstance = claimSingleInstance(app, () => {
 
 if (isPrimaryInstance) app.whenReady().then(async () => {
   if (app.isPackaged && process.env.CLAUDE_PET_TEST_EXECUTOR) throw new Error('CLAUDE_PET_TEST_EXECUTOR is unavailable in packaged builds.');
+  if (app.isPackaged && process.env.CLAUDE_PET_STAGE_TIMING) throw new Error('CLAUDE_PET_STAGE_TIMING is unavailable in packaged builds.');
   createPetWindow();
-  runtime = createAgentRuntime({ userDataPath: app.getPath('userData'), crypto: createSafeStorageCrypto(safeStorage), randomId: () => crypto.randomUUID(), testExecutorEnabled: shouldEnableTestExecutor({ isPackaged: app.isPackaged, nodeEnv: process.env.NODE_ENV, value: process.env.CLAUDE_PET_TEST_EXECUTOR }), confirmProviderSwitch: async () => {
+  runtime = createAgentRuntime({ userDataPath: app.getPath('userData'), crypto: createSafeStorageCrypto(safeStorage), randomId: () => crypto.randomUUID(), testExecutorEnabled: shouldEnableTestExecutor({ isPackaged: app.isPackaged, nodeEnv: process.env.NODE_ENV, value: process.env.CLAUDE_PET_TEST_EXECUTOR }), stageTimingEnabled: shouldEnableStageTiming({ isPackaged: app.isPackaged, value: process.env.CLAUDE_PET_STAGE_TIMING }), confirmProviderSwitch: async () => {
     const result = await dialog.showMessageBox(petWindow, { type: 'warning', buttons: ['Continue', 'Cancel'], defaultId: 1, cancelId: 1, title: 'Share bounded session history?', message: 'This provider will receive the bounded visible history from this Claude Pet session', detail: 'No provider sign-in state, native resume ID, hidden state, or raw activity history is shared.' });
     return result.response === 0;
   } });
