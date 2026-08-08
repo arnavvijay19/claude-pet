@@ -120,3 +120,25 @@ test('an empty conversation shows the empty-copy prompt', () => {
   assert.ok(empty, 'empty-copy prompt is shown');
   assert.equal(host.querySelector('.run-card'), null);
 });
+
+test('a completed run card exposes a Scrub steps toggle that reveals the scrubber', () => {
+  jsdomGlobals();
+  const { createRunCardHost } = require('../src/app/runCardController.js');
+  const host = document.getElementById('host');
+  const controller = createRunCardHost(host, { expandedStore: new Set(), scrubStore: new Map() });
+  controller.update(snapshot);
+
+  const toggle = host.querySelector('.run-card__scrub-toggle');
+  assert.ok(toggle, 'Scrub steps toggle is rendered for a completed run');
+  assert.equal(toggle.textContent, 'Scrub steps');
+
+  toggle.click();
+  const scrubber = host.querySelector('.run-card__scrubber .scrubber');
+  assert.ok(scrubber, 'toggling reveals the inline scrubber');
+  assert.equal(host.querySelector('.scrubber__position').textContent, 'All 3 steps');
+  assert.equal(host.querySelector('.run-card__scrub-toggle').textContent, 'Hide scrubber');
+
+  // Toggle back off removes the scrubber.
+  host.querySelector('.run-card__scrub-toggle').click();
+  assert.equal(host.querySelector('.run-card__scrubber .scrubber'), null);
+});

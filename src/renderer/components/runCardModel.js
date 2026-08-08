@@ -79,6 +79,9 @@ function mapEventToTrace(event, index = 0) {
         kind: TRACE_KINDS.COMMAND,
         command: event.command || '',
         exitCode: typeof event.exitCode === 'number' ? event.exitCode : null,
+        // Optional captured stdout/stderr. Surfaced by the run scrubber (design
+        // 3.5) so a replay can show command output as it stood at each step.
+        output: typeof event.output === 'string' && event.output.length > 0 ? event.output : null,
         label: event.command || 'Command',
       };
     case TRACE_KINDS.TOOL:

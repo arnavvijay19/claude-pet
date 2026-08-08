@@ -36,10 +36,12 @@
   // conversation.js. When it is absent the conversation falls back to the original
   // per-turn rendering so the app keeps working. The timeline element and controller
   // are created once and reused across renders so run-card expansion state survives
-  // re-renders; expansion lives in a module-level store the controller reads.
+  // re-renders; expansion lives in a module-level store the controller reads. The
+  // scrub store (Phase 3 Task 5) persists each run's scrubber open/cursor state.
   let runCardTimeline = null;
   let runCardController = null;
   const runCardExpanded = new Set();
+  const runCardScrub = new Map();
 
   function providerLabel(snapshot, turn) {
     const connection = snapshot.connections.find(
@@ -122,7 +124,7 @@
         runCardTimeline = element(document, 'div', '', 'conversation-scroll');
         runCardTimeline.setAttribute?.('role', 'log');
         runCardTimeline.setAttribute?.('aria-label', 'Conversation');
-        runCardController = runCards.createRunCardHost(runCardTimeline, { expandedStore: runCardExpanded });
+        runCardController = runCards.createRunCardHost(runCardTimeline, { expandedStore: runCardExpanded, scrubStore: runCardScrub });
       }
       timeline = runCardTimeline;
       runCardController.update(snapshot);
