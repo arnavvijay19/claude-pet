@@ -5,6 +5,7 @@ __pycache__/
 .superpowers/
 .codex/
 .claude/worktrees/
+.worktrees/
 dist/
 resources/windows/generated/provider-job-host.exe
 resources/windows/generated/provider-job-host.build.json
