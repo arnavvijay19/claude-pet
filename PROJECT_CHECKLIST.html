@@ -269,7 +269,7 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Current (as of 2026-08-08):</strong> Core V1 Tasks 1–19 and UX Tasks 1–6 are complete. Codex forward-compatibility Tasks 1–7 are merged (PRs #2–#8). The Phase 1 Codex startup-latency work (Tasks 1–6) is implemented and merged (PRs #10, #12), cutting the fixed 10.5 s probe sleep and the repeated PowerShell/Add-Type inspector opens. A product-repair handoff (PR #9), build-time npm advisory clearance, and stale-evidence write recovery are done. The Windows Job Object provider-lifecycle plan is approved but not started.</p>
+      <p><strong>Current (as of 2026-08-08):</strong> Core V1 Tasks 1–19 and UX Tasks 1–6 are complete. Codex forward-compatibility Tasks 1–7 are merged (PRs #2–#8). The Phase 1 Codex startup-latency work (Tasks 1–6) is implemented and merged (PRs #10, #12), cutting the fixed 10.5 s probe sleep and the repeated PowerShell/Add-Type inspector opens. A product-repair handoff (PR #9), build-time npm advisory clearance, and stale-evidence write recovery are done. The Windows Job Object provider-lifecycle plan is approved but not started. The Codex not-installed false positive is fixed (b3482fa), Phase 2 Task 1 (per-connection state machine) is merged, and the automatic progress board is live at http://localhost:4178.</p>
       <p><strong>Verified live:</strong> The Node test suite passes 420/421 (1 skipped) after Phase 1; packaged-app Codex sign-in smoke (earlier) and account-free compatibility qualification against Codex 0.146.0 are evidenced. WSL Workspace (optional Tasks 20–23), a genuine Windows Job Object boundary, and the four Codex-compat downstream gates (packaged status QA, real sign-in smoke, signing/reputation, enterprise policy) remain open.</p>
     </section>
 
@@ -291,8 +291,8 @@
       <div class="official-files">
         <ul>
           <li>
-            <strong>Codex CLI falsely reported as "not installed"</strong> — <em>IN PROGRESS (fix being applied this turn).</em>
-            Root cause: the Codex compatibility probe's temp-workspace cleanup (an <code>fs.rm</code> call in a <code>finally</code> block) is intercepted by the WorkBuddy safe-delete shim, which throws and masks a successful probe as a failure. The fix makes that cleanup best-effort so the probe outcome is reported correctly. Do NOT mark this fixed until the fix lands and is verified.
+            <strong>Codex CLI falsely reported as "not installed"</strong> — <em>FIXED and merged (commit b3482fa, Aug 8).</em>
+            Root cause: the Codex compatibility probe's temp-workspace cleanup (<code>fs.rm</code> in a <code>finally</code> block) was intercepted by the WorkBuddy safe-delete shim, which threw and masked a successful probe as a failure. The fix makes cleanup best-effort so a valid signed Codex is no longer misreported. Regression test added; full suite 421 pass / 2 pre-existing env-gated fails.
           </li>
           <li>
             <strong>GitHub connector is read-only via API</strong> — <code>create_pull_request</code> / <code>merge_pull_request</code> return 403, so merges land through direct <code>git push origin master</code> (origin master is not branch-protected). Workaround: the user must disconnect and reconnect the connector to refresh its stale OAuth token before any write access is possible.
@@ -308,8 +308,8 @@
       <h2 id="nextsteps-title">Next steps</h2>
       <div class="official-files">
         <ul>
-          <li><strong>Phase 2 (Codex startup latency)</strong> is designed (per-connection state machine) but not yet task-planned or started.</li>
-          <li><strong>Automatic progress board</strong> feature is being added to the dashboard (live progress.json view) — separate from the shipped app.</li>
+          <li><strong>Phase 2 (Codex startup latency)</strong> — Task 1 (per-connection state machine) implemented and merged (Aug 8); Tasks 2 (renderer wiring) and 3 (cancellable verification) remain.</li>
+          <li><strong>Automatic progress board</strong> is DONE and live at http://localhost:4178 (auto-ingests memory, surfaces git state, accepts direct comments).</li>
           <li>The remaining open gates are unchanged: packaged signed-out status QA, real sign-in/model smoke, signing/reputation + enterprise policy, the Windows Job Object lifecycle boundary, and the optional WSL Workspace Tasks 20–23.</li>
         </ul>
       </div>
@@ -700,6 +700,41 @@
         done: true,
         explanation: 'Merged as PR #12 with PR #11 sync (24c0306, 271c347, Aug 8). Exit gates: 420 passing / 0 failing / 1 skipped (421 total), node --check clean on 6 JS files, git diff --check clean. One commit message is inaccurate and the C# csc build remains sandbox-blocked; both are tracked caveats, not blockers.',
         action: 'Open the packaged app only to judge whether Codex startup now feels responsive (~2–3 s target).',
+      },
+      {
+        id: 'codex-not-installed-fix',
+        title: 'Fix Codex CLI falsely reported as not installed',
+        done: true,
+        explanation: 'Merged b3482fa (Aug 8). Root cause: the compatibility probe finally-block fs.rm cleanup was intercepted by the WorkBuddy safe-delete shim and threw, overwriting a successful probe and surfacing a valid signed Codex as CLI_NOT_INSTALLED. Cleanup is now best-effort (.catch) so it cannot mask a successful probe; a regression test was added. Full suite: 421 pass / 2 pre-existing env-gated fails (Windows csc, real-Codex diagnostic) / 1 skip.',
+        action: 'Nothing. Verified non-regression: both remaining failures also fail without the change.',
+      },
+      {
+        id: 'phase-2-task-1',
+        title: 'Phase 2 Task 1 — Per-connection connection state machine',
+        done: true,
+        explanation: 'Merged Aug 8. New src/agent/connectionStateMachine.js models one saved connection through Not checked / Verifying installed Codex / Sign-in required / Ready / Starting / Running / recoverable failure, with a per-connection store. Replaces the global connectionActionPending/connectionFeedback concept. New tests/connectionStateMachine.test.js (TDD). Pure, synchronous, no DOM/Electron.',
+        action: 'Phase 2 Task 2 now wires the renderer to use it per connection.',
+      },
+      {
+        id: 'phase-2-task-2',
+        title: 'Phase 2 Task 2 — Wire per-connection state into the connection renderer',
+        done: false,
+        explanation: 'Replace the global connectionActionPending/connectionFeedback in the settings/connection UI with the per-connection state machine so feedback renders on the card the user acted on. Designed (design doc lines 180-204); not yet started.',
+        action: 'Implement after Task 1 is merged; use Node tests where possible (renderer uses a fake DOM stub).',
+      },
+      {
+        id: 'phase-2-task-3',
+        title: 'Phase 2 Task 3 — Cancellable long verification',
+        done: false,
+        explanation: 'Make long Codex verification cancellable via the state machine cancel() path. Designed; not yet started.',
+        action: 'Implement after Task 2.',
+      },
+      {
+        id: 'job-object-task-1',
+        title: 'Windows Job Object lifecycle Task 1 — provider-job-host + Node adapter',
+        done: false,
+        explanation: 'Authored on branch codex/job-object-lifecycle-task-1 (Aug 8, NOT merged): resources/windows/provider-job-host.cs (C# source), scripts/build-provider-job-host.js, and src/agent/windowsJobProcess.js Node adapter with tests/windowsJobProcess.test.js using a fake helper. C# is UNVERIFIED-COMPILE (csc unavailable in sandbox) and the branch is intentionally unmerged until compiled on Windows.',
+        action: 'Compile provider-job-host.cs with csc on Windows, run package:win exit gate, then merge.',
       },
       {
         id: 'recent-tooling',
