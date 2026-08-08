@@ -7,7 +7,8 @@
   "scripts": {
     "build:job-host": "node scripts/build-provider-job-host.js",
     "build:native-cli-inspector": "node scripts/build-native-cli-inspector.js",
-    "build:helpers": "npm run build:job-host && npm run build:native-cli-inspector",
+    "build:renderer-vendor": "node scripts/build-renderer-vendor.js",
+    "build:helpers": "npm run build:job-host && npm run build:native-cli-inspector && npm run build:renderer-vendor",
     "prestart": "npm run build:helpers",
     "start": "electron .",
     "test": "node --test --test-concurrency=1",
@@ -17,6 +18,9 @@
   },
   "devDependencies": {
     "@electron/packager": "20.0.4",
-    "electron": "43.1.1"
+    "electron": "43.1.1",
+    "htm": "^3.1.1",
+    "jsdom": "^24.1.3",
+    "preact": "^10.29.8"
   }
 }
