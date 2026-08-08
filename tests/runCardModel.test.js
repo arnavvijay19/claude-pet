@@ -13,6 +13,7 @@ const {
   parseDiffLine,
   providerLabel,
   buildRunCards,
+  canReopenForEdits,
 } = require('../src/renderer/components/runCardModel.js');
 
 const test = require('node:test');
@@ -140,4 +141,15 @@ test('buildRunCards distributes an unmatched event to the most recent run and re
 
   assert.deepEqual(buildRunCards(null), []);
   assert.deepEqual(buildRunCards({}), []);
+});
+
+test('canReopenForEdits: only a card with a non-empty goal text is reopenable (Phase 3 Task 6)', () => {
+  assert.equal(canReopenForEdits(null), false);
+  assert.equal(canReopenForEdits({}), false);
+  assert.equal(canReopenForEdits({ goal: null }), false);
+  assert.equal(canReopenForEdits({ goal: { text: '' } }), false);
+  assert.equal(canReopenForEdits({ goal: { text: '   ' } }), false);
+  assert.equal(canReopenForEdits({ goal: { text: 'Fix the bug' } }), true);
+  // An agent-only turn (no goal) is not reopenable on its own.
+  assert.equal(canReopenForEdits({ goal: null, hasAnswer: true }), false);
 });

@@ -142,3 +142,46 @@ test('a completed run card exposes a Scrub steps toggle that reveals the scrubbe
   host.querySelector('.run-card__scrub-toggle').click();
   assert.equal(host.querySelector('.run-card__scrubber .scrubber'), null);
 });
+
+test('a completed run with a goal exposes a "Re-run with edits" button that calls onReopenGoal with the goal text', () => {
+  jsdomGlobals();
+  const { createRunCardHost } = require('../src/app/runCardController.js');
+  const host = document.getElementById('host');
+  const reopened = [];
+  const controller = createRunCardHost(host, {
+    expandedStore: new Set(),
+    scrubStore: new Map(),
+    onReopenGoal: (text) => reopened.push(text),
+  });
+  controller.update(snapshot);
+
+  const btn = host.querySelector('.run-card__rerun-edit');
+  assert.ok(btn, 'Re-run with edits button is rendered for a completed run with a goal');
+  assert.equal(btn.textContent, 'Re-run with edits');
+  assert.equal(btn.getAttribute('aria-label'), 'Re-run this goal with edits');
+
+  btn.click();
+  assert.deepEqual(reopened, ['Fix the bug'], 'click hands the original goal text to onReopenGoal');
+});
+
+test('a run with no goal does not render a Re-run with edits affordance', () => {
+  jsdomGlobals();
+  const { createRunCardHost } = require('../src/app/runCardController.js');
+  const host = document.getElementById('host');
+  // Agent-only turns have no goal, so buildRunCards yields a card with goal: null.
+  const noGoalSnapshot = {
+    agents: [{ id: 'a1', name: 'Rex' }],
+    connections: [],
+    turns: [
+      { id: 'x1', role: 'assistant', agentId: 'a1', text: 'Did something', changedFiles: [], createdAt: 'x1' },
+    ],
+    activity: { events: [] },
+  };
+  const controller = createRunCardHost(host, {
+    expandedStore: new Set(),
+    scrubStore: new Map(),
+    onReopenGoal: () => {},
+  });
+  controller.update(noGoalSnapshot);
+  assert.equal(host.querySelector('.run-card__rerun-edit'), null, 'no reopen affordance without a goal');
+});

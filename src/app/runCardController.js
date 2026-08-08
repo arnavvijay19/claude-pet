@@ -116,7 +116,7 @@
     cardEl.append(wrap);
   }
 
-  function appendCard(doc, host, card, expandedStore, rerender, scrubStore) {
+  function appendCard(doc, host, card, expandedStore, rerender, scrubStore, onReopenGoal) {
     const article = element(doc, 'article', '', 'run-card');
     if (card.id) article.setAttribute('data-run-id', card.id);
 
@@ -163,6 +163,26 @@
       }
     }
 
+    // Phase 3 Task 6: a completed run with a past goal can be reopened in the composer
+    // for editing + re-run against the currently selected participant. The controller
+    // does NOT re-run anything itself — it only surfaces the affordance and hands the
+    // original goal text to the host's onReopenGoal callback (the composer wiring in
+    // conversation.js seeds the composer and re-renders). Re-running then flows through
+    // the existing retry/submit path and the stale-selection guards, so an expired
+    // connection revision is never silently reused.
+    if (typeof onReopenGoal === 'function' && model.canReopenForEdits(card)) {
+      const reopen = element(
+        doc,
+        'button',
+        'Re-run with edits',
+        'run-card__rerun-edit',
+      );
+      reopen.type = 'button';
+      reopen.setAttribute('aria-label', 'Re-run this goal with edits');
+      reopen.addEventListener('click', () => onReopenGoal(card.goal.text));
+      article.append(reopen);
+    }
+
     if (card.answer) {
       const section = element(doc, 'section', '', 'run-card__answer');
       const byline = element(doc, 'p', '', 'run-card__byline run-card__byline--agent');
@@ -178,12 +198,12 @@
   }
 
   // Render the full conversation timeline as run cards into host.
-  function renderCards(host, snapshot, expandedStore, scrubStore) {
+  function renderCards(host, snapshot, expandedStore, scrubStore, onReopenGoal) {
     const doc = (typeof globalThis !== 'undefined' && globalThis.document) || null;
     if (!doc || !host) return;
     const cards = model.buildRunCards(snapshot);
 
-    const rerender = () => renderCards(host, snapshot, expandedStore, scrubStore);
+    const rerender = () => renderCards(host, snapshot, expandedStore, scrubStore, onReopenGoal);
     if (typeof host.replaceChildren === 'function') host.replaceChildren();
     else { while (host.firstChild) host.removeChild(host.firstChild); }
 
@@ -191,20 +211,22 @@
       host.append(element(doc, 'p', 'Start with a clear task. Your agent’s answer will stay in this session.', 'empty-copy'));
       return;
     }
-    for (const card of cards) appendCard(doc, host, card, expandedStore, rerender, scrubStore);
+    for (const card of cards) appendCard(doc, host, card, expandedStore, rerender, scrubStore, onReopenGoal);
   }
 
   // Bind a run-card timeline to a host element and persistent expand/collapse +
   // scrubber stores. `update` re-derives the run cards from a snapshot and
   // re-renders; expansion + scrubber state survive across updates because they live
-  // in the caller-supplied stores.
+  // in the caller-supplied stores. `onReopenGoal` (optional) is invoked with a past
+  // goal's text when the user asks to re-run it with edits (Phase 3 Task 6).
   function createRunCardHost(host, options = {}) {
     if (!host) throw new TypeError('createRunCardHost requires a host element');
     const expandedStore = options.expandedStore || new Set();
     const scrubStore = options.scrubStore || new Map();
+    const onReopenGoal = typeof options.onReopenGoal === 'function' ? options.onReopenGoal : null;
 
     function update(snapshot) {
-      renderCards(host, snapshot, expandedStore, scrubStore);
+      renderCards(host, snapshot, expandedStore, scrubStore, onReopenGoal);
     }
 
     return Object.freeze({ update });
