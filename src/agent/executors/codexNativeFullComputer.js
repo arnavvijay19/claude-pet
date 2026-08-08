@@ -81,40 +81,42 @@ function createCodexNativeFullComputerExecutor({
   if (typeof ensureCodexCompatibility !== 'function') throw new TypeError('Native Codex executor requires a runtime compatibility coordinator.');
   const environment = Object.freeze({ CODEX_HOME: codexHome });
 
-  async function discover(connection) {
+  async function withVerifiedCodex(connection, operation, signal) {
     validateConnection(connection);
-    try {
-      const binding = await discoverSignedNativeCli({
-        provider: 'codex-cli', workspacePath: connection.workspacePath,
-      });
-      if (!validBinding(binding)) throw new Error('Invalid Codex CLI binding');
-      return binding;
-    } catch (error) {
-      if (error instanceof AgentError && ['UNSUPPORTED_OPTION', 'FULL_COMPUTER_CONFIRMATION_REQUIRED'].includes(error.code)) throw error;
-      throw new AgentError('CLI_NOT_INSTALLED', { cause: error });
-    }
-  }
-
-  async function withLease(binding, operation) {
+    let binding;
+    let retainedSession;
     let lease;
     let operationError;
     try {
-      lease = await openVerifiedNativeCliLaunchLease(binding);
-      return await operation(lease);
+      let discovered;
+      try {
+        discovered = await discoverSignedNativeCli({
+          provider: 'codex-cli', workspacePath: connection.workspacePath, retainSession: true,
+        });
+        binding = discovered?.binding || discovered;
+        retainedSession = discovered?.session;
+        if (!validBinding(binding)) throw new Error('Invalid Codex CLI binding');
+      } catch (error) {
+        if (error instanceof AgentError
+          && ['UNSUPPORTED_OPTION', 'FULL_COMPUTER_CONFIRMATION_REQUIRED'].includes(error.code)) throw error;
+        throw new AgentError('CLI_NOT_INSTALLED', { cause: error });
+      }
+      await ensureCodexCompatibility(binding, { signal });
+      lease = await openVerifiedNativeCliLaunchLease(binding, retainedSession
+        ? { session: retainedSession }
+        : undefined);
+      retainedSession = null;
+      return await operation({ binding, lease });
     } catch (error) {
       operationError = error;
       throw error;
     } finally {
       if (lease?.cleanup) {
         try { await lease.cleanup(); } catch (error) { if (!operationError) throw error; }
+      } else if (retainedSession?.release) {
+        try { await retainedSession.release(); } catch (error) { if (!operationError) throw error; }
       }
     }
-  }
-
-  async function compatibleBinding(connection, signal) {
-    const binding = await discover(connection);
-    await ensureCodexCompatibility(binding, { signal });
-    return binding;
   }
 
   async function prepare(connection) {
@@ -126,16 +128,19 @@ function createCodexNativeFullComputerExecutor({
 
   return Object.freeze({
     async getStatus(connection) {
-      let binding;
-      try { binding = await discover(connection); } catch { return { installed: false, authenticated: false, fullComputerAvailable: false }; }
       try {
-        await ensureCodexCompatibility(binding, { signal: undefined });
-        const login = await withLease(binding, (launchLease) => runner.capture({
-          command: binding.path, launchLease, args: ['login', 'status'], env: environment, timeoutMs: 5000,
-        }));
-        const authenticated = login?.exitCode === 0;
-        return { installed: true, compatible: true, authenticated, fullComputerAvailable: authenticated };
+        return await withVerifiedCodex(connection, async ({ binding, lease }) => {
+          const login = await runner.capture({
+            command: binding.path, launchLease: lease, args: ['login', 'status'],
+            env: environment, timeoutMs: 5000,
+          });
+          const authenticated = login?.exitCode === 0;
+          return { installed: true, compatible: true, authenticated, fullComputerAvailable: authenticated };
+        });
       } catch (error) {
+        if (error instanceof AgentError && error.code === 'CLI_NOT_INSTALLED') {
+          return { installed: false, authenticated: false, fullComputerAvailable: false };
+        }
         if (error instanceof AgentError && error.code === 'CLI_VERSION_UNSUPPORTED') {
           return { installed: true, compatible: false, authenticated: false, fullComputerAvailable: false };
         }
@@ -144,9 +149,8 @@ function createCodexNativeFullComputerExecutor({
       }
     },
     async beginSetup(connection) {
-      const binding = await compatibleBinding(connection);
-      await withLease(binding, (launchLease) => runner.launch({
-        command: binding.path, launchLease, args: ['login'], env: environment, visible: true,
+      await withVerifiedCodex(connection, ({ binding, lease }) => runner.launch({
+        command: binding.path, launchLease: lease, args: ['login'], env: environment, visible: true,
       }));
       return { started: true };
     },
@@ -163,25 +167,22 @@ function createCodexNativeFullComputerExecutor({
       // signed executable and qualifies it. The former permission-purpose probe emitted no
       // available/allowed facts, so it could only ever pass or exhaust its bounded deadline.
       await prepare(connection);
-      await compatibleBinding(connection);
+      await withVerifiedCodex(connection, async () => ({ available: true, allowed: true }));
       return { available: true, allowed: true };
     },
     async runGoal(request, emitActivity, signal, run) {
       validateRun(request, run);
-      await prepare({
+      const activeConnection = {
         executorType: 'codex-cli', workspacePath: request.workspace,
         permissionProfile: run.permissionProfile, fullAccessConfirmed: run.fullAccessConfirmed,
-      });
-      const binding = await compatibleBinding({
-        executorType: 'codex-cli', workspacePath: request.workspace,
-        permissionProfile: run.permissionProfile, fullAccessConfirmed: run.fullAccessConfirmed,
-      }, signal);
+      };
+      await prepare(activeConnection);
       let responseText = null;
       const changedFiles = [];
       try {
-        await withLease(binding, (launchLease) => runner.streamJsonl({
+        await withVerifiedCodex(activeConnection, ({ binding, lease }) => runner.streamJsonl({
           command: binding.path,
-          launchLease,
+          launchLease: lease,
           args: [
             '--sandbox', 'danger-full-access', '--ask-for-approval', 'never',
             ...codexFeatureArgs(),
@@ -201,7 +202,7 @@ function createCodexNativeFullComputerExecutor({
           if (mapped.responseText) responseText = mapped.responseText;
           if (mapped.changedFiles) changedFiles.push(...mapped.changedFiles);
           if (mapped.error) throw new AgentError('PERMISSION_BLOCKED');
-        }));
+        }), signal);
       } catch (error) {
         if (error instanceof AgentError) throw error;
         throw launchFailure(error);

@@ -200,6 +200,23 @@ test('each native operation holds one fresh lease through successful child creat
   }
 });
 
+test('a verified launch lease reuses a retained session without opening the helper again', async () => {
+  const { helper, state } = holdingHelper();
+  const session = await helper.open(BINDING.path);
+  let helperOpens = 0;
+  const lease = await openVerifiedNativeCliLaunchLease(BINDING, {
+    session,
+    helper: { async open() { helperOpens += 1; throw new Error('must not reopen'); } },
+    runner: verifiedRunner(state),
+  });
+
+  assert.equal(helperOpens, 0);
+  assert.equal(state.held, true);
+  await lease.cleanup();
+  assert.equal(state.held, false);
+  assert.equal(state.releaseCalls, 1);
+});
+
 test('rejects post-discovery replacement or any changed final fact before executing the candidate', async () => {
   const replacements = [
     { path: 'C:\\Program Files\\OpenAI\\Codex\\replacement.exe' },
@@ -245,6 +262,31 @@ test('rejects a mismatched bounded CLI version while the handle is held and rele
     openVerifiedNativeCliLaunchLease(BINDING, { helper, runner }),
     (error) => error.code === 'CLI_NOT_INSTALLED' && !error.message.includes(BINDING.path),
   );
+  assert.equal(state.held, false);
+  assert.equal(state.releaseCalls, 1);
+});
+
+test('retains the verified inspection session for a later launch lease', async () => {
+  const { helper, state } = holdingHelper(validFacts({ fileVersion: '' }));
+  const retained = await inspectNativeCliCandidate(BINDING.path, {
+    helper,
+    expectedPublisher: BINDING.publisher,
+    expectedVersion: BINDING.version,
+    expectedReparseChain: [],
+    retainSession: true,
+    runner: {
+      async capture() {
+        assert.equal(state.held, true);
+        return { exitCode: 0, stdout: 'codex-cli 0.145.0\n', stderr: '' };
+      },
+    },
+  });
+
+  assert.equal(retained.inspection.path, BINDING.path);
+  assert.equal(retained.session?.facts.path, BINDING.path);
+  assert.equal(state.held, true);
+  assert.equal(state.releaseCalls, 0);
+  await retained.session.release();
   assert.equal(state.held, false);
   assert.equal(state.releaseCalls, 1);
 });
