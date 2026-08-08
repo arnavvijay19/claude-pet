@@ -269,7 +269,7 @@
 
     <section class="start-here" aria-labelledby="start-title">
       <h2 id="start-title">Start here</h2>
-      <p><strong>Current (as of 2026-08-08):</strong> Core V1 Tasks 1–19 and UX Tasks 1–6 are complete. Codex forward-compatibility Tasks 1–7 are merged (PRs #2–#8). The Phase 1 Codex startup-latency work (Tasks 1–6) is implemented and merged (PRs #10, #12), cutting the fixed 10.5 s probe sleep and the repeated PowerShell/Add-Type inspector opens. A product-repair handoff (PR #9), build-time npm advisory clearance, and stale-evidence write recovery are done. The Windows Job Object provider-lifecycle plan is approved but not started (C# unverified-compile, intentionally unmerged). The Codex not-installed false positive is fixed (b3482fa). Phase 2 (per-connection state machine + renderer wiring + cancellable long verification, Tasks 1–3) is fully merged (2b5ea21), and the automatic progress board is live at http://localhost:4178. Phase 3 (main UI repair) is the next work: Task 1 (vendored Preact+htm renderer foundation + jsdom test migration) merged (Aug 8, 29ddfde); Task 2 (wire the live status ribbon into the main window) merged (Aug 8, 6c6e560); Task 3 (run cards + traces in the live window) merged (Aug 8, 155ea62); Tasks 4+ (pet coupling, scrubber, palette, export) and the human-gated visual/accessibility QA remain.</p>
+      <p><strong>Current (as of 2026-08-08):</strong> Core V1 Tasks 1–19 and UX Tasks 1–6 are complete. Codex forward-compatibility Tasks 1–7 are merged (PRs #2–#8). The Phase 1 Codex startup-latency work (Tasks 1–6) is implemented and merged (PRs #10, #12), cutting the fixed 10.5 s probe sleep and the repeated PowerShell/Add-Type inspector opens. A product-repair handoff (PR #9), build-time npm advisory clearance, and stale-evidence write recovery are done. The Windows Job Object provider-lifecycle plan is approved but not started (C# unverified-compile, intentionally unmerged). The Codex not-installed false positive is fixed (b3482fa). Phase 2 (per-connection state machine + renderer wiring + cancellable long verification, Tasks 1–3) is fully merged (2b5ea21), and the automatic progress board is live at http://localhost:4178. Phase 3 (main UI repair) is the next work: Task 1 (vendored Preact+htm renderer foundation + jsdom test migration) merged (Aug 8, 29ddfde); Task 2 (wire the live status ribbon into the main window) merged (Aug 8, 6c6e560); Task 3 (run cards + traces in the live window) merged (Aug 8, 155ea62); Tasks 4+ (pet coupling, scrubber, palette, export) and the human-gated visual/accessibility QA remain. Phase 3 Task 4 (pet coupling) is in progress: the pure pet-state model sub-branch is merged (Aug 8, 43710c9); the main wiring and pet-window progress-ring/attention sub-branches are next.</p>
       <p><strong>Verified live:</strong> The Node test suite is green: 502 pass / 1 skip after Phase 3 Task 3 (503 tests total), with one env-gated real-Codex diagnostic (skipped; it shells out to a real Codex binary and also fails on a clean HEAD). Packaged-app Codex sign-in smoke (earlier) and account-free compatibility qualification against Codex 0.146.0 are evidenced. WSL Workspace (optional Tasks 20–23), a genuine Windows Job Object boundary, and the four Codex-compat downstream gates (packaged status QA, real sign-in smoke, signing/reputation, enterprise policy) remain open.</p>
     </section>
 
@@ -309,7 +309,7 @@
       <div class="official-files">
         <ul>
           <li><strong>Phase 2 (Codex startup latency)</strong> — Task 1 (per-connection state machine) merged (Aug 8); Task 2 (renderer wiring) merged (Aug 8, 02443ec); Task 3 (cancellable verification) merged (Aug 8, 2b5ea21). Phase 2 is complete.</li>
-          <li><strong>Phase 3 (main UI repair)</strong> — Task 1 (vendored Preact+htm renderer foundation + jsdom test migration) merged (Aug 8, 29ddfde); Task 2 (wire the live status ribbon into the main window) merged (Aug 8, 6c6e560); Task 3 (run cards + traces in the live window) merged (Aug 8, 155ea62). Tasks 4+ (pet coupling, scrubber, palette, export) are next; the whole phase is human-gated for visual/accessibility QA (never claim complete without it).</li>
+          <li><strong>Phase 3 (main UI repair)</strong> — Task 1 (vendored Preact+htm renderer foundation + jsdom test migration) merged (Aug 8, 29ddfde); Task 2 (wire the live status ribbon into the main window) merged (Aug 8, 6c6e560); Task 3 (run cards + traces in the live window) merged (Aug 8, 155ea62). Task 4 (pet coupling) is in progress: the pure pet-state model sub-branch merged (Aug 8, 43710c9) with 15 unit tests; the main wiring + pet-window progress-ring/attention sub-branches are next. Tasks 5+ (scrubber, command palette, export session, settings) follow; the whole phase is human-gated for visual/accessibility QA (never claim complete without it).</li>
           <li><strong>Automatic progress board</strong> is DONE and live at http://localhost:4178 (auto-ingests memory, surfaces git state, accepts direct comments).</li>
           <li>The remaining open gates are unchanged: packaged signed-out status QA, real sign-in/model smoke, signing/reputation + enterprise policy, the Windows Job Object lifecycle boundary, and the optional WSL Workspace Tasks 20–23.</li>
         </ul>
@@ -752,6 +752,13 @@
         action: 'Phase 3 Task 4 (pet coupling) is next; the whole phase stays human-gated for visual/accessibility QA and must not be claimed complete without it.',
       },
       {
+        id: 'phase-3-task-4',
+        title: 'Phase 3 Task 4 — Pet coupling (the pet becomes the agent)',
+        done: false,
+        explanation: 'Started 2026-08-08 (branch codex/phase-3-pet-coupling-model, merged 43710c9). Implements design §3.4: the 192x208 pet window and its validated nine-state atlas are driven by the SAME run + connection state machine the ribbon uses, so the two windows are one product. First reviewable sub-branch (model) merged: a pure framework-free pet-state model (src/agent/petStateModel.js) derives the pet visual state (idle/waiting/running/review/failed/jumping), a thin progress ring (0..1) that advances as run steps complete, and an attention flag for sign-in-required / terminal failure — so a blocked run is visible without the main window open. 15 new unit tests (tests/petStateModel.test.js) green. Remaining sub-branches (next runs): (2) wire main to subscribe to connection/run state and drive the existing petAnimationController + publish progress/attention to the pet window; (3) render the progress ring + attention badge in the pet renderer. The whole phase stays human-gated for real-window visual/accessibility QA and must not be claimed complete without it.',
+        action: 'Phase 3 Tasks 5+ (scrubber, re-run-with-edits, command palette Ctrl+K, export session, settings) follow after Task 4. Whole phase needs real-window visual/accessibility QA (human gate) before claiming complete.',
+      },
+      {
         id: 'job-object-task-1',
         title: 'Windows Job Object lifecycle Task 1 — provider-job-host + Node adapter',
         done: false,
@@ -886,28 +893,9 @@
 <!-- AUTO-SYNC:START -->
     <h3>Recent automated commits</h3>
     <ul>
-      <li><code>f29eee8 Merge codex/repo-hygiene-workbuddy-ignore: ignore .workbuddy/</code></li>
-      <li><code>0f66cfd chore: ignore harness-local .workbuddy/ automation storage</code></li>
-      <li><code>69303de Merge docs: Phase 3 Task 3 checklist update</code></li>
-      <li><code>df7dd4c Docs: mark Phase 3 Task 3 (run cards + traces) done in checklist</code></li>
-      <li><code>155ea62 Merge Phase 3 Task 3: run cards and traces into live window</code></li>
-      <li><code>ca79440 Phase 3 Task 3: run cards and traces in the live window</code></li>
-      <li><code>acecbbe Merge docs: Phase 3 Task 2 checklist update</code></li>
-      <li><code>9162171 Docs: mark Phase 3 Task 2 complete in PROJECT_CHECKLIST.html</code></li>
-      <li><code>6c6e560 Merge Phase 3 Task 2: live status ribbon wiring</code></li>
-      <li><code>4c0937e Phase 3 Task 2: wire live status ribbon into the main window</code></li>
-      <li><code>c7e041d Merge docs: Phase 3 Task 1 checklist update</code></li>
-      <li><code>e616c30 docs(checklist): mark Phase 3 Task 1 merged, refresh Start here / Next steps</code></li>
-      <li><code>29ddfde Merge Phase 3 Task 1: vendored renderer foundation (Preact+htm, design tokens, StatusRibbon)</code></li>
-      <li><code>64e4dd5 feat(renderer): Phase 3 foundation - vendored Preact+htm, design tokens, StatusRibbon</code></li>
-      <li><code>59f0835 Merge docs: Phase 2 Task 3 merged, point Next steps at Phase 3</code></li>
-      <li><code>d8948fb docs: mark Phase 2 Task 3 merged and refresh Start here / Next steps</code></li>
-      <li><code>2b5ea21 Merge Phase 2 Task 3: cancellable long connection verification</code></li>
-      <li><code>e83a991 Phase 2 Task 3: make long connection verification cancellable end-to-end</code></li>
-      <li><code>665730b Merge branch 'codex/docs-phase-2-task-2'</code></li>
-      <li><code>e8ac9c9 docs(checklist): mark Phase 2 Task 2 done and refresh Next steps</code></li>
+      <li>(none since last sync)</li>
     </ul>
-    <p><small>Auto-synced 2026-08-08T17:17:18.032Z</small></p>
+    <p><small>Auto-synced 2026-08-08T19:02:56.041Z</small></p>
     <!-- AUTO-SYNC:END -->
 </body>
 </html>
