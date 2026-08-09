@@ -12,6 +12,9 @@
     "prestart": "npm run build:helpers",
     "start": "electron .",
     "test": "node --test --test-concurrency=1",
+    "ensure-deps": "node scripts/ensure-deps.cjs --check",
+    "pretest": "node scripts/ensure-deps.cjs --check",
+    "doctor": "node scripts/ensure-deps.cjs --restore",
     "verify:package": "node scripts/verify_package.js \"dist/Claude Pet-win32-x64\"",
     "prepackage:win": "npm run build:helpers",
     "package:win": "electron-packager . \"Claude Pet\" --platform=win32 --arch=x64 --out=dist --overwrite --asar=false --icon=assets/app-icon.ico --ignore=\"^/(dist|docs|tests|scripts|\\.git|\\.github|\\.claude|\\.codex|\\.agents|\\.superpowers|\\.workbuddy-ai|\\.pytest_cache|__pycache__|LOCAL_PR\\.html|\\.gitattributes|\\.gitignore)($|/)\" --ignore=\"PROJECT_CHECKLIST\\.html$\""
