@@ -356,6 +356,31 @@ if (isPrimaryInstance) app.whenReady().then(async () => {
     if (staged) appWindowController.show({ view: 'conversation' });
     return staged;
   });
+  // Phase 3 Task 8: export a session to a user-chosen local path. Only our own renderer
+  // windows may trigger a file write; the user picks the destination via the native
+  // save dialog. No cloud / network / telemetry.
+  ipcMain.handle('pet:save-text-file', async (event, payload) => {
+    const knownSender = (petWindow && event.sender === petWindow.webContents)
+      || (appWindowController && appWindowController.getWindow && event.sender === appWindowController.getWindow()?.webContents);
+    if (!knownSender) throw new Error('Invalid sender');
+    const content = payload && typeof payload.content === 'string' ? payload.content : '';
+    if (!content) return { saved: false, error: 'empty' };
+    const safeName = (payload.filename && typeof payload.filename === 'string')
+      ? payload.filename.replace(/[\\/:*?"<>|]/g, '_')
+      : 'session.md';
+    const defaultPath = (payload.workspacePath && typeof payload.workspacePath === 'string')
+      ? path.join(payload.workspacePath, safeName)
+      : safeName;
+    const ownerWindow = appWindowController?.getWindow() || petWindow;
+    const { canceled, filePath: chosenPath } = await dialog.showSaveDialog(ownerWindow, {
+      title: 'Export session',
+      defaultPath,
+      filters: [{ name: 'Markdown', extensions: ['md'] }],
+    });
+    if (canceled || !chosenPath) return { saved: false };
+    await fs.promises.writeFile(chosenPath, content, 'utf8');
+    return { saved: true, filePath: chosenPath };
+  });
   createTray();
 });
 

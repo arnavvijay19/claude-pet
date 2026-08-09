@@ -163,19 +163,26 @@
     ? globalThis.claudePetCommandPalette.createCommandPalette({ onExecute: executeCommand })
     : null;
 
-  // Downloads the current session as a local Markdown run log (design 3.8). No cloud, no
-  // network, no telemetry — the markdown is produced by the shared model; this only saves it.
-  function downloadSessionMarkdown() {
-    if (!snapshot || typeof commandPaletteModel?.exportSessionMarkdown !== 'function') return;
-    const markdown = commandPaletteModel.exportSessionMarkdown(snapshot);
+  // Phase 3 Task 8: export the current session to a local Markdown run log at a
+  // user-chosen path (design 3.8). No cloud / network / telemetry. The markdown +
+  // suggested filename/workspace are produced by the shared export-session model;
+  // the user-chosen save is performed by the main process via the preload (with a
+  // client-side Blob download as a fallback for non-Electron renderer harnesses).
+  function exportSessionFile() {
+    if (!snapshot || typeof globalThis.claudePetExportSession?.buildExportSession !== 'function') return;
+    const { markdown, filename, workspacePath } = globalThis.claudePetExportSession.buildExportSession(snapshot);
     if (!markdown) return;
-    const title = (snapshot.session?.title || snapshot.selection?.sessionId || 'session')
-      .replace(/[^\w.-]+/g, '_');
+    const saver = window.claudePetApp?.saveTextFile;
+    if (typeof saver === 'function') {
+      void saver({ content: markdown, filename, workspacePath });
+      return;
+    }
+    // Fallback: client-side download (renderer-only; used by the test harness).
     const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `${title}.md`;
+    anchor.download = filename;
     document.body.append(anchor);
     anchor.click();
     anchor.remove();
@@ -206,7 +213,7 @@
         }
         break;
       case 'export-session':
-        downloadSessionMarkdown();
+        exportSessionFile();
         break;
       default:
         break;
