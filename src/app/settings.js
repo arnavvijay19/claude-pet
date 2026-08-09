@@ -23,6 +23,9 @@
   // (no global) fall back to require.
   const connectionMachine = (typeof globalThis !== 'undefined' && globalThis.claudePetConnectionStateMachine)
     || (typeof require !== 'undefined' ? require('../agent/connectionStateMachine.js') : null);
+  // Phase 3 Task 9 (design 3.9): panel ordering + guided connection-setup flow.
+  const settingsModel = (typeof globalThis !== 'undefined' && globalThis.claudePetSettingsModel)
+    || (typeof require !== 'undefined' ? require('./settingsModel.js') : null);
   const VERIFYING = connectionMachine?.STATES?.VERIFYING;
   const NOT_CHECKED = connectionMachine?.STATES?.NOT_CHECKED;
 
@@ -308,6 +311,27 @@
         editingState?.failure ? 'connection-feedback connection-failure' : 'connection-status',
       ));
     }
+    // Phase 3 Task 9 (design 3.9): present connection setup as a short GUIDED FLOW —
+    // a named sequence of steps with the current step highlighted — not a flat form
+    // mixed with the unrelated agent-profile controls.
+    const flow = (settingsModel && typeof settingsModel.connectionSetupSteps === 'function')
+      ? settingsModel.connectionSetupSteps(draft)
+      : null;
+    if (flow) {
+      const steps = element(document, 'ol', '', 'guided-flow');
+      steps.setAttribute?.('aria-label', 'Connection setup steps');
+      for (const step of flow.steps) {
+        const li = element(
+          document,
+          'li',
+          '',
+          `guided-step${step.complete ? ' is-complete' : ''}${step.id === flow.activeStep ? ' is-active' : ''}`,
+        );
+        li.append(element(document, 'span', step.label, 'guided-step-label'));
+        steps.append(li);
+      }
+      section.append(steps);
+    }
     const form = element(document, 'form', '', 'settings-form provider-editor');
     const providerSelect = selectField(
       document,
@@ -401,11 +425,29 @@
   }
 
   function renderAgentSettings(document, panel, snapshot, dispatch, options, busy) {
-    renderAgentProfile(document, panel, snapshot, dispatch, options, busy);
-    renderAssignedConnection(document, panel, snapshot, dispatch, busy);
-    renderConnectionCards(document, panel, snapshot, options, busy);
+    // Phase 3 Task 9 (design 3.9): connections FIRST (the blocking task), the agent
+    // profile fields BELOW. The connection editor follows as the guided setup flow.
+    const ordered = (settingsModel && typeof settingsModel.agentSettingsSections === 'function')
+      ? settingsModel.agentSettingsSections()
+      : [
+        Object.freeze({ key: 'agent-profile' }),
+        Object.freeze({ key: 'assigned-connection' }),
+        Object.freeze({ key: 'provider-connections' }),
+        Object.freeze({ key: 'agent-library' }),
+      ];
+    const renderers = {
+      'agent-profile': () => renderAgentProfile(document, panel, snapshot, dispatch, options, busy),
+      'assigned-connection': () => renderAssignedConnection(document, panel, snapshot, dispatch, busy),
+      'provider-connections': () => renderConnectionCards(document, panel, snapshot, options, busy),
+      'agent-library': () => renderAgentLibrary(document, panel, snapshot, dispatch, busy),
+    };
+    for (const section of ordered) {
+      const render = renderers[section.key];
+      if (render) render();
+    }
+    // The connection editor is the guided setup flow (design 3.9), shown after the
+    // sections so it reads as a short flow rather than controls mixed with the profile.
     renderConnectionEditor(document, panel, snapshot, options, busy);
-    renderAgentLibrary(document, panel, snapshot, dispatch, busy);
   }
 
   function renderSessionSettings(document, panel, snapshot, dispatch, options, busy) {
