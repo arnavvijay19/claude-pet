@@ -30,6 +30,12 @@
     return formatter ? formatter(event) : 'Agent activity';
   }
 
+  // Phase 3 Task 9 (design 3.9): reduce activity noise by default while keeping an
+  // expandable, timestamped diagnostic view. Loaded as a global script; Node tests
+  // (no global) fall back to require.
+  const activityModel = (typeof globalThis !== 'undefined' && globalThis.claudePetActivityModel)
+    || (typeof require !== 'undefined' ? require('./activityModel.js') : null);
+
   // Phase 3 Task 3: the live conversation timeline can be rendered as run cards (the
   // runCardController, driven by the shared runCardModel) instead of flat turns. The
   // controller is exposed on globalThis by the renderer script that loads before
@@ -72,12 +78,46 @@
     if (events.length === 0) {
       section.append(element(document, 'p', 'Activity will appear here while your agent works.', 'empty-copy'));
     }
+    // Phase 3 Task 9 (design 3.9): each event is one collapsed <details> carrying a
+    // concise, timestamped summary by default; the full diagnostic JSON stays in the
+    // expandable body. Routine "noise" events are hidden by default and revealed via
+    // a single toggle, so the drawer is quiet unless the user asks for everything.
+    const routine = [];
     for (const event of events) {
-      const details = element(document, 'details', '', 'activity-card');
-      const summary = element(document, 'summary', activityLabel(event));
+      const summary = (activityModel && activityModel.activityEventSummary)
+        ? activityModel.activityEventSummary(event)
+        : null;
+      const label = summary?.label || activityLabel(event);
+      const timestamp = summary?.timestamp || '';
+      const isNoise = summary?.level === 'noise';
+      const details = element(document, 'details', '', `activity-card${isNoise ? ' activity-noise' : ''}`);
+      if (isNoise) details.hidden = true;
+      details.dataset.level = summary?.level || 'event';
+      if (timestamp) details.dataset.timestamp = timestamp;
+      const summaryText = timestamp ? `${label} · ${timestamp}` : label;
+      const summaryEl = element(document, 'summary', summaryText);
       const detail = element(document, 'pre', JSON.stringify(event, null, 2), 'activity-detail');
-      details.append(summary, detail);
+      details.append(summaryEl, detail);
       section.append(details);
+      if (isNoise) routine.push(details);
+    }
+    // Reveal/hide routine activity. Hidden by default (design 3.9); the notable events
+    // and the expandable diagnostic view remain visible.
+    if (routine.length > 0) {
+      const toggle = button(
+        document,
+        `Show routine activity (${routine.length})`,
+        () => {
+          const anyHidden = routine.some((item) => item.hidden === true);
+          for (const item of routine) item.hidden = !anyHidden;
+          toggle.textContent = anyHidden
+            ? `Hide routine activity (${routine.length})`
+            : `Show routine activity (${routine.length})`;
+        },
+        'secondary-action',
+      );
+      toggle.dataset.toggleRoutine = 'true';
+      section.append(toggle);
     }
     target.replaceChildren(section);
     return section;
