@@ -504,6 +504,38 @@ select {
 .settings-tab[aria-selected="true"] { border-bottom-color: var(--accent); color: var(--text); }
 .settings-panel { max-width: 820px; }
 .settings-form { display: grid; gap: calc(var(--space) * 1.5); max-width: 680px; }
+
+/* Phase 3 Task 9 (design 3.9): connection setup reads as a short guided flow. */
+.guided-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space);
+  margin: 0 0 calc(var(--space) * 1.5);
+  padding: 0;
+  list-style: none;
+}
+.guided-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: .82rem;
+}
+.guided-step.is-complete { color: var(--text); border-color: var(--accent); }
+.guided-step.is-active {
+  color: var(--text);
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  font-weight: 600;
+}
+.guided-step::before {
+  content: counter(guided);
+  counter-increment: guided;
+}
+.guided-flow { counter-reset: guided; }
 .field-label { display: grid; gap: 6px; color: var(--muted); }
 .field-help { margin: 0; color: var(--muted); font-size: .78rem; }
 .field-with-action { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space); }
