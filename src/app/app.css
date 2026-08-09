@@ -474,6 +474,10 @@ select {
 .activity-card { border: 1px solid var(--border); border-radius: 8px; padding: var(--space); }
 .activity-card summary { cursor: pointer; }
 .activity-detail { overflow: auto; white-space: pre-wrap; color: var(--muted); }
+/* Phase 3 Task 9 (design 3.9): routine activity is de-emphasised and hidden by
+   default behind a reveal toggle, so the drawer stays quiet. */
+.activity-card.activity-noise { border-style: dashed; opacity: .72; }
+.activity-card.activity-noise summary { color: var(--muted); }
 .settings-shell {
   height: 100%;
   overflow: auto;
