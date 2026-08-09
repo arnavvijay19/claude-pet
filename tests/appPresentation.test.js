@@ -186,3 +186,14 @@ test('uses the approved responsive design tokens without decorative effects', ()
   assert.match(css, /@media\s*\(max-width:\s*899px\)/);
   assert.doesNotMatch(css, /gradient|backdrop-filter/i);
 });
+
+test('keeps the composer action beside its input at the 900px visual-QA width', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'app.css'), 'utf8');
+  assert.match(css, /\.composer\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*150px\s+minmax\(0,\s*1fr\)\s+auto;/);
+  assert.match(css, /@media\s*\(max-width:\s*899px\)[\s\S]*?\.composer\s*\{\s*grid-template-columns:\s*1fr;/);
+  assert.doesNotMatch(
+    css,
+    /@media\s*\(max-width:\s*1100px\)[\s\S]*?\.composer-actions\s*\{\s*grid-column:\s*1\s*\/\s*-1;/,
+    'the 900px viewport keeps the sidebar, so a stacked composer action clips below the 650px height',
+  );
+});
