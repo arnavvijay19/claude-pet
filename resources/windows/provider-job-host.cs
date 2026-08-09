@@ -20,6 +20,7 @@
 // intended to be compiled on Windows via the build script. Treat as unverified-compile until a
 // Windows build succeeds. The branch stays intentionally unmerged until then.
 
+using Microsoft.Win32.SafeHandles;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -36,7 +37,7 @@ namespace ClaudePet.Windows
     [Serializable]
     internal sealed class HelperException : Exception
     {
-        internal int ExitCode { get; }
+        internal int ExitCode { get; private set; }
 
         internal HelperException(int exitCode)
             : base("provider job host failure")
@@ -152,6 +153,17 @@ namespace ClaudePet.Windows
                 if (!dict.ContainsKey(key)) throw new HelperException(ExitInvalidProtocol);
             }
             return dict;
+        }
+
+        private sealed class LaunchSpec
+        {
+            internal string command;
+            internal List<string> args;
+            internal string cwd;
+            internal bool visible;
+            internal int ownerPid;
+            internal string ownerExecutable;
+            internal string commandLine;
         }
 
         private static LaunchSpec BuildLaunchSpec(Dictionary<string, object> envelope)
@@ -603,7 +615,7 @@ namespace ClaudePet.Windows
                 return value;
             }
 
-            private static char Peek() => index < source.Length ? source[index] : '\0';
+            private static char Peek() { return index < source.Length ? source[index] : '\0'; }
 
             private static void SkipWhitespace()
             {
@@ -760,7 +772,7 @@ namespace ClaudePet.Windows
 
         internal SafeJobHandle(IntPtr handle) : base(true) { this.handle = handle; }
 
-        protected override bool ReleaseHandle() => NativeMethods.CloseHandle(handle);
+        protected override bool ReleaseHandle() { return NativeMethods.CloseHandle(handle); }
     }
 
     [SuppressUnmanagedCodeSecurity]
@@ -770,7 +782,7 @@ namespace ClaudePet.Windows
 
         internal SafeProcessHandle(IntPtr handle) : base(true) { this.handle = handle; }
 
-        protected override bool ReleaseHandle() => NativeMethods.CloseHandle(handle);
+        protected override bool ReleaseHandle() { return NativeMethods.CloseHandle(handle); }
     }
 
     [SuppressUnmanagedCodeSecurity]
@@ -780,7 +792,7 @@ namespace ClaudePet.Windows
 
         internal SafeThreadHandle(IntPtr handle) : base(true) { this.handle = handle; }
 
-        protected override bool ReleaseHandle() => NativeMethods.CloseHandle(handle);
+        protected override bool ReleaseHandle() { return NativeMethods.CloseHandle(handle); }
     }
 
     [StructLayout(LayoutKind.Sequential)]
