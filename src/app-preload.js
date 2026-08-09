@@ -17,4 +17,17 @@ contextBridge.exposeInMainWorld('claudePetApp', Object.freeze({
     if (typeof targetPath !== 'string' || !targetPath) return Promise.resolve(false);
     return Promise.resolve(shell.openPath(targetPath)).then((error) => !error);
   },
+  // Phase 3 Task 8: export a session to a user-chosen local path. The renderer builds
+  // the Markdown + a suggested filename/workspace; the main process shows the save
+  // dialog and writes the file. No cloud / network / telemetry.
+  saveTextFile: (payload) => {
+    if (!payload || typeof payload !== 'object' || typeof payload.content !== 'string') {
+      return Promise.reject(new Error('Invalid save payload'));
+    }
+    return ipcRenderer.invoke('pet:save-text-file', {
+      content: payload.content,
+      filename: typeof payload.filename === 'string' ? payload.filename : null,
+      workspacePath: typeof payload.workspacePath === 'string' ? payload.workspacePath : null,
+    });
+  },
 }));
