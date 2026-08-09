@@ -543,3 +543,68 @@ select {
   .conversation-header { align-items: flex-start; flex-direction: column; }
   .header-badges { justify-content: flex-start; }
 }
+
+/* Command palette (Phase 3 Task 7 / design 3.7) */
+.command-palette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.45);
+}
+.command-palette-overlay[hidden] { display: none; }
+.command-palette {
+  width: min(640px, 92vw);
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.command-palette__input {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-raised);
+  color: var(--text);
+  font: inherit;
+  padding: calc(var(--space) * 1.5) calc(var(--space) * 2);
+  outline: none;
+}
+.command-palette__input:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+.command-palette__list {
+  list-style: none;
+  margin: 0;
+  padding: var(--space);
+  overflow-y: auto;
+}
+.command-palette__item {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space);
+  align-items: baseline;
+  padding: calc(var(--space) * 1) calc(var(--space) * 1.5);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.command-palette__item.is-selected {
+  background: var(--accent);
+  color: #1a1206;
+}
+.command-palette__item.is-selected .command-palette__item-detail { color: #3a2a12; }
+.command-palette__item-title { font-weight: 600; }
+.command-palette__item-detail { color: var(--muted); font-size: 0.9em; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.command-palette__empty { color: var(--muted); padding: var(--space); }
+.command-palette__status {
+  margin: 0;
+  padding: calc(var(--space) * 0.75) calc(var(--space) * 2);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.85em;
+}

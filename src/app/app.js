@@ -150,6 +150,82 @@
     }
   }
 
+  // Phase 3 Task 7: command palette (design 3.7). Ctrl+K opens a keyboard-first palette
+  // of actions (switch agent/session/connection, re-run with edits, open folder, copy diff,
+  // export session). The pure command derivation lives in commandPaletteModel.js; the live
+  // vanilla-DOM controller (commandPaletteController.js) renders it. The executor below
+  // interprets each command's `action` — dispatch intents go through `dispatch`, while the
+  // composer-seed / clipboard / download / folder actions are handled locally.
+  const commandPaletteModel = (typeof globalThis !== 'undefined' ? globalThis.claudePetCommandPaletteModel : null);
+  const commandPalette = (commandPaletteModel
+    && globalThis.claudePetCommandPalette
+    && typeof globalThis.claudePetCommandPalette.createCommandPalette === 'function')
+    ? globalThis.claudePetCommandPalette.createCommandPalette({ onExecute: executeCommand })
+    : null;
+
+  // Downloads the current session as a local Markdown run log (design 3.8). No cloud, no
+  // network, no telemetry — the markdown is produced by the shared model; this only saves it.
+  function downloadSessionMarkdown() {
+    if (!snapshot || typeof commandPaletteModel?.exportSessionMarkdown !== 'function') return;
+    const markdown = commandPaletteModel.exportSessionMarkdown(snapshot);
+    if (!markdown) return;
+    const title = (snapshot.session?.title || snapshot.selection?.sessionId || 'session')
+      .replace(/[^\w.-]+/g, '_');
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `${title}.md`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function executeCommand(command) {
+    if (!command || typeof command !== 'object') return;
+    const action = command.action || {};
+    switch (action.kind) {
+      case 'intent':
+        if (action.intent?.type) void dispatch(action.intent.type, action.intent.data || {});
+        break;
+      case 'reopen-goal':
+        if (draftState && snapshot?.session?.id && typeof action.text === 'string') {
+          draftState.setComposer(snapshot.session.id, action.text);
+          void dispatch('set-view', { view: 'conversation' });
+        }
+        break;
+      case 'open-folder':
+        if (action.path && typeof action.path === 'string') {
+          try { void window.claudePetApp?.openPath?.(action.path); } catch { /* best-effort */ }
+        }
+        break;
+      case 'copy-diff':
+        if (typeof action.text === 'string') {
+          try { void navigator.clipboard?.writeText?.(action.text); } catch { /* best-effort */ }
+        }
+        break;
+      case 'export-session':
+        downloadSessionMarkdown();
+        break;
+      default:
+        break;
+    }
+  }
+
+  // Ctrl+K opens / toggles the command palette. Guarded so environments without a DOM
+  // listener surface (e.g. the renderer VM test harness) are unaffected.
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('keydown', (event) => {
+      if ((event.ctrlKey || event.metaKey) && (event.key === 'k' || event.key === 'K')) {
+        if (commandPalette) {
+          event.preventDefault();
+          commandPalette.toggle(snapshot);
+        }
+      }
+    });
+  }
+
   function render(value) {
     snapshot = value;
     window.claudePetSidebar.renderSidebar(sidebarRoot, value, dispatch, {
