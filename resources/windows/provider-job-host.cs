@@ -70,6 +70,8 @@ namespace ClaudePet.Windows
 
         private static int Main(string[] args)
         {
+            // Fail closed in a 32-bit process: the AnyCPU image must run on the x64 CLR.
+            if (!Environment.Is64BitProcess) return ExitInvalidProtocol;
             if (args.Length == 1 && args[0] == "--protocol-version")
             {
                 Console.Out.WriteLine(ProtocolVersion);
@@ -77,8 +79,6 @@ namespace ClaudePet.Windows
             }
             // Any argument other than --protocol-version is invalid.
             if (args.Length != 0) return ExitInvalidProtocol;
-            // Fail closed in a 32-bit process: the AnyCPU image must run on the x64 CLR.
-            if (!Environment.Is64BitProcess) return ExitInvalidProtocol;
 
             try
             {
